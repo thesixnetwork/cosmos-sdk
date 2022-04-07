@@ -39,6 +39,7 @@ func NewTxCmd() *cobra.Command {
 	}
 
 	stakingTxCmd.AddCommand(
+		NewSetValidatorApprovalCmd(),
 		NewCreateValidatorCmd(),
 		NewEditValidatorCmd(),
 		NewDelegateCmd(),

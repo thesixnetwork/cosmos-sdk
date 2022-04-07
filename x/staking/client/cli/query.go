@@ -25,6 +25,7 @@ func GetQueryCmd() *cobra.Command {
 	}
 
 	stakingQueryCmd.AddCommand(
+		GetCmdQueryValidatorApproval(),
 		GetCmdQueryDelegation(),
 		GetCmdQueryDelegations(),
 		GetCmdQueryUnbondingDelegation(),
