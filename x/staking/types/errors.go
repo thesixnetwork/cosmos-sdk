@@ -51,4 +51,5 @@ var (
 	ErrEmptyValidatorPubKey            = sdkerrors.Register(ModuleName, 39, "empty validator public key")
 	ErrEmptyApproverAddr               = sdkerrors.Register(ModuleName, 40, "empty validator approver public key")
 	ErrEmptyNewApproverAddr            = sdkerrors.Register(ModuleName, 41, "empty new validator approver public key")
+	ErrNoValidatorApprovalFound        = sdkerrors.Register(ModuleName, 42, "validator approval does not exist")
 )
