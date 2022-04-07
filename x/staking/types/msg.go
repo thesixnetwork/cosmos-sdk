@@ -11,11 +11,12 @@ import (
 
 // staking message types
 const (
-	TypeMsgUndelegate      = "begin_unbonding"
-	TypeMsgEditValidator   = "edit_validator"
-	TypeMsgCreateValidator = "create_validator"
-	TypeMsgDelegate        = "delegate"
-	TypeMsgBeginRedelegate = "begin_redelegate"
+	TypeMsgSetValidatorApproval = "set_validator_approval"
+	TypeMsgUndelegate           = "begin_unbonding"
+	TypeMsgEditValidator        = "edit_validator"
+	TypeMsgCreateValidator      = "create_validator"
+	TypeMsgDelegate             = "delegate"
+	TypeMsgBeginRedelegate      = "begin_redelegate"
 )
 
 var (
@@ -60,6 +61,12 @@ func NewMsgCreateValidator(
 		MinSelfDelegation: minSelfDelegation,
 	}, nil
 }
+
+// Route implements the sdk.Msg interface.
+func (msg MsgSetValidatorApproval) Route() string { return RouterKey }
+
+// Type implements the sdk.Msg interface.
+func (msg MsgSetValidatorApproval) Type() string { return TypeMsgSetValidatorApproval }
 
 func (msg MsgSetValidatorApproval) GetSigners() []sdk.AccAddress {
 	// delegator is first signer so delegator pays fees
