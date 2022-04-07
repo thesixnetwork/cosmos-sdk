@@ -77,8 +77,8 @@ func (msg MsgCreateValidator) GetSigners() []sdk.AccAddress {
 		addrs = append(addrs, sdk.AccAddress(addr))
 	}
 
-	if msg.ApprovalAddress != "" {
-		approvalAddr, err := sdk.AccAddressFromBech32(msg.ApprovalAddress)
+	if msg.ApproverAddress != "" {
+		approvalAddr, err := sdk.AccAddressFromBech32(msg.ApproverAddress)
 		if err != nil {
 			panic(err)
 		}
