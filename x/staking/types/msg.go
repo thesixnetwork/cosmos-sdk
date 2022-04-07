@@ -19,6 +19,7 @@ const (
 )
 
 var (
+	_ sdk.Msg                            = &MsgSetValidatorApproval{}
 	_ sdk.Msg                            = &MsgCreateValidator{}
 	_ codectypes.UnpackInterfacesMessage = (*MsgCreateValidator)(nil)
 	_ sdk.Msg                            = &MsgCreateValidator{}
@@ -27,6 +28,14 @@ var (
 	_ sdk.Msg                            = &MsgUndelegate{}
 	_ sdk.Msg                            = &MsgBeginRedelegate{}
 )
+
+func NewMsgSetValidatorApproval(
+	approver string,
+	new_approver string,
+	enabled bool,
+) (*MsgSetValidatorApproval, error) {
+	return &MsgSetValidatorApproval{ApproverAddress: approver, NewApproverAddress: new_approver, Enabled: enabled}, nil
+}
 
 // NewMsgCreateValidator creates a new MsgCreateValidator instance.
 // Delegator address and validator address are the same.
@@ -50,6 +59,42 @@ func NewMsgCreateValidator(
 		Commission:        commission,
 		MinSelfDelegation: minSelfDelegation,
 	}, nil
+}
+
+func (msg MsgSetValidatorApproval) GetSigners() []sdk.AccAddress {
+	// delegator is first signer so delegator pays fees
+	approverAddress, err := sdk.AccAddressFromBech32(msg.ApproverAddress)
+	if err != nil {
+		panic(err)
+	}
+
+	return []sdk.AccAddress{approverAddress}
+}
+
+func (msg MsgSetValidatorApproval) GetSignBytes() []byte {
+	bz := ModuleCdc.MustMarshalJSON(&msg)
+	return sdk.MustSortJSON(bz)
+}
+
+func (msg MsgSetValidatorApproval) ValidateBasic() error {
+	// note that unmarshaling from bech32 ensures either empty or valid
+	approverAddress, err := sdk.AccAddressFromBech32(msg.ApproverAddress)
+	if err != nil {
+		return err
+	}
+	if approverAddress.Empty() {
+		return ErrEmptyApproverAddr
+	}
+
+	newApproverAddress, err := sdk.AccAddressFromBech32(msg.NewApproverAddress)
+	if err != nil {
+		return err
+	}
+	if newApproverAddress.Empty() {
+		return ErrEmptyApproverAddr
+	}
+
+	return nil
 }
 
 // Route implements the sdk.Msg interface.
