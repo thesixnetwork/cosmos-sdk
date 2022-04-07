@@ -49,6 +49,48 @@ func NewTxCmd() *cobra.Command {
 	return stakingTxCmd
 }
 
+func NewSetValidatorApprovalCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "set-validator-approval",
+		Short: "set new validator approval state",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+			approverAddr := clientCtx.GetFromAddress()
+			newApproverAddr, _ := cmd.Flags().GetString(FlagAddressNewApprover)
+			approvalEnabled, _ := cmd.Flags().GetInt8(FlagApprovalEnabled)
+
+			var approvalEnabledBool bool
+			if approvalEnabled == 0 {
+				approvalEnabledBool = false
+			} else if approvalEnabled == 1 {
+				approvalEnabledBool = true
+			} else {
+				return fmt.Errorf("invalid approval enabled value: %v, value must be 0 or 1", approvalEnabled)
+			}
+
+			msg, err := types.NewMsgSetValidatorApproval(approverAddr.String(), newApproverAddr, approvalEnabledBool)
+			if err != nil {
+				return fmt.Errorf("error create message: %v", err)
+			}
+
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+
+	cmd.Flags().AddFlagSet(FlagSetNewApprover())
+	cmd.Flags().AddFlagSet(FlagSetApprovalEnabled())
+	flags.AddTxFlagsToCmd(cmd)
+
+	_ = cmd.MarkFlagRequired(flags.FlagFrom)
+	_ = cmd.MarkFlagRequired(FlagAddressNewApprover)
+	_ = cmd.MarkFlagRequired(FlagApprovalEnabled)
+
+	return cmd
+}
+
 func NewCreateValidatorCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create-validator",

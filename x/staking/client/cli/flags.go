@@ -7,6 +7,9 @@ import (
 )
 
 const (
+	FlagAddressNewApprover = "new-approver"
+	FlagApprovalEnabled    = "approval-enbled"
+
 	FlagAddressValidator    = "validator"
 	FlagAddressValidatorSrc = "addr-validator-source"
 	FlagAddressValidatorDst = "addr-validator-dest"
@@ -45,6 +48,18 @@ func init() {
 	fsValidator.String(FlagAddressValidator, "", "The Bech32 address of the validator")
 	fsRedelegation.String(FlagAddressValidatorSrc, "", "The Bech32 address of the source validator")
 	fsRedelegation.String(FlagAddressValidatorDst, "", "The Bech32 address of the destination validator")
+}
+
+func FlagSetNewApprover() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.String(FlagAddressNewApprover, "", "New approver for create validator")
+	return fs
+}
+
+func FlagSetApprovalEnabled() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.String(FlagApprovalEnabled, "", "Enable approval for create validator")
+	return fs
 }
 
 // FlagSetCommissionCreate Returns the FlagSet used for commission create.

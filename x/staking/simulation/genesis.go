@@ -67,8 +67,9 @@ func RandomizedGenState(simState *module.SimulationState) {
 
 	// validators & delegations
 	var (
-		validators  []types.Validator
-		delegations []types.Delegation
+		validators        []types.Validator
+		delegations       []types.Delegation
+		validatorApproval types.ValidatorApproval
 	)
 
 	valAddrs := make([]sdk.ValAddress, simState.NumBonded)
@@ -98,7 +99,7 @@ func RandomizedGenState(simState *module.SimulationState) {
 		delegations = append(delegations, delegation)
 	}
 
-	stakingGenesis := types.NewGenesisState(params, validators, delegations)
+	stakingGenesis := types.NewGenesisState(params, validators, delegations, validatorApproval)
 
 	bz, err := json.MarshalIndent(&stakingGenesis.Params, "", " ")
 	if err != nil {
