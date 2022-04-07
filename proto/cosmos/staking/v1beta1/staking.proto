@@ -332,3 +332,8 @@ message Pool {
     (gogoproto.moretags)   = "yaml:\"bonded_tokens\""
   ];
 }
+
+message ValidatorApproval {
+  string approver_address  = 1 [(gogoproto.moretags) = "yaml:\"approver_address\""];
+  bool enabled = 2;
+}

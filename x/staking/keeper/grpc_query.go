@@ -20,6 +20,21 @@ type Querier struct {
 
 var _ types.QueryServer = Querier{}
 
+func (k Querier) ValidatorApproval(c context.Context, req *types.QueryValidatorApprovalRequest) (*types.QueryValidatorApprovalResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "empty request")
+	}
+
+	ctx := sdk.UnwrapSDKContext(c)
+
+	validatorApproval, found := k.GetValidatorApproval(ctx)
+	if !found {
+		return nil, status.Errorf(codes.NotFound, "Validator approval not found")
+	}
+
+	return &types.QueryValidatorApprovalResponse{ValidatorApproval: validatorApproval}, nil
+}
+
 // Validators queries all validators that match the given status
 func (k Querier) Validators(c context.Context, req *types.QueryValidatorsRequest) (*types.QueryValidatorsResponse, error) {
 	if req == nil {

@@ -26,6 +26,35 @@ func NewMsgServerImpl(keeper Keeper) types.MsgServer {
 
 var _ types.MsgServer = msgServer{}
 
+func (k msgServer) SetValidatorApproval(goCtx context.Context, msg *types.MsgSetValidatorApproval) (*types.MsgSetValidatorApprovalResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	validatorApproval, found := k.GetValidatorApproval(ctx)
+	if !found {
+		panic("Validator approval not found")
+	}
+
+	if validatorApproval.ApproverAddress != msg.ApproverAddress {
+		return nil, sdkerrors.Wrapf(sdkerrors.ErrUnauthorized, "Msg sender is not current approver")
+	}
+
+	var newApproverAddress string
+	if _, err := sdk.AccAddressFromBech32(msg.NewApproverAddress); err != nil {
+		newApproverAddress = msg.NewApproverAddress
+	} else {
+		return nil, sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "Invalid new approver address")
+	}
+
+	newValidatorApprovalState := types.ValidatorApproval{
+		ApproverAddress: newApproverAddress,
+		Enabled:         msg.Enabled,
+	}
+
+	k.SetNewValidatorApprovalState(ctx, newValidatorApprovalState)
+
+	return &types.MsgSetValidatorApprovalResponse{}, nil
+}
+
 // CreateValidator defines a method for creating a new validator
 func (k msgServer) CreateValidator(goCtx context.Context, msg *types.MsgCreateValidator) (*types.MsgCreateValidatorResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)

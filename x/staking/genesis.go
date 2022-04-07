@@ -153,6 +153,9 @@ func InitGenesis(
 		}
 	}
 
+	// Add genesis validator approval
+	keeper.SetNewValidatorApprovalState(ctx, data.ValidatorApproval)
+
 	return res
 }
 
