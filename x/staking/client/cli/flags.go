@@ -8,7 +8,7 @@ import (
 
 const (
 	FlagAddressNewApprover = "new-approver"
-	FlagApprovalEnabled    = "approval-enbled"
+	FlagApprovalEnabled    = "approval-enabled"
 
 	FlagAddressValidator    = "validator"
 	FlagAddressValidatorSrc = "addr-validator-source"
