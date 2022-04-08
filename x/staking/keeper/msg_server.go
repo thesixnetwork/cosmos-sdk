@@ -59,6 +59,15 @@ func (k msgServer) SetValidatorApproval(goCtx context.Context, msg *types.MsgSet
 func (k msgServer) CreateValidator(goCtx context.Context, msg *types.MsgCreateValidator) (*types.MsgCreateValidatorResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
+	approval, foundApproval := k.GetValidatorApproval(ctx)
+	if !foundApproval {
+		return nil, sdkerrors.Wrapf(sdkerrors.ErrNotFound, "Validator approval is somehow does not existed")
+	}
+
+	if approval.Enabled && msg.ApproverAddress != approval.ApproverAddress {
+		return nil, sdkerrors.Wrapf(sdkerrors.ErrUnauthorized, "Wrong approver for create validator")
+	}
+
 	valAddr, err := sdk.ValAddressFromBech32(msg.ValidatorAddress)
 	if err != nil {
 		return nil, err
