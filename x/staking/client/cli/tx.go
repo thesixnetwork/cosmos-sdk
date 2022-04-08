@@ -61,18 +61,18 @@ func NewSetValidatorApprovalCmd() *cobra.Command {
 			}
 			approverAddr := clientCtx.GetFromAddress()
 			newApproverAddr, _ := cmd.Flags().GetString(FlagAddressNewApprover)
-			approvalEnabled, _ := cmd.Flags().GetInt8(FlagApprovalEnabled)
+			approvalEnabled, _ := cmd.Flags().GetBool(FlagApprovalEnabled)
 
-			var approvalEnabledBool bool
-			if approvalEnabled == 0 {
-				approvalEnabledBool = false
-			} else if approvalEnabled == 1 {
-				approvalEnabledBool = true
-			} else {
-				return fmt.Errorf("invalid approval enabled value: %v, value must be 0 or 1", approvalEnabled)
-			}
+			// var approvalEnabledBool bool
+			// if approvalEnabled == 0 {
+			// 	approvalEnabledBool = false
+			// } else if approvalEnabled == 1 {
+			// 	approvalEnabledBool = true
+			// } else {
+			// 	return fmt.Errorf("invalid approval enabled value: %v, value must be 0 or 1", approvalEnabled)
+			// }
 
-			msg, err := types.NewMsgSetValidatorApproval(approverAddr.String(), newApproverAddr, approvalEnabledBool)
+			msg, err := types.NewMsgSetValidatorApproval(approverAddr.String(), newApproverAddr, approvalEnabled)
 			if err != nil {
 				return fmt.Errorf("error create message: %v", err)
 			}
