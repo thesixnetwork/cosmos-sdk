@@ -65,7 +65,7 @@ func FlagSetNewApprover() *flag.FlagSet {
 
 func FlagSetApprovalEnabled() *flag.FlagSet {
 	fs := flag.NewFlagSet("", flag.ContinueOnError)
-	fs.Uint8(FlagApprovalEnabled, 1, "Enable approval for create validator")
+	fs.Bool(FlagApprovalEnabled, true, "Enable approval for create validator")
 	return fs
 }
 
