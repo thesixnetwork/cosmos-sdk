@@ -7,6 +7,7 @@ import (
 )
 
 const (
+	FlagAddressApprover    = "approver"
 	FlagAddressNewApprover = "new-approver"
 	FlagApprovalEnabled    = "approval-enabled"
 
@@ -50,6 +51,12 @@ func init() {
 	fsRedelegation.String(FlagAddressValidatorDst, "", "The Bech32 address of the destination validator")
 }
 
+func FlagSetApprover() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.String(FlagAddressApprover, "", "Approver for create validator")
+	return fs
+}
+
 func FlagSetNewApprover() *flag.FlagSet {
 	fs := flag.NewFlagSet("", flag.ContinueOnError)
 	fs.String(FlagAddressNewApprover, "", "New approver for create validator")
@@ -58,7 +65,7 @@ func FlagSetNewApprover() *flag.FlagSet {
 
 func FlagSetApprovalEnabled() *flag.FlagSet {
 	fs := flag.NewFlagSet("", flag.ContinueOnError)
-	fs.String(FlagApprovalEnabled, "", "Enable approval for create validator")
+	fs.Uint8(FlagApprovalEnabled, 1, "Enable approval for create validator")
 	return fs
 }
 
