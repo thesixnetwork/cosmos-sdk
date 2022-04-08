@@ -39,7 +39,7 @@ func (k msgServer) SetValidatorApproval(goCtx context.Context, msg *types.MsgSet
 	}
 
 	var newApproverAddress string
-	if _, err := sdk.AccAddressFromBech32(msg.NewApproverAddress); err != nil {
+	if _, err := sdk.AccAddressFromBech32(msg.NewApproverAddress); err == nil {
 		newApproverAddress = msg.NewApproverAddress
 	} else {
 		return nil, sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "Invalid new approver address")
