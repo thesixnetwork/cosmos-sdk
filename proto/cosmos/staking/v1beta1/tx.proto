@@ -54,11 +54,27 @@ message MsgCreateValidator {
     (gogoproto.moretags)   = "yaml:\"min_self_delegation\"",
     (gogoproto.nullable)   = false
   ];
-  string                   delegator_address = 4 [(gogoproto.moretags) = "yaml:\"delegator_address\""];
-  string                   validator_address = 5 [(gogoproto.moretags) = "yaml:\"validator_address\""];
-  string                   approver_address  = 6 [(gogoproto.moretags) = "yaml:\"approver_address\""];
-  google.protobuf.Any      pubkey            = 7 [(cosmos_proto.accepts_interface) = "cosmos.crypto.PubKey"];
-  cosmos.base.v1beta1.Coin value             = 8 [(gogoproto.nullable) = false];
+  string          min_delegation = 4 [
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
+    (gogoproto.moretags)   = "yaml:\"min_delegation\"",
+    (gogoproto.nullable)   = false
+  ];
+  string          delegation_increment = 5 [
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
+    (gogoproto.moretags)   = "yaml:\"delegation_increment\"",
+    (gogoproto.nullable)   = false
+  ];
+  string          max_delegator = 6 [
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
+    (gogoproto.moretags)   = "yaml:\"max_delegator\"",
+    (gogoproto.nullable)   = false
+  ];
+  bool            enable_redelegation = 7 [(gogoproto.moretags) = "yaml:\"enable_redelegation\""];
+  string                   delegator_address = 8 [(gogoproto.moretags) = "yaml:\"delegator_address\""];
+  string                   validator_address = 9 [(gogoproto.moretags) = "yaml:\"validator_address\""];
+  string                   approver_address  = 10 [(gogoproto.moretags) = "yaml:\"approver_address\""];
+  google.protobuf.Any      pubkey            = 11 [(cosmos_proto.accepts_interface) = "cosmos.crypto.PubKey"];
+  cosmos.base.v1beta1.Coin value             = 12 [(gogoproto.nullable) = false];
 }
 
 // MsgCreateValidatorResponse defines the Msg/CreateValidator response type.
@@ -83,6 +99,11 @@ message MsgEditValidator {
   string min_self_delegation = 4 [
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
     (gogoproto.moretags)   = "yaml:\"min_self_delegation\""
+  ];
+  string          max_delegator = 5 [
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
+    (gogoproto.moretags)   = "yaml:\"max_delegator\"",
+    (gogoproto.nullable)   = false
   ];
 }
 

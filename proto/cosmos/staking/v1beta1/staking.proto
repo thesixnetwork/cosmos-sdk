@@ -117,6 +117,22 @@ message Validator {
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
     (gogoproto.nullable)   = false
   ];
+  string          min_delegation = 12 [
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
+    (gogoproto.moretags)   = "yaml:\"min_delegation\"",
+    (gogoproto.nullable)   = false
+  ];
+  string          delegation_increment = 13 [
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
+    (gogoproto.moretags)   = "yaml:\"delegation_increment\"",
+    (gogoproto.nullable)   = false
+  ];
+  string          max_delegator = 14 [
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
+    (gogoproto.moretags)   = "yaml:\"max_delegator\"",
+    (gogoproto.nullable)   = false
+  ];
+  bool            enable_redelegation = 15 [(gogoproto.moretags) = "yaml:\"enable_redelegation\""];
 }
 
 // BondStatus is the status of a validator.
