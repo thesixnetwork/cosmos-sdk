@@ -408,12 +408,10 @@ func (k msgServer) BeginRedelegate(goCtx context.Context, msg *types.MsgBeginRed
 			return nil, types.ErrDelegationBelowMinimum
 		}
 	}
-	delegateLicenseCount := sdk.ZeroInt()
 	// Deduct minimum from value to validate increment
 	amountToValidateIncrement := sdk.NewIntFromBigInt(msg.Amount.Amount.BigInt())
 	if !sourceVal.MinDelegation.IsNil() && !existsSourceDelegation {
 		amountToValidateIncrement = amountToValidateIncrement.Sub(sourceVal.MinDelegation)
-		delegateLicenseCount = delegateLicenseCount.Add(sdk.OneInt())
 	}
 
 	increment := sdk.OneInt()
@@ -427,14 +425,6 @@ func (k msgServer) BeginRedelegate(goCtx context.Context, msg *types.MsgBeginRed
 		if modAmount.GT(sdk.ZeroInt()) {
 			return nil, types.ErrInvalidIncrementDelegation
 		}
-		delegateLicenseCount = delegateLicenseCount.Add(modAmount)
-	}
-	// Validate License
-	if sourceVal.LicenseMode {
-		// decrease license count in validator
-		sourceVal.LicenseCount = delegateLicenseCount.Sub(sourceVal.LicenseCount)
-		// Update Validator
-		k.Keeper.SetValidator(ctx, sourceVal)
 	}
 
 	// Validate destination
@@ -444,12 +434,10 @@ func (k msgServer) BeginRedelegate(goCtx context.Context, msg *types.MsgBeginRed
 	if !destVal.MinDelegation.IsNil() && !existsDestinationDelegation && msg.Amount.Amount.LT(destVal.MinDelegation) {
 		return nil, types.ErrDelegationBelowMinimum
 	}
-	delegateLicenseCount = sdk.ZeroInt()
 	// Deduct minimum from value to validate increment
 	amountToValidateIncrement = sdk.NewIntFromBigInt(msg.Amount.Amount.BigInt())
 	if !destVal.MinDelegation.IsNil() && !existsDestinationDelegation {
 		amountToValidateIncrement = amountToValidateIncrement.Sub(destVal.MinDelegation)
-		delegateLicenseCount = delegateLicenseCount.Add(sdk.OneInt())
 	}
 	// Validate DelegationIncrement
 	increment = sdk.OneInt()
@@ -461,22 +449,6 @@ func (k msgServer) BeginRedelegate(goCtx context.Context, msg *types.MsgBeginRed
 		if modAmount.GT(sdk.ZeroInt()) {
 			return nil, types.ErrInvalidIncrementDelegation
 		}
-		delegateLicenseCount = delegateLicenseCount.Add(modAmount)
-	}
-	// Validate License
-	if destVal.LicenseMode {
-		// Validate current license count with MaxLicense
-		if destVal.LicenseCount.GTE(destVal.MaxLicense) {
-			return nil, types.ErrLicenseLimit
-		}
-		// Validate delegatio with license count and max license
-		if delegateLicenseCount.Add(destVal.LicenseCount).GT(destVal.MaxLicense) {
-			return nil, types.ErrNotEnoughLicense
-		}
-		// increase license count in validator
-		destVal.LicenseCount = delegateLicenseCount.Add(destVal.LicenseCount)
-		// Update Validator
-		k.Keeper.SetValidator(ctx, destVal)
 	}
 
 	completionTime, err := k.BeginRedelegation(
