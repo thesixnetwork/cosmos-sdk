@@ -119,6 +119,10 @@ func NewCreateValidatorCmd() *cobra.Command {
 	cmd.Flags().AddFlagSet(FlagSetCommissionCreate())
 	cmd.Flags().AddFlagSet(FlagSetMinSelfDelegation())
 	cmd.Flags().AddFlagSet(FlagSetApprover())
+	cmd.Flags().AddFlagSet(FlagMinDelegationCreate())
+	cmd.Flags().AddFlagSet(FlagDelegationIncrementCreate())
+	cmd.Flags().AddFlagSet(FlagLicenseModeCreate())
+	cmd.Flags().AddFlagSet(FlagEnableRedelegationCreate())
 
 	cmd.Flags().String(FlagIP, "", fmt.Sprintf("The node's public IP. It takes effect only when used in combination with --%s", flags.FlagGenerateOnly))
 	cmd.Flags().String(FlagNodeID, "", "The node's ID")
@@ -377,6 +381,51 @@ func newBuildCreateValidatorMsg(clientCtx client.Context, txf tx.Factory, fs *fl
 	if err != nil {
 		return txf, nil, err
 	}
+
+	// Custom Validator
+	// Min delegation
+	mdStr, _ := fs.GetString(FlagMinDelegation)
+	if mdStr != "" {
+		minDelegation, ok := sdk.NewIntFromString(mdStr)
+		if !ok {
+			return txf, nil, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "minimum delegation must be a positive integer")
+		}
+		msg.MinDelegation = minDelegation
+	}
+	// delegation increment
+	dincStr, _ := fs.GetString(FlagDelegationIncrement)
+	if dincStr != "" {
+		delegationIncrement, ok := sdk.NewIntFromString(dincStr)
+		if !ok {
+			return txf, nil, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "delegation increment must be a positive integer")
+		}
+		msg.DelegationIncrement = delegationIncrement
+		if mdStr == "" {
+			// if min delegation is not defined and increment is. Assign min delegation = increment
+			msg.MinDelegation = delegationIncrement
+		}
+	}
+
+	enableRedelegation, _ := fs.GetBool(FlagEnableRedelegation)
+
+	// License
+	licenseMode, _ := fs.GetBool(FlagLicenseMode)
+	if licenseMode {
+		msg.LicenseMode = true
+		mlcStr, _ := fs.GetString(FlagMaxLicense)
+		maxLicense, ok := sdk.NewIntFromString(mlcStr)
+		if !ok {
+			return txf, nil, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "When license mode is used, max license is required and must be positive")
+		}
+		msg.MaxLicense = maxLicense
+
+		if enableRedelegation {
+			return txf, nil, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "When license mode is used, redelegation must be disabled")
+		}
+	}
+	// Enable Redelegation
+	msg.EnableRedelegation = enableRedelegation
+
 	if err := msg.ValidateBasic(); err != nil {
 		return txf, nil, err
 	}

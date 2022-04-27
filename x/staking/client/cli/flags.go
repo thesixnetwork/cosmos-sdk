@@ -34,6 +34,13 @@ const (
 	FlagGenesisFormat = "genesis-format"
 	FlagNodeID        = "node-id"
 	FlagIP            = "ip"
+
+	// Flag for custom validator
+	FlagMinDelegation       = "min-delegation"
+	FlagDelegationIncrement = "delegation-increment"
+	FlagLicenseMode         = "license-mode"
+	FlagMaxLicense          = "max-license"
+	FlagEnableRedelegation  = "enable-redelegation"
 )
 
 // common flagsets to add to various functions
@@ -66,6 +73,38 @@ func FlagSetNewApprover() *flag.FlagSet {
 func FlagSetApprovalEnabled() *flag.FlagSet {
 	fs := flag.NewFlagSet("", flag.ContinueOnError)
 	fs.Bool(FlagApprovalEnabled, true, "Enable approval for create validator")
+	return fs
+}
+
+// FlagMinDelegation       = "min-delegation"
+func FlagMinDelegationCreate() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.String(FlagMinDelegation, "", "The minimum delegation")
+	return fs
+}
+
+// FlagDelegationIncrement = "delegation-increment"
+func FlagDelegationIncrementCreate() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.String(FlagDelegationIncrement, "", "The delegation imcrement")
+	return fs
+}
+
+// FlagLicenseMode         = "license-mode"
+// FlagMaxLicense          = "max-license"
+func FlagLicenseModeCreate() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.Bool(FlagLicenseMode, false, "License mode or not")
+	fs.String(FlagMaxLicense, "", "The maximum license when license mode is on")
+
+	return fs
+}
+
+// FlagEnableRedelegation  = "enable-redelegation"
+func FlagEnableRedelegationCreate() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.Bool(FlagEnableRedelegation, true, "To enable redelegation for this validator (default true)")
+
 	return fs
 }
 

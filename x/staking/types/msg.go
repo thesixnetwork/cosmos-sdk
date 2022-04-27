@@ -198,6 +198,42 @@ func (msg MsgCreateValidator) ValidateBasic() error {
 		)
 	}
 
+	if !msg.MinDelegation.IsNil() && !msg.MinDelegation.IsPositive() {
+		return sdkerrors.Wrap(
+			sdkerrors.ErrInvalidRequest,
+			"minimum delegation must be a positive integer",
+		)
+	}
+
+	if !msg.DelegationIncrement.IsNil() && !msg.DelegationIncrement.IsPositive() {
+		return sdkerrors.Wrap(
+			sdkerrors.ErrInvalidRequest,
+			"delegation increment must be a positive integer",
+		)
+	}
+
+	if msg.LicenseMode {
+		if msg.MaxLicense.IsNil() {
+			return sdkerrors.Wrap(
+				sdkerrors.ErrInvalidRequest,
+				"max license is required when license mode is used",
+			)
+		}
+		if !msg.MaxLicense.IsNil() && !msg.MaxLicense.IsPositive() {
+			return sdkerrors.Wrap(
+				sdkerrors.ErrInvalidRequest,
+				"max license must be a positive integer",
+			)
+		}
+
+		if msg.EnableRedelegation {
+			return sdkerrors.Wrap(
+				sdkerrors.ErrInvalidRequest,
+				"When license mode is used, redelegation must be disabled",
+			)
+		}
+	}
+
 	if msg.Value.Amount.LT(msg.MinSelfDelegation) {
 		return ErrSelfDelegationBelowMinimum
 	}
