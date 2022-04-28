@@ -103,7 +103,8 @@ message MsgEditValidator {
   ];
   string          max_license = 5 [
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
-    (gogoproto.moretags)   = "yaml:\"max_license\""
+    (gogoproto.moretags)   = "yaml:\"max_license\"",
+    (gogoproto.nullable)   = false
   ];
 }
 
