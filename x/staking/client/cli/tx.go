@@ -511,7 +511,6 @@ type TxCreateValidatorConfig struct {
 
 func PrepareConfigForTxCreateValidator(flagSet *flag.FlagSet, moniker, nodeID, chainID string, valPubKey cryptotypes.PubKey) (TxCreateValidatorConfig, error) {
 	c := TxCreateValidatorConfig{}
-	fmt.Println("========================= ", "PrepareConfigForTxCreateValidator")
 	ip, err := flagSet.GetString(FlagIP)
 	if err != nil {
 		return c, err
