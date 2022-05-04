@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -146,7 +147,7 @@ func (k msgServer) CreateValidator(goCtx context.Context, msg *types.MsgCreateVa
 		validator.LicenseMode = true
 		if validator.MaxLicense = msg.MaxLicense; msg.MaxLicense.IsNil() {
 			return nil, types.ErrMaxLicenseMustBeDefined
-		}
+		} // bug is nill genersis
 		validator.LicenseCount = sdk.NewInt(0)
 		// Force disable redelegation when
 		validator.EnableRedelegation = false
@@ -301,12 +302,14 @@ func (k msgServer) Delegate(goCtx context.Context, msg *types.MsgDelegate) (*typ
 	if !validator.DelegationIncrement.IsNil() {
 		increment = validator.DelegationIncrement
 	}
+	// TODO: recheck div amount or mod
 	if amountToValidateIncrement.GT(sdk.ZeroInt()) {
+		divAmount := amountToValidateIncrement.Quo(increment) // TODO: recheck
 		modAmount := amountToValidateIncrement.Mod(increment)
 		if modAmount.GT(sdk.ZeroInt()) {
 			return nil, types.ErrInvalidIncrementDelegation
 		}
-		delegateLicenseCount = delegateLicenseCount.Add(modAmount)
+		delegateLicenseCount = delegateLicenseCount.Add(divAmount)
 	}
 	// Validate License
 	if validator.LicenseMode {
@@ -365,6 +368,10 @@ func (k msgServer) BeginRedelegate(goCtx context.Context, msg *types.MsgBeginRed
 	if err != nil {
 		return nil, err
 	}
+	valDestAddr, err := sdk.ValAddressFromBech32(msg.ValidatorDstAddress)
+	if err != nil {
+		return nil, err
+	}
 	delegatorAddress, err := sdk.AccAddressFromBech32(msg.DelegatorAddress)
 	if err != nil {
 		return nil, err
@@ -390,15 +397,15 @@ func (k msgServer) BeginRedelegate(goCtx context.Context, msg *types.MsgBeginRed
 
 	// Validate source validator
 	// Get Validator
-	sourceVal, sourceValFound := k.GetValidator(ctx, valSrcAddr)
+	sourceVal, sourceValFound := k.GetValidator(ctx, valSrcAddr) // TODO: to check
 	if !sourceValFound {
 		return nil, types.ErrNoValidatorFound
 	}
-	destVal, destValFound := k.GetValidator(ctx, valSrcAddr)
+	destVal, destValFound := k.GetValidator(ctx, valDestAddr) // TODO: to check
 	if !destValFound {
 		return nil, types.ErrNoValidatorFound
 	}
-
+	fmt.Println("1#1e19 sourceVal EnableRedelegation: ", sourceVal.EnableRedelegation, "destVal.EnableRedelegation: ", destVal.EnableRedelegation)
 	if !sourceVal.EnableRedelegation || !destVal.EnableRedelegation {
 		return nil, types.ErrRedelegationDisable
 	}
@@ -548,11 +555,12 @@ func (k msgServer) Undelegate(goCtx context.Context, msg *types.MsgUndelegate) (
 	// Validate DelegationIncrement
 	if amountToValidateIncrement.GT(sdk.ZeroInt()) {
 		// not remove
+		divAmount := amountToValidateIncrement.Quo(increment)
 		modAmount := amountToValidateIncrement.Mod(increment)
 		if modAmount.GT(sdk.ZeroInt()) {
 			return nil, types.ErrInvalidIncrementDelegation
 		}
-		delegateLicenseCount = delegateLicenseCount.Add(modAmount)
+		delegateLicenseCount = delegateLicenseCount.Add(divAmount)
 	}
 	// Validate License
 	if validator.LicenseMode {
