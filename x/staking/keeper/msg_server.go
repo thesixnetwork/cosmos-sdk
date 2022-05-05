@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -405,7 +404,6 @@ func (k msgServer) BeginRedelegate(goCtx context.Context, msg *types.MsgBeginRed
 	if !destValFound {
 		return nil, types.ErrNoValidatorFound
 	}
-	fmt.Println("1#1e19 sourceVal EnableRedelegation: ", sourceVal.EnableRedelegation, "destVal.EnableRedelegation: ", destVal.EnableRedelegation)
 	if !sourceVal.EnableRedelegation || !destVal.EnableRedelegation {
 		return nil, types.ErrRedelegationDisable
 	}
@@ -565,7 +563,7 @@ func (k msgServer) Undelegate(goCtx context.Context, msg *types.MsgUndelegate) (
 	// Validate License
 	if validator.LicenseMode {
 		// decrease license count in validator
-		validator.LicenseCount = delegateLicenseCount.Sub(validator.LicenseCount)
+		validator.LicenseCount = validator.LicenseCount.Sub(delegateLicenseCount)
 		// Update Validator
 		k.Keeper.SetValidator(ctx, validator)
 	}
