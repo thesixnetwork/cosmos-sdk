@@ -424,6 +424,15 @@ func newBuildCreateValidatorMsg(clientCtx client.Context, txf tx.Factory, fs *fl
 		if enableRedelegation {
 			return txf, nil, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "When license mode is used, redelegation must be disabled")
 		}
+		// check Count licesene amount for validator
+		divAmount := amount.Amount.Quo(msg.DelegationIncrement)
+		modAmount := msg.Value.Amount.Mod(msg.DelegationIncrement)
+		if modAmount.GT(sdk.ZeroInt()) {
+			return txf, nil, types.ErrInvalidIncrementDelegation
+		}
+		if divAmount.GT(msg.MaxLicense) {
+			return txf, nil, types.ErrNotEnoughLicense
+		}
 	}
 	// Enable Redelegation
 	msg.EnableRedelegation = enableRedelegation

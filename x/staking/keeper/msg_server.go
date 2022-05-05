@@ -147,7 +147,17 @@ func (k msgServer) CreateValidator(goCtx context.Context, msg *types.MsgCreateVa
 		if validator.MaxLicense = msg.MaxLicense; msg.MaxLicense.IsNil() {
 			return nil, types.ErrMaxLicenseMustBeDefined
 		} // bug is nill genersis
-		validator.LicenseCount = sdk.NewInt(0)
+
+		// Count licesene amount for validator
+		divAmount := msg.Value.Amount.Quo(validator.DelegationIncrement)
+		modAmount := msg.Value.Amount.Mod(validator.DelegationIncrement)
+		if modAmount.GT(sdk.ZeroInt()) {
+			return nil, types.ErrInvalidIncrementDelegation
+		}
+		if divAmount.GT(validator.MaxLicense) {
+			return nil, types.ErrNotEnoughLicense
+		}
+		validator.LicenseCount = divAmount
 		// Force disable redelegation when
 		validator.EnableRedelegation = false
 
