@@ -153,6 +153,7 @@ func NewEditValidatorCmd() *cobra.Command {
 			website, _ := cmd.Flags().GetString(FlagWebsite)
 			security, _ := cmd.Flags().GetString(FlagSecurityContact)
 			details, _ := cmd.Flags().GetString(FlagDetails)
+			maxLicense, _ := cmd.Flags().GetString(FlagMaxLicense)
 			description := types.NewDescription(moniker, identity, website, security, details)
 
 			var newRate *sdk.Dec
@@ -179,8 +180,18 @@ func NewEditValidatorCmd() *cobra.Command {
 				newMinSelfDelegation = &msb
 			}
 
-			msg := types.NewMsgEditValidator(sdk.ValAddress(valAddr), description, newRate, newMinSelfDelegation)
+			var newMaxLicense sdk.Int
+			if maxLicense != "" {
 
+				msb, ok := sdk.NewIntFromString(maxLicense)
+				if !ok {
+					return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "When license mode is used, max license is required and must be positive")
+				}
+				newMaxLicense = msb
+			}
+
+			msg := types.NewMsgEditValidator(sdk.ValAddress(valAddr), description, newRate, newMinSelfDelegation)
+			msg.MaxLicense = newMaxLicense
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
@@ -188,6 +199,7 @@ func NewEditValidatorCmd() *cobra.Command {
 	cmd.Flags().AddFlagSet(flagSetDescriptionEdit())
 	cmd.Flags().AddFlagSet(flagSetCommissionUpdate())
 	cmd.Flags().AddFlagSet(FlagSetMinSelfDelegation())
+	cmd.Flags().AddFlagSet(FlagMaxLicenseEdit())
 	flags.AddTxFlagsToCmd(cmd)
 
 	return cmd
@@ -631,7 +643,6 @@ func PrepareConfigForTxCreateValidator(flagSet *flag.FlagSet, moniker, nodeID, c
 		return c, err
 	}
 
-	fmt.Println("c.MinDelegation ", c.MinDelegation)
 	return c, nil
 }
 

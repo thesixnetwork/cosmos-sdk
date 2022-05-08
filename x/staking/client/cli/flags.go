@@ -99,6 +99,12 @@ func FlagLicenseModeCreate() *flag.FlagSet {
 
 	return fs
 }
+func FlagMaxLicenseEdit() *flag.FlagSet {
+
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.String(FlagMaxLicense, "", "The max license should set to current or gather current")
+	return fs
+}
 
 // FlagEnableRedelegation  = "enable-redelegation"
 func FlagEnableRedelegationCreate() *flag.FlagSet {
