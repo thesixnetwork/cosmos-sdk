@@ -53,7 +53,7 @@ var (
 	ErrEmptyNewApproverAddr            = sdkerrors.Register(ModuleName, 41, "empty new validator approver public key")
 	ErrNoValidatorApprovalFound        = sdkerrors.Register(ModuleName, 42, "validator approval does not exist")
 	ErrMaxLicenseMustBeDefined         = sdkerrors.Register(ModuleName, 43, "when on license mode, max_license must be defined")
-	ErrMaxLicenseMustBeGeater          = sdkerrors.Register(ModuleName, 44, "max validator must be greater than or equal to the existing one")
+	ErrMaxLicenseMustBeGeater          = sdkerrors.Register(ModuleName, 44, "max license must be greater than or equal to the existing one")
 	ErrLicenseIncrement                = sdkerrors.Register(ModuleName, 45, "In license mode, Min Delegation and DelegationIncrement must be defined and the same")
 	ErrDelegationBelowMinimum          = sdkerrors.Register(ModuleName, 46, "delegation amount less than minimum")
 	ErrInvalidIncrementDelegation      = sdkerrors.Register(ModuleName, 47, "delegation amount must meet increment condition, 100,200,300,..")
