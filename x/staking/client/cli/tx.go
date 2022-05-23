@@ -591,6 +591,16 @@ func PrepareConfigForTxCreateValidator(flagSet *flag.FlagSet, moniker, nodeID, c
 		return c, err
 	}
 
+	c.MinDelegation, err = flagSet.GetString(FlagMinDelegation)
+	if err != nil {
+		return c, err
+	}
+
+	c.DelegationIncrement, err = flagSet.GetString(FlagDelegationIncrement)
+	if err != nil {
+		return c, err
+	}
+
 	c.NodeID = nodeID
 	c.PubKey = valPubKey
 	c.Website = website
