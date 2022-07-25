@@ -35,9 +35,9 @@ done
 # go mod tidy
 
 # generate codec/testdata proto code
-protoc -I "proto" -I "third_party/proto" -I "testutil/testdata" --gocosmos_out=plugins=interfacetype+grpc,\
+protoc -I "proto" -I "third_party/proto" -I "testutil/testdata" --js_out=/tmp/js --gocosmos_out=plugins=interfacetype+grpc,\
 Mgoogle/protobuf/any.proto=github.com/cosmos/cosmos-sdk/codec/types:. ./testutil/testdata/*.proto
 
 # move proto files to the right places
-cp -r github.com/cosmos/cosmos-sdk/* ./
-rm -rf github.com
+# cp -r github.com/cosmos/cosmos-sdk/* ./
+# rm -rf github.com
