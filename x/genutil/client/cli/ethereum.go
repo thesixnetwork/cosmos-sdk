@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 )
@@ -114,26 +115,26 @@ func has0xPrefix(str string) bool {
 }
 
 
-// type MsgSetOrchestratorAddress struct {
-// 	Validator    string `protobuf:"bytes,1,opt,name=validator,proto3" json:"validator,omitempty"`
-// 	Orchestrator string `protobuf:"bytes,2,opt,name=orchestrator,proto3" json:"orchestrator,omitempty"`
-// 	EthAddress   string `protobuf:"bytes,3,opt,name=eth_address,json=ethAddress,proto3" json:"eth_address,omitempty"`
-// }
+type MsgSetOrchestratorAddress struct {
+	Validator    string `protobuf:"bytes,1,opt,name=validator,proto3" json:"validator,omitempty"`
+	Orchestrator string `protobuf:"bytes,2,opt,name=orchestrator,proto3" json:"orchestrator,omitempty"`
+	EthAddress   string `protobuf:"bytes,3,opt,name=eth_address,json=ethAddress,proto3" json:"eth_address,omitempty"`
+}
 
-// // NewMsgSetOrchestratorAddress returns a new msgSetOrchestratorAddress
-// func NewMsgSetOrchestratorAddress(val sdk.ValAddress, oper sdk.AccAddress, eth EthAddress) *MsgSetOrchestratorAddress {
-// 	return &MsgSetOrchestratorAddress{
-// 		Validator:    val.String(),
-// 		Orchestrator: oper.String(),
-// 		EthAddress:   eth.GetAddress().Hex(),
-// 	}
-// }
+// NewMsgSetOrchestratorAddress returns a new msgSetOrchestratorAddress
+func NewMsgSetOrchestratorAddress(val sdk.ValAddress, oper sdk.AccAddress, eth EthAddress) *MsgSetOrchestratorAddress {
+	return &MsgSetOrchestratorAddress{
+		Validator:    val.String(),
+		Orchestrator: oper.String(),
+		EthAddress:   eth.GetAddress().Hex(),
+	}
+}
 
-// // GetSigners defines whose signature is required
-// func (msg *MsgSetOrchestratorAddress) GetSigners() []sdk.AccAddress {
-// 	acc, err := sdk.ValAddressFromBech32(msg.Validator)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	return []sdk.AccAddress{sdk.AccAddress(acc)}
-// }
+// GetSigners defines whose signature is required
+func (msg *MsgSetOrchestratorAddress) GetSigners() []sdk.AccAddress {
+	acc, err := sdk.ValAddressFromBech32(msg.Validator)
+	if err != nil {
+		panic(err)
+	}
+	return []sdk.AccAddress{sdk.AccAddress(acc)}
+}
