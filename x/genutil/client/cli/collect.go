@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 
 	"github.com/pkg/errors"
@@ -29,7 +30,15 @@ func CollectGenTxsCmd(genBalIterator types.GenesisBalancesIterator, defaultNodeH
 			clientCtx := client.GetClientContextFromCmd(cmd)
 			cdc := clientCtx.Codec
 
-			config.SetRoot(clientCtx.HomeDir)
+			homeFlag, errHomeFlag := cmd.Flags().GetString(flags.FlagHome)
+			if errHomeFlag != nil {
+				fmt.Printf("Homeflag has an error")
+			}
+			if len(homeFlag) > 0 {
+				config = config.SetRoot(homeFlag)
+			} else {
+				config = config.SetRoot(clientCtx.HomeDir)
+			}
 
 			nodeID, valPubKey, err := genutil.InitializeNodeValidatorFiles(config)
 			if err != nil {
@@ -41,7 +50,10 @@ func CollectGenTxsCmd(genBalIterator types.GenesisBalancesIterator, defaultNodeH
 				return errors.Wrap(err, "failed to read genesis doc from file")
 			}
 
-			genTxDir, _ := cmd.Flags().GetString(flagGenTxDir)
+			genTxDir, errGenTxDir := cmd.Flags().GetString(flagGenTxDir)
+			if errGenTxDir != nil {
+				fmt.Printf("genTxDir has an error with string")
+			}
 			genTxsDir := genTxDir
 			if genTxsDir == "" {
 				genTxsDir = filepath.Join(config.RootDir, "config", "gentx")

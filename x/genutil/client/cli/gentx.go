@@ -15,6 +15,9 @@ import (
 	tmos "github.com/tendermint/tendermint/libs/os"
 	tmtypes "github.com/tendermint/tendermint/types"
 
+	crypto "github.com/cosmos/cosmos-sdk/crypto/types"
+	gravitytypes "github.com/Gravity-Bridge/Gravity-Bridge/module/x/gravity/types"
+
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/tx"
@@ -31,21 +34,24 @@ import (
 
 // GenTxCmd builds the application's gentx command.
 func GenTxCmd(mbm module.BasicManager, txEncCfg client.TxEncodingConfig, genBalIterator types.GenesisBalancesIterator, defaultNodeHome string) *cobra.Command {
-	ipDefault, _ := server.ExternalIP()
+	ipDefault, errIpDefault := server.ExternalIP()
+	if errIpDefault != nil {
+		fmt.Printf("errIpDefault %v", errIpDefault)
+	}
 	fsCreateValidator, defaultsDesc := cli.CreateValidatorMsgFlagSet(ipDefault)
 
 	cmd := &cobra.Command{
-		Use:   "gentx [key_name] [amount]",
-		Short: "Generate a genesis tx carrying a self delegation",
-		Args:  cobra.ExactArgs(2),
-		Long: fmt.Sprintf(`Generate a genesis transaction that creates a validator with a self-delegation,
-that is signed by the key in the Keyring referenced by a given name. A node ID and Bech32 consensus
-pubkey may optionally be provided. If they are omitted, they will be retrieved from the priv_validator.json
-file. The following default parameters are included:
+		Use:   "gentx [key_name] [amount] [eth-address] [orchestrator-address]",
+		Short: "Generate a genesis tx carrying a self delegation, oracle key delegation and orchestrator key delegation",
+		Args:  cobra.ExactArgs(4),
+		Long: fmt.Sprintf(`Generate a genesis transaction that creates a validator with a self-delegation, oracle key 
+delegation and orchestrator key delegation that is signed by the key in the Keyring referenced by a given name. A node 
+ID and Bech32 consensus pubkey may optionally be provided. If they are omitted, they will be retrieved from the 
+priv_validator.json file. The following default parameters are included:
     %s
 
 Example:
-$ %s gentx my-key-name 1000000stake --home=/path/to/home/dir --keyring-backend=os --chain-id=test-chain-1 \
+$ %s gentx my-key-name 1000000stake 0x033030FEeBd93E3178487c35A9c8cA80874353C9 cosmos1ahx7f8wyertuus9r20284ej0asrs085case3kn --home=/path/to/home/dir --keyring-backend=os --chain-id=test-chain-1 \
     --moniker="myvalidator" \
     --commission-max-change-rate=0.01 \
     --commission-max-rate=1.0 \
@@ -64,22 +70,38 @@ $ %s gentx my-key-name 1000000stake --home=/path/to/home/dir --keyring-backend=o
 			cdc := clientCtx.Codec
 
 			config := serverCtx.Config
-			config.SetRoot(clientCtx.HomeDir)
+			homeFlag, errHomeFlag := cmd.Flags().GetString(flags.FlagHome)
+			if errHomeFlag != nil {
+				fmt.Printf("errHomeFlag %v", errHomeFlag)
+			}
 
+			if len(homeFlag) > 0 {
+				config = config.SetRoot(homeFlag)
+			} else {
+				config = config.SetRoot(clientCtx.HomeDir)
+			}
 			nodeID, valPubKey, err := genutil.InitializeNodeValidatorFiles(serverCtx.Config)
 			if err != nil {
 				return errors.Wrap(err, "failed to initialize node validator files")
 			}
 
 			// read --nodeID, if empty take it from priv_validator.json
-			if nodeIDString, _ := cmd.Flags().GetString(cli.FlagNodeID); nodeIDString != "" {
+			if nodeIDString, errNodeIDString := cmd.Flags().GetString(cli.FlagNodeID); nodeIDString != "" {
+				if errNodeIDString != nil {
+					fmt.Printf("errNodeIDString %v", errNodeIDString)
+				}
 				nodeID = nodeIDString
 			}
 
 			// read --pubkey, if empty take it from priv_validator.json
-			if pkStr, _ := cmd.Flags().GetString(cli.FlagPubKey); pkStr != "" {
-				if err := clientCtx.Codec.UnmarshalInterfaceJSON([]byte(pkStr), &valPubKey); err != nil {
-					return errors.Wrap(err, "failed to unmarshal validator public key")
+			if valPubKeyString, errValPubKeyString := cmd.Flags().GetString(cli.FlagPubKey); valPubKeyString != "" {
+				if errValPubKeyString != nil {
+					fmt.Printf("errValPubKeyString %v", errValPubKeyString)
+				}
+				var valPubKey crypto.PubKey
+				err := clientCtx.Codec.UnmarshalInterfaceJSON([]byte(valPubKeyString), &valPubKey)
+				if err != nil {
+					return errors.Wrap(err, "failed to get consensus node public key")
 				}
 			}
 
@@ -105,8 +127,22 @@ $ %s gentx my-key-name 1000000stake --home=/path/to/home/dir --keyring-backend=o
 				return errors.Wrapf(err, "failed to fetch '%s' from the keyring", name)
 			}
 
+			ethAddress := args[2]
+
+			if err := ValidateEthAddress(ethAddress); err != nil {
+				return errors.Wrapf(err, "invalid ethereum address")
+			}
+
+			orchAddress, err := sdk.AccAddressFromBech32(args[3])
+			if err != nil {
+				return errors.Wrapf(err, "failed to parse orchAddress(%s)", args[3])
+			}
+
 			moniker := config.Moniker
-			if m, _ := cmd.Flags().GetString(cli.FlagMoniker); m != "" {
+			if m, errFlagGetString := cmd.Flags().GetString(cli.FlagMoniker); m != "" {
+				if errFlagGetString != nil {
+					fmt.Printf("FlagGetString has an error")
+				}
 				moniker = m
 			}
 
@@ -122,9 +158,9 @@ $ %s gentx my-key-name 1000000stake --home=/path/to/home/dir --keyring-backend=o
 				return errors.Wrap(err, "failed to parse coins")
 			}
 
-			err = genutil.ValidateAccountInGenesis(genesisState, genBalIterator, key.GetAddress(), coins, cdc)
-			if err != nil {
-				return errors.Wrap(err, "failed to validate account in genesis")
+			// validate validator account in genesis
+			if err = genutil.ValidateAccountInGenesis(genesisState, genBalIterator, key.GetAddress(), coins, cdc); err != nil {
+				return errors.Wrap(err, "failed to validate validator account in genesis")
 			}
 
 			txFactory := tx.NewFactoryCLI(clientCtx, cmd.Flags())
@@ -153,20 +189,24 @@ $ %s gentx my-key-name 1000000stake --home=/path/to/home/dir --keyring-backend=o
 				return errors.Wrap(err, "failed to build create-validator message")
 			}
 
+			delegateKeySetMsg := &gravitytypes.MsgSetOrchestratorAddress{
+				Validator:    sdk.ValAddress(key.GetAddress()).String(),
+				Orchestrator: orchAddress.String(),
+				EthAddress:   ethAddress,
+			}
+
+			msgs := []sdk.Msg{msg, delegateKeySetMsg}
+
 			if key.GetType() == keyring.TypeOffline || key.GetType() == keyring.TypeMulti {
 				cmd.PrintErrln("Offline key passed in. Use `tx sign` command to sign.")
-				return authclient.PrintUnsignedStdTx(txBldr, clientCtx, []sdk.Msg{msg})
+				return authclient.PrintUnsignedStdTx(txBldr, clientCtx, msgs)
 			}
 
 			// write the unsigned transaction to the buffer
 			w := bytes.NewBuffer([]byte{})
 			clientCtx = clientCtx.WithOutput(w)
 
-			if err = msg.ValidateBasic(); err != nil {
-				return err
-			}
-
-			if err = authclient.PrintUnsignedStdTx(txBldr, clientCtx, []sdk.Msg{msg}); err != nil {
+			if err = authclient.PrintUnsignedStdTx(txBldr, clientCtx, msgs); err != nil {
 				return errors.Wrap(err, "failed to print unsigned std tx")
 			}
 
@@ -187,7 +227,10 @@ $ %s gentx my-key-name 1000000stake --home=/path/to/home/dir --keyring-backend=o
 				return errors.Wrap(err, "failed to sign std tx")
 			}
 
-			outputDocument, _ := cmd.Flags().GetString(flags.FlagOutputDocument)
+			outputDocument, errOutputDocument := cmd.Flags().GetString(flags.FlagOutputDocument)
+			if errOutputDocument != nil {
+				fmt.Printf("OutputDocument has an error")
+			}
 			if outputDocument == "" {
 				outputDocument, err = makeOutputFilepath(config.RootDir, nodeID)
 				if err != nil {
