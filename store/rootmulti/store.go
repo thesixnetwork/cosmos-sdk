@@ -442,6 +442,9 @@ func (rs *Store) pruneStores() {
 			// it to get the underlying IAVL store.
 			store = rs.GetCommitKVStore(key)
 
+			fmt.Println("prune store key:", key)
+			// print pruneHeights
+			fmt.Println("prune heights:", rs.pruneHeights)
 			if err := store.(*iavl.Store).DeleteVersions(rs.pruneHeights...); err != nil {
 				if errCause := errors.Cause(err); errCause != nil && errCause != iavltree.ErrVersionDoesNotExist {
 					panic(err)
