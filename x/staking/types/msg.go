@@ -11,14 +11,16 @@ import (
 
 // staking message types
 const (
-	TypeMsgUndelegate      = "begin_unbonding"
-	TypeMsgEditValidator   = "edit_validator"
-	TypeMsgCreateValidator = "create_validator"
-	TypeMsgDelegate        = "delegate"
-	TypeMsgBeginRedelegate = "begin_redelegate"
+	TypeMsgSetValidatorApproval = "set_validator_approval"
+	TypeMsgUndelegate           = "begin_unbonding"
+	TypeMsgEditValidator        = "edit_validator"
+	TypeMsgCreateValidator      = "create_validator"
+	TypeMsgDelegate             = "delegate"
+	TypeMsgBeginRedelegate      = "begin_redelegate"
 )
 
 var (
+	_ sdk.Msg                            = &MsgSetValidatorApproval{}
 	_ sdk.Msg                            = &MsgCreateValidator{}
 	_ codectypes.UnpackInterfacesMessage = (*MsgCreateValidator)(nil)
 	_ sdk.Msg                            = &MsgCreateValidator{}
@@ -28,10 +30,18 @@ var (
 	_ sdk.Msg                            = &MsgBeginRedelegate{}
 )
 
+func NewMsgSetValidatorApproval(
+	approver string,
+	new_approver string,
+	enabled bool,
+) (*MsgSetValidatorApproval, error) {
+	return &MsgSetValidatorApproval{ApproverAddress: approver, NewApproverAddress: new_approver, Enabled: enabled}, nil
+}
+
 // NewMsgCreateValidator creates a new MsgCreateValidator instance.
 // Delegator address and validator address are the same.
 func NewMsgCreateValidator(
-	valAddr sdk.ValAddress, pubKey cryptotypes.PubKey, //nolint:interfacer
+	valAddr sdk.ValAddress, approverAddr string, pubKey cryptotypes.PubKey, //nolint:interfacer
 	selfDelegation sdk.Coin, description Description, commission CommissionRates, minSelfDelegation sdk.Int,
 ) (*MsgCreateValidator, error) {
 	var pkAny *codectypes.Any
@@ -45,11 +55,54 @@ func NewMsgCreateValidator(
 		Description:       description,
 		DelegatorAddress:  sdk.AccAddress(valAddr).String(),
 		ValidatorAddress:  valAddr.String(),
+		ApproverAddress:   approverAddr,
 		Pubkey:            pkAny,
 		Value:             selfDelegation,
 		Commission:        commission,
 		MinSelfDelegation: minSelfDelegation,
 	}, nil
+}
+
+// Route implements the sdk.Msg interface.
+func (msg MsgSetValidatorApproval) Route() string { return RouterKey }
+
+// Type implements the sdk.Msg interface.
+func (msg MsgSetValidatorApproval) Type() string { return TypeMsgSetValidatorApproval }
+
+func (msg MsgSetValidatorApproval) GetSigners() []sdk.AccAddress {
+	// delegator is first signer so delegator pays fees
+	approverAddress, err := sdk.AccAddressFromBech32(msg.ApproverAddress)
+	if err != nil {
+		panic(err)
+	}
+
+	return []sdk.AccAddress{approverAddress}
+}
+
+func (msg MsgSetValidatorApproval) GetSignBytes() []byte {
+	bz := ModuleCdc.MustMarshalJSON(&msg)
+	return sdk.MustSortJSON(bz)
+}
+
+func (msg MsgSetValidatorApproval) ValidateBasic() error {
+	// note that unmarshaling from bech32 ensures either empty or valid
+	approverAddress, err := sdk.AccAddressFromBech32(msg.ApproverAddress)
+	if err != nil {
+		return err
+	}
+	if approverAddress.Empty() {
+		return ErrEmptyApproverAddr
+	}
+
+	newApproverAddress, err := sdk.AccAddressFromBech32(msg.NewApproverAddress)
+	if err != nil {
+		return err
+	}
+	if newApproverAddress.Empty() {
+		return ErrEmptyApproverAddr
+	}
+
+	return nil
 }
 
 // Route implements the sdk.Msg interface.
@@ -75,6 +128,15 @@ func (msg MsgCreateValidator) GetSigners() []sdk.AccAddress {
 	}
 	if !bytes.Equal(delAddr.Bytes(), addr.Bytes()) {
 		addrs = append(addrs, sdk.AccAddress(addr))
+	}
+
+	if msg.ApproverAddress != "" {
+		approvalAddr, err := sdk.AccAddressFromBech32(msg.ApproverAddress)
+		if err != nil {
+			panic(err)
+		}
+
+		addrs = append(addrs, sdk.AccAddress(approvalAddr))
 	}
 
 	return addrs
@@ -134,6 +196,42 @@ func (msg MsgCreateValidator) ValidateBasic() error {
 			sdkerrors.ErrInvalidRequest,
 			"minimum self delegation must be a positive integer",
 		)
+	}
+
+	if !msg.MinDelegation.IsNil() && !msg.MinDelegation.IsPositive() {
+		return sdkerrors.Wrap(
+			sdkerrors.ErrInvalidRequest,
+			"minimum delegation must be a positive integer",
+		)
+	}
+
+	if !msg.DelegationIncrement.IsNil() && !msg.DelegationIncrement.IsPositive() {
+		return sdkerrors.Wrap(
+			sdkerrors.ErrInvalidRequest,
+			"delegation increment must be a positive integer",
+		)
+	}
+
+	if msg.LicenseMode {
+		if msg.MaxLicense.IsNil() {
+			return sdkerrors.Wrap(
+				sdkerrors.ErrInvalidRequest,
+				"max license is required when license mode is used",
+			)
+		}
+		if !msg.MaxLicense.IsNil() && !msg.MaxLicense.IsPositive() {
+			return sdkerrors.Wrap(
+				sdkerrors.ErrInvalidRequest,
+				"max license must be a positive integer",
+			)
+		}
+
+		if msg.EnableRedelegation {
+			return sdkerrors.Wrap(
+				sdkerrors.ErrInvalidRequest,
+				"When license mode is used, redelegation must be disabled",
+			)
+		}
 	}
 
 	if msg.Value.Amount.LT(msg.MinSelfDelegation) {

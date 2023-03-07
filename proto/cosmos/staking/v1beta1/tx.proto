@@ -13,6 +13,8 @@ option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types";
 
 // Msg defines the staking Msg service.
 service Msg {
+  rpc SetValidatorApproval(MsgSetValidatorApproval) returns (MsgSetValidatorApprovalResponse);
+
   // CreateValidator defines a method for creating a new validator.
   rpc CreateValidator(MsgCreateValidator) returns (MsgCreateValidatorResponse);
 
@@ -32,6 +34,14 @@ service Msg {
   rpc Undelegate(MsgUndelegate) returns (MsgUndelegateResponse);
 }
 
+message MsgSetValidatorApproval {
+  string approver_address = 1 [(gogoproto.moretags) = "yaml:\"approver_address\""];
+  string new_approver_address = 2 [(gogoproto.moretags) = "yaml:\"new_approver_address\""];
+  bool enabled = 3;
+}
+
+message MsgSetValidatorApprovalResponse {}
+
 // MsgCreateValidator defines a SDK message for creating a new validator.
 message MsgCreateValidator {
   option (gogoproto.equal)           = false;
@@ -44,10 +54,28 @@ message MsgCreateValidator {
     (gogoproto.moretags)   = "yaml:\"min_self_delegation\"",
     (gogoproto.nullable)   = false
   ];
-  string                   delegator_address = 4 [(gogoproto.moretags) = "yaml:\"delegator_address\""];
-  string                   validator_address = 5 [(gogoproto.moretags) = "yaml:\"validator_address\""];
-  google.protobuf.Any      pubkey            = 6 [(cosmos_proto.accepts_interface) = "cosmos.crypto.PubKey"];
-  cosmos.base.v1beta1.Coin value             = 7 [(gogoproto.nullable) = false];
+  string          min_delegation = 4 [
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
+    (gogoproto.moretags)   = "yaml:\"min_delegation\"",
+    (gogoproto.nullable)   = false
+  ];
+  string          delegation_increment = 5 [
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
+    (gogoproto.moretags)   = "yaml:\"delegation_increment\"",
+    (gogoproto.nullable)   = false
+  ];
+  string          max_license = 6 [
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
+    (gogoproto.moretags)   = "yaml:\"max_delegator\"",
+    (gogoproto.nullable)   = false
+  ];
+  bool            license_mode = 7 [(gogoproto.moretags) = "yaml:\"license_mode\""];
+  bool            enable_redelegation = 8 [(gogoproto.moretags) = "yaml:\"enable_redelegation\""];
+  string                   delegator_address = 9 [(gogoproto.moretags) = "yaml:\"delegator_address\""];
+  string                   validator_address = 10 [(gogoproto.moretags) = "yaml:\"validator_address\""];
+  string                   approver_address  = 11 [(gogoproto.moretags) = "yaml:\"approver_address\""];
+  google.protobuf.Any      pubkey            = 12 [(cosmos_proto.accepts_interface) = "cosmos.crypto.PubKey"];
+  cosmos.base.v1beta1.Coin value             = 13 [(gogoproto.nullable) = false];
 }
 
 // MsgCreateValidatorResponse defines the Msg/CreateValidator response type.
@@ -72,6 +100,11 @@ message MsgEditValidator {
   string min_self_delegation = 4 [
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
     (gogoproto.moretags)   = "yaml:\"min_self_delegation\""
+  ];
+  string          max_license = 5 [
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
+    (gogoproto.moretags)   = "yaml:\"max_license\"",
+    (gogoproto.nullable)   = false
   ];
 }
 

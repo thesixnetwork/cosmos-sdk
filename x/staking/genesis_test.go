@@ -34,6 +34,7 @@ func TestInitGenesis(t *testing.T) {
 	params := app.StakingKeeper.GetParams(ctx)
 	validators := app.StakingKeeper.GetAllValidators(ctx)
 	var delegations []types.Delegation
+	var validatorApproval types.ValidatorApproval
 
 	pk0, err := codectypes.NewAnyWithValue(PKs[0])
 	require.NoError(t, err)
@@ -73,7 +74,7 @@ func TestInitGenesis(t *testing.T) {
 			),
 		),
 	)
-	genesisState := types.NewGenesisState(params, validators, delegations)
+	genesisState := types.NewGenesisState(params, validators, delegations, validatorApproval)
 	vals := staking.InitGenesis(ctx, app.StakingKeeper, app.AccountKeeper, app.BankKeeper, genesisState)
 
 	actualGenesis := staking.ExportGenesis(ctx, app.StakingKeeper)
@@ -161,6 +162,8 @@ func TestInitGenesisLargeValidatorSet(t *testing.T) {
 	validators := make([]types.Validator, size)
 	var err error
 
+	validatorApproval := types.ValidatorApproval{}
+
 	bondedPoolAmt := sdk.ZeroInt()
 	for i := range validators {
 		validators[i], err = types.NewValidator(sdk.ValAddress(addrs[i]),
@@ -178,7 +181,7 @@ func TestInitGenesisLargeValidatorSet(t *testing.T) {
 		bondedPoolAmt = bondedPoolAmt.Add(tokens)
 	}
 
-	genesisState := types.NewGenesisState(params, validators, delegations)
+	genesisState := types.NewGenesisState(params, validators, delegations, validatorApproval)
 
 	// mint coins in the bonded pool representing the validators coins
 	require.NoError(t,
