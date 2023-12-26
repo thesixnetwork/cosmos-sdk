@@ -37,11 +37,11 @@ func TestValidateGenesisMultipleMessages(t *testing.T) {
 	desc := stakingtypes.NewDescription("testname", "", "", "", "")
 	comm := stakingtypes.CommissionRates{}
 
-	msg1, err := stakingtypes.NewMsgCreateValidator(sdk.ValAddress(pk1.Address()), pk1,
+	msg1, err := stakingtypes.NewMsgCreateValidator(sdk.ValAddress(pk1.Address()), "approver", pk1,
 		sdk.NewInt64Coin(sdk.DefaultBondDenom, 50), desc, comm, sdk.OneInt())
 	require.NoError(t, err)
 
-	msg2, err := stakingtypes.NewMsgCreateValidator(sdk.ValAddress(pk2.Address()), pk2,
+	msg2, err := stakingtypes.NewMsgCreateValidator(sdk.ValAddress(pk2.Address()), "approver", pk2,
 		sdk.NewInt64Coin(sdk.DefaultBondDenom, 50), desc, comm, sdk.OneInt())
 	require.NoError(t, err)
 

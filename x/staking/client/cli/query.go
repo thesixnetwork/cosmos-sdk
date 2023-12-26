@@ -25,6 +25,7 @@ func GetQueryCmd() *cobra.Command {
 	}
 
 	stakingQueryCmd.AddCommand(
+		GetCmdQueryValidatorApproval(),
 		GetCmdQueryDelegation(),
 		GetCmdQueryDelegations(),
 		GetCmdQueryUnbondingDelegation(),
@@ -42,6 +43,42 @@ func GetQueryCmd() *cobra.Command {
 	)
 
 	return stakingQueryCmd
+}
+
+func GetCmdQueryValidatorApproval() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "validator-approval",
+		Short: "Query a validator approval",
+		Long: strings.TrimSpace(
+			fmt.Sprintf(`Query details of current validator approval state.
+
+Example:
+$ %s query staking validator-approval
+`,
+				version.AppName,
+			),
+		),
+		Args: cobra.ExactArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+			queryClient := types.NewQueryClient(clientCtx)
+
+			params := &types.QueryValidatorApprovalRequest{}
+			res, err := queryClient.ValidatorApproval(cmd.Context(), params)
+			if err != nil {
+				return err
+			}
+
+			return clientCtx.PrintProto(&res.ValidatorApproval)
+		},
+	}
+
+	flags.AddQueryFlagsToCmd(cmd)
+
+	return cmd
 }
 
 // GetCmdQueryValidator implements the validator query command.

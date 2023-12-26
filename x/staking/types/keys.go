@@ -36,6 +36,8 @@ var (
 	ValidatorsByConsAddrKey   = []byte{0x22} // prefix for each key to a validator index, by pubkey
 	ValidatorsByPowerIndexKey = []byte{0x23} // prefix for each key to a validator index, sorted by power
 
+	ValidatorApprovalKey = []byte{0x24} // key for validator approval
+
 	DelegationKey                    = []byte{0x31} // key for a delegation
 	UnbondingDelegationKey           = []byte{0x32} // key for an unbonding-delegation
 	UnbondingDelegationByValIndexKey = []byte{0x33} // prefix for each key for an unbonding-delegation, by validator operator

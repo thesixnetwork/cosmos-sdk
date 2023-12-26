@@ -24,20 +24,23 @@ message GenesisState {
   repeated LastValidatorPower last_validator_powers = 3
       [(gogoproto.moretags) = "yaml:\"last_validator_powers\"", (gogoproto.nullable) = false];
 
+  // validator approval
+  ValidatorApproval validator_approval = 4 [(gogoproto.nullable) = false];
+
   // delegations defines the validator set at genesis.
-  repeated Validator validators = 4 [(gogoproto.nullable) = false];
+  repeated Validator validators = 5 [(gogoproto.nullable) = false];
 
   // delegations defines the delegations active at genesis.
-  repeated Delegation delegations = 5 [(gogoproto.nullable) = false];
+  repeated Delegation delegations = 6 [(gogoproto.nullable) = false];
 
   // unbonding_delegations defines the unbonding delegations active at genesis.
-  repeated UnbondingDelegation unbonding_delegations = 6
+  repeated UnbondingDelegation unbonding_delegations = 7
       [(gogoproto.moretags) = "yaml:\"unbonding_delegations\"", (gogoproto.nullable) = false];
 
   // redelegations defines the redelegations active at genesis.
-  repeated Redelegation redelegations = 7 [(gogoproto.nullable) = false];
+  repeated Redelegation redelegations = 8 [(gogoproto.nullable) = false];
 
-  bool exported = 8;
+  bool exported = 9;
 }
 
 // LastValidatorPower required for validator set update logic.

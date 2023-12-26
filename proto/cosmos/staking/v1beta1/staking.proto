@@ -117,6 +117,30 @@ message Validator {
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
     (gogoproto.nullable)   = false
   ];
+  string          min_delegation = 12 [
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
+    (gogoproto.moretags)   = "yaml:\"min_delegation\"",
+    (gogoproto.nullable)   = false
+  ];
+  string          delegation_increment = 13 [
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
+    (gogoproto.moretags)   = "yaml:\"delegation_increment\"",
+    (gogoproto.nullable)   = false
+  ];
+  string          max_license = 14 [
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
+    (gogoproto.moretags)   = "yaml:\"max_license\"",
+    (gogoproto.nullable)   = false
+  ];
+  string          license_count = 15 [
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
+    (gogoproto.moretags)   = "yaml:\"license_count\"",
+    (gogoproto.nullable)   = false
+  ];
+  bool            license_mode = 16 [
+    (gogoproto.moretags) = "yaml:\"license_mode\""
+  ];
+  bool            enable_redelegation = 17 [(gogoproto.moretags) = "yaml:\"enable_redelegation\""];
 }
 
 // BondStatus is the status of a validator.
@@ -331,4 +355,9 @@ message Pool {
     (gogoproto.nullable)   = false,
     (gogoproto.moretags)   = "yaml:\"bonded_tokens\""
   ];
+}
+
+message ValidatorApproval {
+  string approver_address  = 1 [(gogoproto.moretags) = "yaml:\"approver_address\""];
+  bool enabled = 2;
 }

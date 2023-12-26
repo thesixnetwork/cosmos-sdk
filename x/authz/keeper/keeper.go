@@ -75,7 +75,6 @@ func (k Keeper) update(ctx sdk.Context, grantee sdk.AccAddress, granter sdk.AccA
 // grants from the message signer to the grantee.
 func (k Keeper) DispatchActions(ctx sdk.Context, grantee sdk.AccAddress, msgs []sdk.Msg) ([][]byte, error) {
 	results := make([][]byte, len(msgs))
-
 	for i, msg := range msgs {
 		signers := msg.GetSigners()
 		if len(signers) != 1 {

@@ -11,6 +11,11 @@ option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types";
 // Query defines the gRPC querier service.
 service Query {
   // Validators queries all validators that match the given status.
+  rpc ValidatorApproval(QueryValidatorApprovalRequest) returns (QueryValidatorApprovalResponse) {
+    option (google.api.http).get = "/cosmos/staking/v1beta1/validator_approval";
+  }
+
+  // Validators queries all validators that match the given status.
   rpc Validators(QueryValidatorsRequest) returns (QueryValidatorsResponse) {
     option (google.api.http).get = "/cosmos/staking/v1beta1/validators";
   }
@@ -90,6 +95,13 @@ service Query {
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
     option (google.api.http).get = "/cosmos/staking/v1beta1/params";
   }
+}
+
+message QueryValidatorApprovalRequest {
+}
+
+message QueryValidatorApprovalResponse {
+  ValidatorApproval validator_approval = 1 [(gogoproto.nullable) = false];
 }
 
 // QueryValidatorsRequest is request type for Query/Validators RPC method.

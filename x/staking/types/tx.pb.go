@@ -36,22 +36,124 @@ var _ = time.Kitchen
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+type MsgSetValidatorApproval struct {
+	ApproverAddress    string `protobuf:"bytes,1,opt,name=approver_address,json=approverAddress,proto3" json:"approver_address,omitempty" yaml:"approver_address"`
+	NewApproverAddress string `protobuf:"bytes,2,opt,name=new_approver_address,json=newApproverAddress,proto3" json:"new_approver_address,omitempty" yaml:"new_approver_address"`
+	Enabled            bool   `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
+}
+
+func (m *MsgSetValidatorApproval) Reset()         { *m = MsgSetValidatorApproval{} }
+func (m *MsgSetValidatorApproval) String() string { return proto.CompactTextString(m) }
+func (*MsgSetValidatorApproval) ProtoMessage()    {}
+func (*MsgSetValidatorApproval) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0926ef28816b35ab, []int{0}
+}
+func (m *MsgSetValidatorApproval) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgSetValidatorApproval) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgSetValidatorApproval.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgSetValidatorApproval) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgSetValidatorApproval.Merge(m, src)
+}
+func (m *MsgSetValidatorApproval) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgSetValidatorApproval) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgSetValidatorApproval.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgSetValidatorApproval proto.InternalMessageInfo
+
+func (m *MsgSetValidatorApproval) GetApproverAddress() string {
+	if m != nil {
+		return m.ApproverAddress
+	}
+	return ""
+}
+
+func (m *MsgSetValidatorApproval) GetNewApproverAddress() string {
+	if m != nil {
+		return m.NewApproverAddress
+	}
+	return ""
+}
+
+func (m *MsgSetValidatorApproval) GetEnabled() bool {
+	if m != nil {
+		return m.Enabled
+	}
+	return false
+}
+
+type MsgSetValidatorApprovalResponse struct {
+}
+
+func (m *MsgSetValidatorApprovalResponse) Reset()         { *m = MsgSetValidatorApprovalResponse{} }
+func (m *MsgSetValidatorApprovalResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgSetValidatorApprovalResponse) ProtoMessage()    {}
+func (*MsgSetValidatorApprovalResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0926ef28816b35ab, []int{1}
+}
+func (m *MsgSetValidatorApprovalResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgSetValidatorApprovalResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgSetValidatorApprovalResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgSetValidatorApprovalResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgSetValidatorApprovalResponse.Merge(m, src)
+}
+func (m *MsgSetValidatorApprovalResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgSetValidatorApprovalResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgSetValidatorApprovalResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgSetValidatorApprovalResponse proto.InternalMessageInfo
+
 // MsgCreateValidator defines a SDK message for creating a new validator.
 type MsgCreateValidator struct {
-	Description       Description                            `protobuf:"bytes,1,opt,name=description,proto3" json:"description"`
-	Commission        CommissionRates                        `protobuf:"bytes,2,opt,name=commission,proto3" json:"commission"`
-	MinSelfDelegation github_com_cosmos_cosmos_sdk_types.Int `protobuf:"bytes,3,opt,name=min_self_delegation,json=minSelfDelegation,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Int" json:"min_self_delegation" yaml:"min_self_delegation"`
-	DelegatorAddress  string                                 `protobuf:"bytes,4,opt,name=delegator_address,json=delegatorAddress,proto3" json:"delegator_address,omitempty" yaml:"delegator_address"`
-	ValidatorAddress  string                                 `protobuf:"bytes,5,opt,name=validator_address,json=validatorAddress,proto3" json:"validator_address,omitempty" yaml:"validator_address"`
-	Pubkey            *types.Any                             `protobuf:"bytes,6,opt,name=pubkey,proto3" json:"pubkey,omitempty"`
-	Value             types1.Coin                            `protobuf:"bytes,7,opt,name=value,proto3" json:"value"`
+	Description         Description                            `protobuf:"bytes,1,opt,name=description,proto3" json:"description"`
+	Commission          CommissionRates                        `protobuf:"bytes,2,opt,name=commission,proto3" json:"commission"`
+	MinSelfDelegation   github_com_cosmos_cosmos_sdk_types.Int `protobuf:"bytes,3,opt,name=min_self_delegation,json=minSelfDelegation,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Int" json:"min_self_delegation" yaml:"min_self_delegation"`
+	MinDelegation       github_com_cosmos_cosmos_sdk_types.Int `protobuf:"bytes,4,opt,name=min_delegation,json=minDelegation,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Int" json:"min_delegation" yaml:"min_delegation"`
+	DelegationIncrement github_com_cosmos_cosmos_sdk_types.Int `protobuf:"bytes,5,opt,name=delegation_increment,json=delegationIncrement,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Int" json:"delegation_increment" yaml:"delegation_increment"`
+	MaxLicense          github_com_cosmos_cosmos_sdk_types.Int `protobuf:"bytes,6,opt,name=max_license,json=maxLicense,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Int" json:"max_license" yaml:"max_delegator"`
+	LicenseMode         bool                                   `protobuf:"varint,7,opt,name=license_mode,json=licenseMode,proto3" json:"license_mode,omitempty" yaml:"license_mode"`
+	EnableRedelegation  bool                                   `protobuf:"varint,8,opt,name=enable_redelegation,json=enableRedelegation,proto3" json:"enable_redelegation,omitempty" yaml:"enable_redelegation"`
+	DelegatorAddress    string                                 `protobuf:"bytes,9,opt,name=delegator_address,json=delegatorAddress,proto3" json:"delegator_address,omitempty" yaml:"delegator_address"`
+	ValidatorAddress    string                                 `protobuf:"bytes,10,opt,name=validator_address,json=validatorAddress,proto3" json:"validator_address,omitempty" yaml:"validator_address"`
+	ApproverAddress     string                                 `protobuf:"bytes,11,opt,name=approver_address,json=approverAddress,proto3" json:"approver_address,omitempty" yaml:"approver_address"`
+	Pubkey              *types.Any                             `protobuf:"bytes,12,opt,name=pubkey,proto3" json:"pubkey,omitempty"`
+	Value               types1.Coin                            `protobuf:"bytes,13,opt,name=value,proto3" json:"value"`
 }
 
 func (m *MsgCreateValidator) Reset()         { *m = MsgCreateValidator{} }
 func (m *MsgCreateValidator) String() string { return proto.CompactTextString(m) }
 func (*MsgCreateValidator) ProtoMessage()    {}
 func (*MsgCreateValidator) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0926ef28816b35ab, []int{0}
+	return fileDescriptor_0926ef28816b35ab, []int{2}
 }
 func (m *MsgCreateValidator) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -88,7 +190,7 @@ func (m *MsgCreateValidatorResponse) Reset()         { *m = MsgCreateValidatorRe
 func (m *MsgCreateValidatorResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgCreateValidatorResponse) ProtoMessage()    {}
 func (*MsgCreateValidatorResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0926ef28816b35ab, []int{1}
+	return fileDescriptor_0926ef28816b35ab, []int{3}
 }
 func (m *MsgCreateValidatorResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -127,13 +229,14 @@ type MsgEditValidator struct {
 	// REF: #2373
 	CommissionRate    *github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,3,opt,name=commission_rate,json=commissionRate,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"commission_rate,omitempty" yaml:"commission_rate"`
 	MinSelfDelegation *github_com_cosmos_cosmos_sdk_types.Int `protobuf:"bytes,4,opt,name=min_self_delegation,json=minSelfDelegation,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Int" json:"min_self_delegation,omitempty" yaml:"min_self_delegation"`
+	MaxLicense        github_com_cosmos_cosmos_sdk_types.Int  `protobuf:"bytes,5,opt,name=max_license,json=maxLicense,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Int" json:"max_license" yaml:"max_license"`
 }
 
 func (m *MsgEditValidator) Reset()         { *m = MsgEditValidator{} }
 func (m *MsgEditValidator) String() string { return proto.CompactTextString(m) }
 func (*MsgEditValidator) ProtoMessage()    {}
 func (*MsgEditValidator) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0926ef28816b35ab, []int{2}
+	return fileDescriptor_0926ef28816b35ab, []int{4}
 }
 func (m *MsgEditValidator) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -170,7 +273,7 @@ func (m *MsgEditValidatorResponse) Reset()         { *m = MsgEditValidatorRespon
 func (m *MsgEditValidatorResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgEditValidatorResponse) ProtoMessage()    {}
 func (*MsgEditValidatorResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0926ef28816b35ab, []int{3}
+	return fileDescriptor_0926ef28816b35ab, []int{5}
 }
 func (m *MsgEditValidatorResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -211,7 +314,7 @@ func (m *MsgDelegate) Reset()         { *m = MsgDelegate{} }
 func (m *MsgDelegate) String() string { return proto.CompactTextString(m) }
 func (*MsgDelegate) ProtoMessage()    {}
 func (*MsgDelegate) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0926ef28816b35ab, []int{4}
+	return fileDescriptor_0926ef28816b35ab, []int{6}
 }
 func (m *MsgDelegate) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -269,7 +372,7 @@ func (m *MsgDelegateResponse) Reset()         { *m = MsgDelegateResponse{} }
 func (m *MsgDelegateResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgDelegateResponse) ProtoMessage()    {}
 func (*MsgDelegateResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0926ef28816b35ab, []int{5}
+	return fileDescriptor_0926ef28816b35ab, []int{7}
 }
 func (m *MsgDelegateResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -311,7 +414,7 @@ func (m *MsgBeginRedelegate) Reset()         { *m = MsgBeginRedelegate{} }
 func (m *MsgBeginRedelegate) String() string { return proto.CompactTextString(m) }
 func (*MsgBeginRedelegate) ProtoMessage()    {}
 func (*MsgBeginRedelegate) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0926ef28816b35ab, []int{6}
+	return fileDescriptor_0926ef28816b35ab, []int{8}
 }
 func (m *MsgBeginRedelegate) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -377,7 +480,7 @@ func (m *MsgBeginRedelegateResponse) Reset()         { *m = MsgBeginRedelegateRe
 func (m *MsgBeginRedelegateResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgBeginRedelegateResponse) ProtoMessage()    {}
 func (*MsgBeginRedelegateResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0926ef28816b35ab, []int{7}
+	return fileDescriptor_0926ef28816b35ab, []int{9}
 }
 func (m *MsgBeginRedelegateResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -425,7 +528,7 @@ func (m *MsgUndelegate) Reset()         { *m = MsgUndelegate{} }
 func (m *MsgUndelegate) String() string { return proto.CompactTextString(m) }
 func (*MsgUndelegate) ProtoMessage()    {}
 func (*MsgUndelegate) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0926ef28816b35ab, []int{8}
+	return fileDescriptor_0926ef28816b35ab, []int{10}
 }
 func (m *MsgUndelegate) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -484,7 +587,7 @@ func (m *MsgUndelegateResponse) Reset()         { *m = MsgUndelegateResponse{} }
 func (m *MsgUndelegateResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgUndelegateResponse) ProtoMessage()    {}
 func (*MsgUndelegateResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0926ef28816b35ab, []int{9}
+	return fileDescriptor_0926ef28816b35ab, []int{11}
 }
 func (m *MsgUndelegateResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -521,6 +624,8 @@ func (m *MsgUndelegateResponse) GetCompletionTime() time.Time {
 }
 
 func init() {
+	proto.RegisterType((*MsgSetValidatorApproval)(nil), "cosmos.staking.v1beta1.MsgSetValidatorApproval")
+	proto.RegisterType((*MsgSetValidatorApprovalResponse)(nil), "cosmos.staking.v1beta1.MsgSetValidatorApprovalResponse")
 	proto.RegisterType((*MsgCreateValidator)(nil), "cosmos.staking.v1beta1.MsgCreateValidator")
 	proto.RegisterType((*MsgCreateValidatorResponse)(nil), "cosmos.staking.v1beta1.MsgCreateValidatorResponse")
 	proto.RegisterType((*MsgEditValidator)(nil), "cosmos.staking.v1beta1.MsgEditValidator")
@@ -605,6 +710,7 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
+	SetValidatorApproval(ctx context.Context, in *MsgSetValidatorApproval, opts ...grpc.CallOption) (*MsgSetValidatorApprovalResponse, error)
 	// CreateValidator defines a method for creating a new validator.
 	CreateValidator(ctx context.Context, in *MsgCreateValidator, opts ...grpc.CallOption) (*MsgCreateValidatorResponse, error)
 	// EditValidator defines a method for editing an existing validator.
@@ -626,6 +732,15 @@ type msgClient struct {
 
 func NewMsgClient(cc grpc1.ClientConn) MsgClient {
 	return &msgClient{cc}
+}
+
+func (c *msgClient) SetValidatorApproval(ctx context.Context, in *MsgSetValidatorApproval, opts ...grpc.CallOption) (*MsgSetValidatorApprovalResponse, error) {
+	out := new(MsgSetValidatorApprovalResponse)
+	err := c.cc.Invoke(ctx, "/cosmos.staking.v1beta1.Msg/SetValidatorApproval", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *msgClient) CreateValidator(ctx context.Context, in *MsgCreateValidator, opts ...grpc.CallOption) (*MsgCreateValidatorResponse, error) {
@@ -675,6 +790,7 @@ func (c *msgClient) Undelegate(ctx context.Context, in *MsgUndelegate, opts ...g
 
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
+	SetValidatorApproval(context.Context, *MsgSetValidatorApproval) (*MsgSetValidatorApprovalResponse, error)
 	// CreateValidator defines a method for creating a new validator.
 	CreateValidator(context.Context, *MsgCreateValidator) (*MsgCreateValidatorResponse, error)
 	// EditValidator defines a method for editing an existing validator.
@@ -694,6 +810,9 @@ type MsgServer interface {
 type UnimplementedMsgServer struct {
 }
 
+func (*UnimplementedMsgServer) SetValidatorApproval(ctx context.Context, req *MsgSetValidatorApproval) (*MsgSetValidatorApprovalResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetValidatorApproval not implemented")
+}
 func (*UnimplementedMsgServer) CreateValidator(ctx context.Context, req *MsgCreateValidator) (*MsgCreateValidatorResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateValidator not implemented")
 }
@@ -712,6 +831,24 @@ func (*UnimplementedMsgServer) Undelegate(ctx context.Context, req *MsgUndelegat
 
 func RegisterMsgServer(s grpc1.Server, srv MsgServer) {
 	s.RegisterService(&_Msg_serviceDesc, srv)
+}
+
+func _Msg_SetValidatorApproval_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgSetValidatorApproval)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).SetValidatorApproval(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/cosmos.staking.v1beta1.Msg/SetValidatorApproval",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).SetValidatorApproval(ctx, req.(*MsgSetValidatorApproval))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _Msg_CreateValidator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -809,6 +946,10 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*MsgServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "SetValidatorApproval",
+			Handler:    _Msg_SetValidatorApproval_Handler,
+		},
+		{
 			MethodName: "CreateValidator",
 			Handler:    _Msg_CreateValidator_Handler,
 		},
@@ -831,6 +972,76 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "cosmos/staking/v1beta1/tx.proto",
+}
+
+func (m *MsgSetValidatorApproval) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgSetValidatorApproval) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgSetValidatorApproval) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Enabled {
+		i--
+		if m.Enabled {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x18
+	}
+	if len(m.NewApproverAddress) > 0 {
+		i -= len(m.NewApproverAddress)
+		copy(dAtA[i:], m.NewApproverAddress)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.NewApproverAddress)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.ApproverAddress) > 0 {
+		i -= len(m.ApproverAddress)
+		copy(dAtA[i:], m.ApproverAddress)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.ApproverAddress)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgSetValidatorApprovalResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgSetValidatorApprovalResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgSetValidatorApprovalResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
 }
 
 func (m *MsgCreateValidator) Marshal() (dAtA []byte, err error) {
@@ -862,7 +1073,7 @@ func (m *MsgCreateValidator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i = encodeVarintTx(dAtA, i, uint64(size))
 	}
 	i--
-	dAtA[i] = 0x3a
+	dAtA[i] = 0x6a
 	if m.Pubkey != nil {
 		{
 			size, err := m.Pubkey.MarshalToSizedBuffer(dAtA[:i])
@@ -873,22 +1084,79 @@ func (m *MsgCreateValidator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			i = encodeVarintTx(dAtA, i, uint64(size))
 		}
 		i--
-		dAtA[i] = 0x32
+		dAtA[i] = 0x62
+	}
+	if len(m.ApproverAddress) > 0 {
+		i -= len(m.ApproverAddress)
+		copy(dAtA[i:], m.ApproverAddress)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.ApproverAddress)))
+		i--
+		dAtA[i] = 0x5a
 	}
 	if len(m.ValidatorAddress) > 0 {
 		i -= len(m.ValidatorAddress)
 		copy(dAtA[i:], m.ValidatorAddress)
 		i = encodeVarintTx(dAtA, i, uint64(len(m.ValidatorAddress)))
 		i--
-		dAtA[i] = 0x2a
+		dAtA[i] = 0x52
 	}
 	if len(m.DelegatorAddress) > 0 {
 		i -= len(m.DelegatorAddress)
 		copy(dAtA[i:], m.DelegatorAddress)
 		i = encodeVarintTx(dAtA, i, uint64(len(m.DelegatorAddress)))
 		i--
-		dAtA[i] = 0x22
+		dAtA[i] = 0x4a
 	}
+	if m.EnableRedelegation {
+		i--
+		if m.EnableRedelegation {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x40
+	}
+	if m.LicenseMode {
+		i--
+		if m.LicenseMode {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x38
+	}
+	{
+		size := m.MaxLicense.Size()
+		i -= size
+		if _, err := m.MaxLicense.MarshalTo(dAtA[i:]); err != nil {
+			return 0, err
+		}
+		i = encodeVarintTx(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x32
+	{
+		size := m.DelegationIncrement.Size()
+		i -= size
+		if _, err := m.DelegationIncrement.MarshalTo(dAtA[i:]); err != nil {
+			return 0, err
+		}
+		i = encodeVarintTx(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x2a
+	{
+		size := m.MinDelegation.Size()
+		i -= size
+		if _, err := m.MinDelegation.MarshalTo(dAtA[i:]); err != nil {
+			return 0, err
+		}
+		i = encodeVarintTx(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x22
 	{
 		size := m.MinSelfDelegation.Size()
 		i -= size
@@ -965,6 +1233,16 @@ func (m *MsgEditValidator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	{
+		size := m.MaxLicense.Size()
+		i -= size
+		if _, err := m.MaxLicense.MarshalTo(dAtA[i:]); err != nil {
+			return 0, err
+		}
+		i = encodeVarintTx(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x2a
 	if m.MinSelfDelegation != nil {
 		{
 			size := m.MinSelfDelegation.Size()
@@ -1276,6 +1554,35 @@ func encodeVarintTx(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
+func (m *MsgSetValidatorApproval) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ApproverAddress)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.NewApproverAddress)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	if m.Enabled {
+		n += 2
+	}
+	return n
+}
+
+func (m *MsgSetValidatorApprovalResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
 func (m *MsgCreateValidator) Size() (n int) {
 	if m == nil {
 		return 0
@@ -1288,11 +1595,27 @@ func (m *MsgCreateValidator) Size() (n int) {
 	n += 1 + l + sovTx(uint64(l))
 	l = m.MinSelfDelegation.Size()
 	n += 1 + l + sovTx(uint64(l))
+	l = m.MinDelegation.Size()
+	n += 1 + l + sovTx(uint64(l))
+	l = m.DelegationIncrement.Size()
+	n += 1 + l + sovTx(uint64(l))
+	l = m.MaxLicense.Size()
+	n += 1 + l + sovTx(uint64(l))
+	if m.LicenseMode {
+		n += 2
+	}
+	if m.EnableRedelegation {
+		n += 2
+	}
 	l = len(m.DelegatorAddress)
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
 	l = len(m.ValidatorAddress)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	l = len(m.ApproverAddress)
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
@@ -1334,6 +1657,8 @@ func (m *MsgEditValidator) Size() (n int) {
 		l = m.MinSelfDelegation.Size()
 		n += 1 + l + sovTx(uint64(l))
 	}
+	l = m.MaxLicense.Size()
+	n += 1 + l + sovTx(uint64(l))
 	return n
 }
 
@@ -1443,6 +1768,190 @@ func sovTx(x uint64) (n int) {
 }
 func sozTx(x uint64) (n int) {
 	return sovTx(uint64((x << 1) ^ uint64((int64(x) >> 63))))
+}
+func (m *MsgSetValidatorApproval) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgSetValidatorApproval: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgSetValidatorApproval: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ApproverAddress", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ApproverAddress = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NewApproverAddress", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.NewApproverAddress = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Enabled", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Enabled = bool(v != 0)
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgSetValidatorApprovalResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgSetValidatorApprovalResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgSetValidatorApprovalResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
 }
 func (m *MsgCreateValidator) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
@@ -1575,6 +2084,148 @@ func (m *MsgCreateValidator) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 4:
 			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MinDelegation", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.MinDelegation.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DelegationIncrement", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.DelegationIncrement.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxLicense", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.MaxLicense.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LicenseMode", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.LicenseMode = bool(v != 0)
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EnableRedelegation", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.EnableRedelegation = bool(v != 0)
+		case 9:
+			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field DelegatorAddress", wireType)
 			}
 			var stringLen uint64
@@ -1605,7 +2256,7 @@ func (m *MsgCreateValidator) Unmarshal(dAtA []byte) error {
 			}
 			m.DelegatorAddress = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 5:
+		case 10:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ValidatorAddress", wireType)
 			}
@@ -1637,7 +2288,39 @@ func (m *MsgCreateValidator) Unmarshal(dAtA []byte) error {
 			}
 			m.ValidatorAddress = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 6:
+		case 11:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ApproverAddress", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ApproverAddress = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 12:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Pubkey", wireType)
 			}
@@ -1673,7 +2356,7 @@ func (m *MsgCreateValidator) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 7:
+		case 13:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Value", wireType)
 			}
@@ -1940,6 +2623,40 @@ func (m *MsgEditValidator) Unmarshal(dAtA []byte) error {
 			var v github_com_cosmos_cosmos_sdk_types.Int
 			m.MinSelfDelegation = &v
 			if err := m.MinSelfDelegation.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxLicense", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.MaxLicense.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

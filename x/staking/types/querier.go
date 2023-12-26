@@ -6,6 +6,7 @@ import (
 
 // query endpoints supported by the staking Querier
 const (
+	QueryValidatorApproval             = "validatorApproval"
 	QueryValidators                    = "validators"
 	QueryValidator                     = "validator"
 	QueryDelegatorDelegations          = "delegatorDelegations"

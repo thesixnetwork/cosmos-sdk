@@ -7,6 +7,10 @@ import (
 )
 
 const (
+	FlagAddressApprover    = "approver"
+	FlagAddressNewApprover = "new-approver"
+	FlagApprovalEnabled    = "approval-enabled"
+
 	FlagAddressValidator    = "validator"
 	FlagAddressValidatorSrc = "addr-validator-source"
 	FlagAddressValidatorDst = "addr-validator-dest"
@@ -31,6 +35,13 @@ const (
 	FlagGenesisFormat = "genesis-format"
 	FlagNodeID        = "node-id"
 	FlagIP            = "ip"
+
+	// Flag for custom validator
+	FlagMinDelegation       = "min-delegation"
+	FlagDelegationIncrement = "delegation-increment"
+	FlagLicenseMode         = "license-mode"
+	FlagMaxLicense          = "max-license"
+	FlagEnableRedelegation  = "enable-redelegation"
 )
 
 // common flagsets to add to various functions
@@ -46,6 +57,62 @@ func init() {
 	fsValidator.String(FlagAddressValidator, "", "The Bech32 address of the validator")
 	fsRedelegation.String(FlagAddressValidatorSrc, "", "The Bech32 address of the source validator")
 	fsRedelegation.String(FlagAddressValidatorDst, "", "The Bech32 address of the destination validator")
+}
+
+func FlagSetApprover() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.String(FlagAddressApprover, "", "Approver for create validator")
+	return fs
+}
+
+func FlagSetNewApprover() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.String(FlagAddressNewApprover, "", "New approver for create validator")
+	return fs
+}
+
+func FlagSetApprovalEnabled() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.Bool(FlagApprovalEnabled, true, "Enable approval for create validator")
+	return fs
+}
+
+// FlagMinDelegation       = "min-delegation"
+func FlagMinDelegationCreate() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.String(FlagMinDelegation, "", "The minimum delegation")
+	return fs
+}
+
+// FlagDelegationIncrement = "delegation-increment"
+func FlagDelegationIncrementCreate() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.String(FlagDelegationIncrement, "", "The delegation imcrement")
+	return fs
+}
+
+// FlagLicenseMode         = "license-mode"
+// FlagMaxLicense          = "max-license"
+func FlagLicenseModeCreate() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.Bool(FlagLicenseMode, false, "License mode or not")
+	fs.String(FlagMaxLicense, "", "The maximum license when license mode is on")
+
+	return fs
+}
+func FlagMaxLicenseEdit() *flag.FlagSet {
+
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.String(FlagMaxLicense, "", "The max license should set to current or gather current")
+	return fs
+}
+
+// FlagEnableRedelegation  = "enable-redelegation"
+func FlagEnableRedelegationCreate() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.Bool(FlagEnableRedelegation, true, "To enable redelegation for this validator (default true)")
+
+	return fs
 }
 
 // FlagSetCommissionCreate Returns the FlagSet used for commission create.

@@ -17,6 +17,9 @@ import (
 func NewQuerier(k Keeper, legacyQuerierCdc *codec.LegacyAmino) sdk.Querier {
 	return func(ctx sdk.Context, path []string, req abci.RequestQuery) ([]byte, error) {
 		switch path[0] {
+		case types.QueryValidatorApproval:
+			return queryValidatorApproval(ctx, req, k, legacyQuerierCdc)
+
 		case types.QueryValidators:
 			return queryValidators(ctx, req, k, legacyQuerierCdc)
 
@@ -63,6 +66,20 @@ func NewQuerier(k Keeper, legacyQuerierCdc *codec.LegacyAmino) sdk.Querier {
 			return nil, sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "unknown %s query endpoint: %s", types.ModuleName, path[0])
 		}
 	}
+}
+
+func queryValidatorApproval(ctx sdk.Context, req abci.RequestQuery, k Keeper, legacyQuerierCdc *codec.LegacyAmino) ([]byte, error) {
+	validatorApproval, found := k.GetValidatorApproval(ctx)
+	if !found {
+		return nil, types.ErrNoValidatorApprovalFound
+	}
+
+	res, err := codec.MarshalJSONIndent(legacyQuerierCdc, validatorApproval)
+	if err != nil {
+		return nil, sdkerrors.Wrap(sdkerrors.ErrJSONMarshal, err.Error())
+	}
+
+	return res, nil
 }
 
 func queryValidators(ctx sdk.Context, req abci.RequestQuery, k Keeper, legacyQuerierCdc *codec.LegacyAmino) ([]byte, error) {
