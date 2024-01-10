@@ -95,6 +95,8 @@ func (c configurator) runModuleMigrations(ctx sdk.Context, moduleName string, fr
 	}
 
 	moduleMigrationsMap, found := c.migrations[moduleName]
+	fmt.Println("##############", moduleMigrationsMap)
+
 	if !found {
 		return sdkerrors.Wrapf(sdkerrors.ErrNotFound, "no migrations found for module %s", moduleName)
 	}
