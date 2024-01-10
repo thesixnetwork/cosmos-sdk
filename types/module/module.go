@@ -437,6 +437,8 @@ func (m Manager) RunMigrations(ctx sdk.Context, cfg Configurator, fromVM Version
 		modules = DefaultMigrationsOrder(m.ModuleNames())
 	}
 
+	fmt.Println("############## MODULES", modules)
+
 	updatedVM := VersionMap{}
 	for _, moduleName := range modules {
 		module := m.Modules[moduleName]
