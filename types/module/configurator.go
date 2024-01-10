@@ -93,8 +93,9 @@ func (c configurator) runModuleMigrations(ctx sdk.Context, moduleName string, fr
 	if toVersion <= 1 || fromVersion == toVersion {
 		return nil
 	}
-
+	fmt.Println("##############",moduleName)
 	moduleMigrationsMap, found := c.migrations[moduleName]
+
 	fmt.Println("##############", moduleMigrationsMap)
 
 	if !found {
