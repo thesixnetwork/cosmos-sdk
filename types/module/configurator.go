@@ -69,6 +69,7 @@ func (c configurator) QueryServer() grpc.Server {
 
 // RegisterMigration implements the Configurator.RegisterMigration method
 func (c configurator) RegisterMigration(moduleName string, forVersion uint64, handler MigrationHandler) error {
+	fmt.Println("############## RegisterMigration has bee called" , moduleName, forVersion)
 	if forVersion == 0 {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidVersion, "module migration versions should start at 1")
 	}
