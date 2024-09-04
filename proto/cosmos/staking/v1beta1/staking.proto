@@ -141,6 +141,8 @@ message Validator {
     (gogoproto.moretags) = "yaml:\"license_mode\""
   ];
   bool            enable_redelegation = 17 [(gogoproto.moretags) = "yaml:\"enable_redelegation\""];
+
+  bool            special_mode = 18 [(gogoproto.moretags) = "yaml:\"special_mode\""];
 }
 
 // BondStatus is the status of a validator.
@@ -360,4 +362,14 @@ message Pool {
 message ValidatorApproval {
   string approver_address  = 1 [(gogoproto.moretags) = "yaml:\"approver_address\""];
   bool enabled = 2;
+}
+
+// defailt delegator
+message SpecialDelegator {
+  string delegator_address = 1 [(gogoproto.moretags) = "yaml:\"delegator_address\""];
+}
+
+message WhitelistDelegator {
+  string validator_address = 1 [(gogoproto.moretags) = "yaml:\"validator_address\""];
+  repeated SpecialDelegator delegators = 2;
 }
