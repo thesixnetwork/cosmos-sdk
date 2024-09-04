@@ -832,6 +832,52 @@ func (k Keeper) Undelegate(
 	return completionTime, nil
 }
 
+/*
+	TODO: Undelegate for special mode
+	1. Return asset immediately after undelegate request aka one block ahead
+*/
+
+func (k Keeper) UndelegatSpecial(
+	ctx sdk.Context, delAddr sdk.AccAddress, valAddr sdk.ValAddress, sharesAmount sdk.Dec,
+) (time.Time, error) {
+	validator, found := k.GetValidator(ctx, valAddr)
+	if !found {
+		return time.Time{}, types.ErrNoDelegatorForAddress
+	}
+
+	if !validator.SpecialMode{
+		return time.Time{}, types.ErrSpecialModeDisable
+	}
+
+	isSpecial := k.IsSpecialDelegator(ctx,valAddr, delAddr)
+	if !isSpecial {
+		return time.Time{}, types.ErrDelegatorIsNotSpecial
+	}
+
+	if k.HasMaxUnbondingDelegationEntries(ctx, delAddr, valAddr) {
+		return time.Time{}, types.ErrMaxUnbondingDelegationEntries
+	}
+
+	returnAmount, err := k.Unbond(ctx, delAddr, valAddr, sharesAmount)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	// transfer the validator tokens to the not bonded pool
+	if validator.IsBonded() {
+		k.bondedTokensToNotBonded(ctx, returnAmount)
+	}
+
+	prevblockCtx := ctx.WithBlockHeight(ctx.BlockHeader().Height-1)
+	timeDiff := ctx.BlockHeader().Time.Sub(prevblockCtx.BlockHeader().Time)
+
+	completionTime := ctx.BlockHeader().Time.Add(timeDiff)
+	ubd := k.SetUnbondingDelegationEntry(ctx, delAddr, valAddr, ctx.BlockHeight(), completionTime, returnAmount)
+	k.InsertUBDQueue(ctx, ubd, completionTime)
+
+	return completionTime, nil
+}
+
 // CompleteUnbonding completes the unbonding of all mature entries in the
 // retrieved unbonding delegation object and returns the total unbonding balance
 // or an error upon failure.
