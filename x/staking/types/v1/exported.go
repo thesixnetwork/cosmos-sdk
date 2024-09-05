@@ -1,4 +1,4 @@
-package v2
+package v1
 
 import (
 	tmprotocrypto "github.com/tendermint/tendermint/proto/tendermint/crypto"

@@ -8,7 +8,6 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
-	v2types "github.com/cosmos/cosmos-sdk/x/staking/types/v2"
 )
 
 // get a single validator
@@ -21,19 +20,6 @@ func (k Keeper) GetValidator(ctx sdk.Context, addr sdk.ValAddress) (validator ty
 	}
 
 	validator = types.MustUnmarshalValidator(k.cdc, value)
-	return validator, true
-}
-
-// get a single validator
-func (k Keeper) GetValidatorV2(ctx sdk.Context, addr sdk.ValAddress) (validator v2types.Validator, found bool) {
-	store := ctx.KVStore(k.storeKey)
-
-	value := store.Get(types.GetValidatorKey(addr))
-	if value == nil {
-		return validator, false
-	}
-
-	validator = v2types.MustUnmarshalValidator(k.cdc, value)
 	return validator, true
 }
 

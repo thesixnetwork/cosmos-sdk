@@ -9,7 +9,7 @@ import "cosmos_proto/cosmos.proto";
 import "cosmos/base/v1beta1/coin.proto";
 import "cosmos/staking/v2beta1/staking.proto";
 
-option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types/v2";
+option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types";
 
 // Msg defines the staking Msg service.
 service Msg {
@@ -76,6 +76,7 @@ message MsgCreateValidator {
   string                   approver_address  = 11 [(gogoproto.moretags) = "yaml:\"approver_address\""];
   google.protobuf.Any      pubkey            = 12 [(cosmos_proto.accepts_interface) = "cosmos.crypto.PubKey"];
   cosmos.base.v1beta1.Coin value             = 13 [(gogoproto.nullable) = false];
+  bool            special_mode = 14 [(gogoproto.moretags) = "yaml:\"special_mode\""];
 }
 
 // MsgCreateValidatorResponse defines the Msg/CreateValidator response type.
@@ -106,6 +107,8 @@ message MsgEditValidator {
     (gogoproto.moretags)   = "yaml:\"max_license\"",
     (gogoproto.nullable)   = false
   ];
+  bool            license_mode = 6 [(gogoproto.moretags) = "yaml:\"license_mode\""];
+  bool            special_mode = 7 [(gogoproto.moretags) = "yaml:\"special_mode\""];
 }
 
 // MsgEditValidatorResponse defines the Msg/EditValidator response type.

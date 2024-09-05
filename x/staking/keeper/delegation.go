@@ -840,7 +840,7 @@ func (k Keeper) Undelegate(
 func (k Keeper) UndelegatSpecial(
 	ctx sdk.Context, delAddr sdk.AccAddress, valAddr sdk.ValAddress, sharesAmount sdk.Dec,
 ) (time.Time, error) {
-	validator, found := k.GetValidatorV2(ctx, valAddr)
+	validator, found := k.GetValidator(ctx, valAddr)
 	if !found {
 		return time.Time{}, types.ErrNoDelegatorForAddress
 	}
