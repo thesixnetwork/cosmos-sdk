@@ -12,6 +12,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
+	typesv2 "github.com/cosmos/cosmos-sdk/x/staking/types/v2"
 )
 
 // GetQueryCmd returns the cli query commands for this module
@@ -319,11 +320,22 @@ $ %s query staking delegation %s1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p %s1gghju
 			}
 
 			res, err := queryClient.Delegation(cmd.Context(), params)
-			if err != nil {
-				return err
+			if err == nil {
+				return clientCtx.PrintProto(res.DelegationResponse)
+			} else {
+				queryClientV2 := typesv2.NewQueryClient(clientCtx)
+
+				paramsV2 := &typesv2.QueryDelegationRequest{
+					DelegatorAddr: delAddr.String(),
+					ValidatorAddr: valAddr.String(),
+				}
+				resV2, err := queryClientV2.Delegation(cmd.Context(), paramsV2)
+				if err != nil {
+					return err
+				}
+				return clientCtx.PrintProto(resV2.DelegationResponse)
 			}
 
-			return clientCtx.PrintProto(res.DelegationResponse)
 		},
 	}
 
@@ -373,11 +385,21 @@ $ %s query staking delegations %s1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
 			}
 
 			res, err := queryClient.DelegatorDelegations(cmd.Context(), params)
-			if err != nil {
-				return err
-			}
+			if err == nil {
+				return clientCtx.PrintProto(res)
+			} else {
+				queryClientV2 := typesv2.NewQueryClient(clientCtx)
 
-			return clientCtx.PrintProto(res)
+				paramsV2 := &typesv2.QueryDelegatorDelegationsRequest{
+					DelegatorAddr: delAddr.String(),
+					Pagination:    pageReq,
+				}
+				resV2, err := queryClientV2.DelegatorDelegations(cmd.Context(), paramsV2)
+				if err != nil {
+					return err
+				}
+				return clientCtx.PrintProto(resV2)
+			}
 		},
 	}
 
@@ -428,11 +450,21 @@ $ %s query staking delegations-to %s1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 			}
 
 			res, err := queryClient.ValidatorDelegations(cmd.Context(), params)
-			if err != nil {
-				return err
-			}
+			if err == nil {
+				return clientCtx.PrintProto(res)
+			} else {
+				queryClientV2 := typesv2.NewQueryClient(clientCtx)
 
-			return clientCtx.PrintProto(res)
+				paramsV2 := &typesv2.QueryValidatorDelegationsRequest{
+					ValidatorAddr: valAddr.String(),
+					Pagination:    pageReq,
+				}
+				resV2, err := queryClientV2.ValidatorDelegations(cmd.Context(), paramsV2)
+				if err != nil {
+					return err
+				}
+				return clientCtx.PrintProto(resV2)
+			}
 		},
 	}
 
@@ -484,11 +516,21 @@ $ %s query staking unbonding-delegation %s1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9
 			}
 
 			res, err := queryClient.UnbondingDelegation(cmd.Context(), params)
-			if err != nil {
-				return err
-			}
+			if err == nil {
+				return clientCtx.PrintProto(res)
+			} else {
+				queryClientV2 := typesv2.NewQueryClient(clientCtx)
 
-			return clientCtx.PrintProto(&res.Unbond)
+				paramsV2 := &typesv2.QueryUnbondingDelegationRequest{
+					DelegatorAddr: delAddr.String(),
+					ValidatorAddr: valAddr.String(),
+				}
+				resV2, err := queryClientV2.UnbondingDelegation(cmd.Context(), paramsV2)
+				if err != nil {
+					return err
+				}
+				return clientCtx.PrintProto(resV2)
+			}
 		},
 	}
 
@@ -538,11 +580,21 @@ $ %s query staking unbonding-delegations %s1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru
 			}
 
 			res, err := queryClient.DelegatorUnbondingDelegations(cmd.Context(), params)
-			if err != nil {
-				return err
-			}
+			if err == nil {
+				return clientCtx.PrintProto(res)
+			} else {
+				queryClientV2 := typesv2.NewQueryClient(clientCtx)
 
-			return clientCtx.PrintProto(res)
+				paramsV2 := &typesv2.QueryDelegatorUnbondingDelegationsRequest{
+					DelegatorAddr: delegatorAddr.String(),
+					Pagination:    pageReq,
+				}
+				resV2, err := queryClientV2.DelegatorUnbondingDelegations(cmd.Context(), paramsV2)
+				if err != nil {
+					return err
+				}
+				return clientCtx.PrintProto(resV2)
+			}
 		},
 	}
 
@@ -600,11 +652,21 @@ $ %s query staking redelegation %s1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p %s1l2r
 			}
 
 			res, err := queryClient.Redelegations(cmd.Context(), params)
-			if err != nil {
-				return err
+			if err == nil {
+				return clientCtx.PrintProto(res)
+			} else {
+				queryClientV2 := typesv2.NewQueryClient(clientCtx)
+				paramsV2 := &typesv2.QueryRedelegationsRequest{
+					DelegatorAddr:    delAddr.String(),
+					DstValidatorAddr: valDstAddr.String(),
+					SrcValidatorAddr: valSrcAddr.String(),
+				}
+				resV2, err := queryClientV2.Redelegations(cmd.Context(), paramsV2)
+				if err != nil {
+					return err
+				}
+				return clientCtx.PrintProto(resV2)
 			}
-
-			return clientCtx.PrintProto(res)
 		},
 	}
 
@@ -654,11 +716,20 @@ $ %s query staking redelegation %s1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
 			}
 
 			res, err := queryClient.Redelegations(cmd.Context(), params)
-			if err != nil {
-				return err
+			if err == nil {
+				return clientCtx.PrintProto(res)
+			} else {
+				queryClientV2 := typesv2.NewQueryClient(clientCtx)
+				paramsV2 := &typesv2.QueryRedelegationsRequest{
+					DelegatorAddr: delAddr.String(),
+					Pagination:    pageReq,
+				}
+				resV2, err := queryClientV2.Redelegations(cmd.Context(), paramsV2)
+				if err != nil {
+					return err
+				}
+				return clientCtx.PrintProto(resV2)
 			}
-
-			return clientCtx.PrintProto(res)
 		},
 	}
 
@@ -697,11 +768,17 @@ $ %s query staking historical-info 5
 
 			params := &types.QueryHistoricalInfoRequest{Height: height}
 			res, err := queryClient.HistoricalInfo(cmd.Context(), params)
-			if err != nil {
-				return err
+			if err == nil {
+				return clientCtx.PrintProto(res)
+			} else {
+				queryClientV2 := typesv2.NewQueryClient(clientCtx)
+				paramsV2 := &typesv2.QueryHistoricalInfoRequest{Height: height}
+				resV2, err := queryClientV2.HistoricalInfo(cmd.Context(), paramsV2)
+				if err != nil {
+					return err
+				}
+				return clientCtx.PrintProto(resV2)
 			}
-
-			return clientCtx.PrintProto(res.Hist)
 		},
 	}
 
@@ -733,11 +810,16 @@ $ %s query staking pool
 			queryClient := types.NewQueryClient(clientCtx)
 
 			res, err := queryClient.Pool(cmd.Context(), &types.QueryPoolRequest{})
-			if err != nil {
-				return err
+			if err == nil {
+				return clientCtx.PrintProto(res)
+			} else {
+				queryClientV2 := typesv2.NewQueryClient(clientCtx)
+				resV2, err := queryClientV2.Pool(cmd.Context(), &typesv2.QueryPoolRequest{})
+				if err != nil {
+					return err
+				}
+				return clientCtx.PrintProto(resV2)
 			}
-
-			return clientCtx.PrintProto(&res.Pool)
 		},
 	}
 
@@ -769,11 +851,16 @@ $ %s query staking params
 			queryClient := types.NewQueryClient(clientCtx)
 
 			res, err := queryClient.Params(cmd.Context(), &types.QueryParamsRequest{})
-			if err != nil {
-				return err
+			if err == nil {
+				return clientCtx.PrintProto(res)
+			} else {
+				queryClientV2 := typesv2.NewQueryClient(clientCtx)
+				resV2, err := queryClientV2.Params(cmd.Context(), &typesv2.QueryParamsRequest{})
+				if err != nil {
+					return err
+				}
+				return clientCtx.PrintProto(resV2)
 			}
-
-			return clientCtx.PrintProto(&res.Params)
 		},
 	}
 

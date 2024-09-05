@@ -65,15 +65,6 @@ func NewSetValidatorApprovalCmd() *cobra.Command {
 			newApproverAddr, _ := cmd.Flags().GetString(FlagAddressNewApprover)
 			approvalEnabled, _ := cmd.Flags().GetBool(FlagApprovalEnabled)
 
-			// var approvalEnabledBool bool
-			// if approvalEnabled == 0 {
-			// 	approvalEnabledBool = false
-			// } else if approvalEnabled == 1 {
-			// 	approvalEnabledBool = true
-			// } else {
-			// 	return fmt.Errorf("invalid approval enabled value: %v, value must be 0 or 1", approvalEnabled)
-			// }
-
 			msg, err := types.NewMsgSetValidatorApproval(approverAddr.String(), newApproverAddr, approvalEnabled)
 			if err != nil {
 				return fmt.Errorf("error create message: %v", err)
@@ -125,6 +116,7 @@ func NewCreateValidatorCmd() *cobra.Command {
 	cmd.Flags().AddFlagSet(FlagDelegationIncrementCreate())
 	cmd.Flags().AddFlagSet(FlagLicenseModeCreate())
 	cmd.Flags().AddFlagSet(FlagEnableRedelegationCreate())
+	cmd.Flags().AddFlagSet(FlagSpecialModeCreate())
 
 	cmd.Flags().String(FlagIP, "", fmt.Sprintf("The node's public IP. It takes effect only when used in combination with --%s", flags.FlagGenerateOnly))
 	cmd.Flags().String(FlagNodeID, "", "The node's ID")
@@ -133,7 +125,7 @@ func NewCreateValidatorCmd() *cobra.Command {
 	_ = cmd.MarkFlagRequired(flags.FlagFrom)
 	_ = cmd.MarkFlagRequired(FlagAmount)
 	_ = cmd.MarkFlagRequired(FlagPubKey)
-	_ = cmd.MarkFlagRequired(FlagMoniker)
+	_ = cmd.MarkFlagRequired(FlagMoniker)	
 
 	return cmd
 }
@@ -424,6 +416,11 @@ func newBuildCreateValidatorMsg(clientCtx client.Context, txf tx.Factory, fs *fl
 
 	// License
 	licenseMode, _ := fs.GetBool(FlagLicenseMode)
+
+	// Special mode
+	specialMode, _ := fs.GetBool(FlagSpecialMode)
+
+
 	if licenseMode {
 		msg.LicenseMode = true
 		mlcStr, _ := fs.GetString(FlagMaxLicense)
@@ -436,6 +433,11 @@ func newBuildCreateValidatorMsg(clientCtx client.Context, txf tx.Factory, fs *fl
 		if enableRedelegation {
 			return txf, nil, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "When license mode is used, redelegation must be disabled")
 		}
+
+		if specialMode {
+			return txf, nil, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "When license mode is used, special mode must be disabled")
+		}
+
 		// check Count licesene amount for validator
 		divAmount := amount.Amount.Quo(msg.DelegationIncrement)
 		modAmount := msg.Value.Amount.Mod(msg.DelegationIncrement)

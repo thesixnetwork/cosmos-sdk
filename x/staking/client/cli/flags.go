@@ -42,6 +42,7 @@ const (
 	FlagLicenseMode         = "license-mode"
 	FlagMaxLicense          = "max-license"
 	FlagEnableRedelegation  = "enable-redelegation"
+	FlagSpecialMode         = "special-mode"
 )
 
 // common flagsets to add to various functions
@@ -100,6 +101,14 @@ func FlagLicenseModeCreate() *flag.FlagSet {
 
 	return fs
 }
+
+// FlagLicenseMode         = "special-mode"
+func FlagSpecialModeCreate() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.Bool(FlagLicenseMode, false, "special mode or not default false")
+	return fs
+}
+
 func FlagMaxLicenseEdit() *flag.FlagSet {
 
 	fs := flag.NewFlagSet("", flag.ContinueOnError)

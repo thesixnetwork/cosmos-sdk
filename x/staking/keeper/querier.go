@@ -68,7 +68,7 @@ func NewQuerier(k Keeper, legacyQuerierCdc *codec.LegacyAmino) sdk.Querier {
 	}
 }
 
-func queryValidatorApproval(ctx sdk.Context, req abci.RequestQuery, k Keeper, legacyQuerierCdc *codec.LegacyAmino) ([]byte, error) {
+func queryValidatorApproval(ctx sdk.Context, _ abci.RequestQuery, k Keeper, legacyQuerierCdc *codec.LegacyAmino) ([]byte, error) {
 	validatorApproval, found := k.GetValidatorApproval(ctx)
 	if !found {
 		return nil, types.ErrNoValidatorApprovalFound

@@ -3,18 +3,18 @@ package keeper
 import (
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/staking/types"
+	v2types "github.com/cosmos/cosmos-sdk/x/staking/types/v2"
 )
 
-func (k Keeper) GetWhitelist(ctx sdk.Context, addr sdk.ValAddress) (whitelist types.WhitelistDelegator, found bool) {
-	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.KeyPrefix(types.WhiltelistKeyPrefix))
+func (k Keeper) GetWhitelist(ctx sdk.Context, addr sdk.ValAddress) (whitelist v2types.WhitelistDelegator, found bool) {
+	store := prefix.NewStore(ctx.KVStore(k.storeKey), v2types.KeyPrefix(v2types.WhiltelistKeyPrefix))
 
-	value := store.Get(types.WhitelistKeyStore(addr))
+	value := store.Get(v2types.WhitelistKeyStore(addr))
 	if value == nil {
 		return whitelist, false
 	}
 
-	whitelist = types.MustUnmarshalWhitelist(k.cdc, value)
+	whitelist = v2types.MustUnmarshalWhitelist(k.cdc, value)
 	return whitelist, true
 }
 
