@@ -364,12 +364,3 @@ message ValidatorApproval {
   bool enabled = 2;
 }
 
-// defailt delegator
-message SpecialDelegator {
-  string delegator_address = 1 [(gogoproto.moretags) = "yaml:\"delegator_address\""];
-}
-
-message WhitelistDelegator {
-  string validator_address = 1 [(gogoproto.moretags) = "yaml:\"validator_address\""];
-  repeated SpecialDelegator delegators = 2;
-}

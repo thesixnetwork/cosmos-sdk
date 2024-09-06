@@ -849,7 +849,7 @@ func (k Keeper) UndelegatSpecial(
 		return time.Time{}, types.ErrSpecialModeDisable
 	}
 
-	isSpecial := k.IsSpecialDelegator(ctx,valAddr, delAddr)
+	isSpecial := k.IsSpecialDelegator(ctx, valAddr.String(), delAddr.String())
 	if !isSpecial {
 		return time.Time{}, types.ErrDelegatorIsNotSpecial
 	}

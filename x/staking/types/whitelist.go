@@ -1,43 +1,29 @@
 package types
 
 import (
-	"github.com/cosmos/cosmos-sdk/codec"
+	"encoding/binary"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+var _ binary.ByteOrder
+
 const (
-	WhiltelistKeyPrefix = "Whitelist/value/"
+	WhitelistDelegatorKeyPrefix = "WhitelistDelegator/value/"
 )
 
 func KeyPrefix(p string) []byte {
 	return []byte(p)
 }
 
-func WhitelistKeyStore(
-	valAddr sdk.ValAddress,
+func WhitelistDelegatorKey(
+	validator sdk.ValAddress,
 ) []byte {
 	var key []byte
 
-	valAddrBytes := []byte(valAddr)
-	key = append(key, valAddrBytes...)
+	validatorBytes := []byte(validator)
+	key = append(key, validatorBytes...)
 	key = append(key, []byte("/")...)
 
 	return key
-}
-
-// unmarshal a redelegation from a store value
-func MustUnmarshalWhitelist(cdc codec.BinaryCodec, value []byte) WhitelistDelegator {
-	whitelist, err := UnmarshalWhitelist(cdc, value)
-	if err != nil {
-		panic(err)
-	}
-
-	return whitelist
-}
-
-
-// unmarshal a redelegation from a store value
-func UnmarshalWhitelist(cdc codec.BinaryCodec, value []byte) (v WhitelistDelegator, err error) {
-	err = cdc.Unmarshal(value, &v)
-	return v, err
 }

@@ -41,6 +41,8 @@ func GetQueryCmd() *cobra.Command {
 		GetCmdQueryHistoricalInfo(),
 		GetCmdQueryParams(),
 		GetCmdQueryPool(),
+		CmdListWhitelistDelegator(),
+		CmdShowWhitelistDelegator(),
 	)
 
 	return stakingQueryCmd

@@ -61,5 +61,6 @@ var (
 	ErrNotEnoughLicense                = sdkerrors.Register(ModuleName, 49, "There is no license enough for the delegation")
 	ErrRedelegationDisable             = sdkerrors.Register(ModuleName, 50, "Redelegation is disable for this/these validator(s)")
 	ErrSpecialModeDisable              = sdkerrors.Register(ModuleName, 51, "SpecialMode is disable for this/these validator(s)")
-	ErrDelegatorIsNotSpecial              = sdkerrors.Register(ModuleName, 51, "Cannot find delegator in whitelist")
+	ErrDelegatorIsNotSpecial           = sdkerrors.Register(ModuleName, 52, "Cannot find delegator in whitelist")
+	ErrBadValidatorRequest             = sdkerrors.Register(ModuleName, 53, "Did not found delegator in this validator list")
 )

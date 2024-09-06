@@ -18,6 +18,8 @@ func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgDelegate{}, "cosmos-sdk/MsgDelegate", nil)
 	cdc.RegisterConcrete(&MsgUndelegate{}, "cosmos-sdk/MsgUndelegate", nil)
 	cdc.RegisterConcrete(&MsgBeginRedelegate{}, "cosmos-sdk/MsgBeginRedelegate", nil)
+	cdc.RegisterConcrete(&MsgCreateWhitelistDelegator{}, "cosmos-sdk/CreateWhitelistDelegator", nil)
+	cdc.RegisterConcrete(&MsgDeleteWhitelistDelegator{}, "cosmos-sdk/DeleteWhitelistDelegator", nil)
 }
 
 // RegisterInterfaces registers the x/staking interfaces types with the interface registry
@@ -29,6 +31,8 @@ func RegisterInterfaces(registry types.InterfaceRegistry) {
 		&MsgDelegate{},
 		&MsgUndelegate{},
 		&MsgBeginRedelegate{},
+		&MsgCreateWhitelistDelegator{},
+		&MsgDeleteWhitelistDelegator{},
 	)
 	registry.RegisterImplementations(
 		(*authz.Authorization)(nil),

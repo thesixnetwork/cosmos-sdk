@@ -47,6 +47,8 @@ func NewTxCmd() *cobra.Command {
 		NewDelegateCmd(),
 		NewRedelegateCmd(),
 		NewUnbondCmd(),
+		CmdCreateWhitelistDelegator(),
+		CmdDeleteWhitelistDelegator(),
 	)
 
 	return stakingTxCmd

@@ -8,6 +8,7 @@ import "gogoproto/gogo.proto";
 import "cosmos_proto/cosmos.proto";
 import "cosmos/base/v1beta1/coin.proto";
 import "cosmos/staking/v2beta1/staking.proto";
+import "cosmos/staking/v2beta1/whitelist.proto";
 
 option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types";
 
@@ -32,6 +33,9 @@ service Msg {
   // Undelegate defines a method for performing an undelegation from a
   // delegate and a validator.
   rpc Undelegate(MsgUndelegate) returns (MsgUndelegateResponse);
+
+  rpc CreateWhitelistdelegator(MsgCreateWhitelistDelegator) returns (MsgWhitelistDelegatorResponse);
+  rpc DeleteWhitelistdelegator(MsgDeleteWhitelistDelegator) returns (MsgWhitelistDelegatorResponse);
 }
 
 message MsgSetValidatorApproval {
@@ -159,4 +163,20 @@ message MsgUndelegate {
 // MsgUndelegateResponse defines the Msg/Undelegate response type.
 message MsgUndelegateResponse {
   google.protobuf.Timestamp completion_time = 1 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+}
+
+message MsgCreateWhitelistDelegator {
+  string creator = 1;
+  string validator_address = 2 [(gogoproto.moretags) = "yaml:\"validator_address\""];
+  string delegator_address = 3 [(gogoproto.moretags) = "yaml:\"delegator_address\""];
+}
+
+message MsgDeleteWhitelistDelegator {
+  string creator = 1;
+  string validator_address = 2 [(gogoproto.moretags) = "yaml:\"validator_address\""];
+  string delegator_address = 3 [(gogoproto.moretags) = "yaml:\"delegator_address\""];
+}
+
+message MsgWhitelistDelegatorResponse {
+  WhitelistDelegator whitelist_delegator = 1;
 }
