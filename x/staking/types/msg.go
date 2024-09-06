@@ -139,6 +139,10 @@ func (msg MsgCreateValidator) GetSigners() []sdk.AccAddress {
 		addrs = append(addrs, sdk.AccAddress(approvalAddr))
 	}
 
+	if msg.LicenseMode && msg.SpecialMode {
+		panic("Allow only one mode per validator")
+	}
+
 	return addrs
 }
 
@@ -300,6 +304,10 @@ func (msg MsgEditValidator) ValidateBasic() error {
 		if msg.CommissionRate.GT(sdk.OneDec()) || msg.CommissionRate.IsNegative() {
 			return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "commission rate must be between 0 and 1 (inclusive)")
 		}
+	}
+
+	if msg.LicenseMode && msg.SpecialMode {
+		panic("Allow only one mode per validator")
 	}
 
 	return nil

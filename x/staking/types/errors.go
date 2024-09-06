@@ -63,4 +63,5 @@ var (
 	ErrSpecialModeDisable              = sdkerrors.Register(ModuleName, 51, "SpecialMode is disable for this/these validator(s)")
 	ErrDelegatorIsNotSpecial           = sdkerrors.Register(ModuleName, 52, "Cannot find delegator in whitelist")
 	ErrBadValidatorRequest             = sdkerrors.Register(ModuleName, 53, "Did not found delegator in this validator list")
+	ErrBadRedelegationNotSpecial       = sdkerrors.Register(ModuleName, 54, "redelegation validator is not special node ")
 )
