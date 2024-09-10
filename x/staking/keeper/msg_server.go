@@ -565,18 +565,9 @@ func (k msgServer) Undelegate(goCtx context.Context, msg *types.MsgUndelegate) (
 			return nil, err
 		}
 	case validator.SpecialMode:
-		// must check is delegator in special whitelist or not
-		found := k.IsSpecialDelegator(ctx, addr, delegatorAddress)
-		if !found {
-			completionTime, err = k.Keeper.Undelegate(ctx, delegatorAddress, addr, shares)
-			if err != nil {
-				return nil, err
-			}
-		}else{
-			completionTime, err = k.Keeper.UndelegateSpecial(ctx, delegatorAddress, addr, shares)
-			if err != nil {
-				return nil, err
-			}
+		completionTime, err = k.Keeper.UndelegateSpecial(ctx, delegatorAddress, addr, shares)
+		if err != nil {
+			return nil, err
 		}
 	default:
 		completionTime, err = k.Keeper.Undelegate(ctx, delegatorAddress, addr, shares)
