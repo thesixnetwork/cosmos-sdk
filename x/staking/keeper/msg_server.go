@@ -223,16 +223,22 @@ func (k msgServer) EditValidator(goCtx context.Context, msg *types.MsgEditValida
 
 	switch {
 	case msg.LicenseMode:
+		validator.SpecialMode = false
+		validator.LicenseMode = true
+
 		// validate max license
-		if validator.LicenseMode && !msg.MaxLicense.IsNil() && msg.MaxLicense.LT(validator.MaxLicense) {
+		if !msg.MaxLicense.IsNil() && msg.MaxLicense.LT(validator.MaxLicense) {
 			return nil, types.ErrMaxLicenseMustBeGeater
 		}
 
-		if validator.LicenseMode && !msg.MaxLicense.IsNil() {
+		if !msg.MaxLicense.IsNil() {
 			validator.MaxLicense = msg.MaxLicense
 		}
-		validator.SpecialMode = false
-		validator.LicenseMode = true
+
+		amountShare := validator.GetDelegatorShares()
+		divAmount := amountShare.QuoRoundUp(validator.DelegatorShares)
+		validator.LicenseCount = sdk.Int(divAmount)
+		validator.EnableRedelegation = false
 	case msg.SpecialMode:
 		validator.SpecialMode = true
 		validator.LicenseMode = false
@@ -313,7 +319,7 @@ func (k msgServer) Delegate(goCtx context.Context, msg *types.MsgDelegate) (*typ
 
 	switch {
 	case validator.LicenseMode:
-		delegateLicenseCount, err := k.calculateDelegateLicenseCount(ctx, msg.Amount, validator, sdk.AccAddress(msg.DelegatorAddress))
+		delegateLicenseCount, err := k.calculateDelegateLicenseCount(ctx, msg.Amount, validator, sdk.AccAddress(msg.DelegatorAddress), sdk.Dec{})
 		if err != nil {
 			return nil, err
 		}
@@ -368,39 +374,6 @@ func (k msgServer) Delegate(goCtx context.Context, msg *types.MsgDelegate) (*typ
 	})
 
 	return &types.MsgDelegateResponse{}, nil
-}
-
-func (k msgServer) calculateDelegateLicenseCount(ctx sdk.Context, amount sdk.Coin, validator types.Validator, delegatorAddress sdk.AccAddress) (sdk.Int, error) {
-	_, existsDelegation := k.Keeper.GetDelegation(ctx, delegatorAddress, validator.GetOperator())
-
-	// Validate Minimum and Increment
-	if !validator.MinDelegation.IsNil() && !existsDelegation && amount.Amount.LT(validator.MinDelegation) {
-		return sdk.NewInt(0), types.ErrDelegationBelowMinimum
-	}
-
-	delegateLicenseCount := sdk.ZeroInt()
-	// Deduct minimum from value to validate increment
-	amountToValidateIncrement := sdk.NewIntFromBigInt(amount.Amount.BigInt())
-	if !validator.MinDelegation.IsNil() && !existsDelegation {
-		amountToValidateIncrement = amountToValidateIncrement.Sub(validator.MinDelegation)
-		delegateLicenseCount = delegateLicenseCount.Add(sdk.OneInt())
-	}
-
-	// Validate DelegationIncrement
-	increment := sdk.OneInt()
-	if !validator.DelegationIncrement.IsNil() {
-		increment = validator.DelegationIncrement
-	}
-
-	if amountToValidateIncrement.GT(sdk.ZeroInt()) {
-		divAmount := amountToValidateIncrement.Quo(increment)
-		modAmount := amountToValidateIncrement.Mod(increment)
-		if modAmount.GT(sdk.ZeroInt()) {
-			return sdk.NewInt(0), types.ErrInvalidIncrementDelegation
-		}
-		delegateLicenseCount = delegateLicenseCount.Add(divAmount)
-	}
-	return delegateLicenseCount, nil
 }
 
 // BeginRedelegate defines a method for performing a redelegation of coins from a delegator and source validator to a destination validator
@@ -577,36 +550,9 @@ func (k msgServer) Undelegate(goCtx context.Context, msg *types.MsgUndelegate) (
 
 	switch {
 	case validator.LicenseMode:
-		// Get Current Delegation
-		currentDelegation, existsDelegation := k.Keeper.GetDelegation(ctx, delegatorAddress, validator.GetOperator())
-		// Validate minimum amount , currentDelegation - unbond >= min delegation
-		if !currentDelegation.Shares.Equal(shares) {
-			// NOT remove entire shares , only unbond some of it.
-			if !validator.MinDelegation.IsNil() && currentDelegation.Shares.Sub(shares).LT(validator.MinDelegation.ToDec()) {
-				return nil, types.ErrDelegationBelowMinimum
-			}
-		}
-		delegateLicenseCount := sdk.ZeroInt()
-		// Deduct minimum from value to validate increment
-		amountToValidateIncrement := sdk.NewIntFromBigInt(msg.Amount.Amount.BigInt())
-		if !validator.MinDelegation.IsNil() && !existsDelegation {
-			amountToValidateIncrement = amountToValidateIncrement.Sub(validator.MinDelegation)
-			delegateLicenseCount = delegateLicenseCount.Add(sdk.OneInt())
-		}
-
-		increment := sdk.OneInt()
-		if !validator.DelegationIncrement.IsNil() {
-			increment = validator.DelegationIncrement
-		}
-		// Validate DelegationIncrement
-		if amountToValidateIncrement.GT(sdk.ZeroInt()) {
-			// not remove
-			divAmount := amountToValidateIncrement.Quo(increment)
-			modAmount := amountToValidateIncrement.Mod(increment)
-			if modAmount.GT(sdk.ZeroInt()) {
-				return nil, types.ErrInvalidIncrementDelegation
-			}
-			delegateLicenseCount = delegateLicenseCount.Add(divAmount)
+		delegateLicenseCount, err := k.calculateDelegateLicenseCount(ctx, msg.Amount, validator, delegatorAddress, shares)
+		if err != nil {
+			return nil, err
 		}
 		// Validate License
 		// decrease license count in validator
@@ -619,9 +565,18 @@ func (k msgServer) Undelegate(goCtx context.Context, msg *types.MsgUndelegate) (
 			return nil, err
 		}
 	case validator.SpecialMode:
-		completionTime, err = k.Keeper.UndelegatSpecial(ctx, delegatorAddress, addr, shares)
-		if err != nil {
-			return nil, err
+		// must check is delegator in special whitelist or not
+		found := k.IsSpecialDelegator(ctx, addr, delegatorAddress)
+		if !found {
+			completionTime, err = k.Keeper.Undelegate(ctx, delegatorAddress, addr, shares)
+			if err != nil {
+				return nil, err
+			}
+		}else{
+			completionTime, err = k.Keeper.UndelegateSpecial(ctx, delegatorAddress, addr, shares)
+			if err != nil {
+				return nil, err
+			}
 		}
 	default:
 		completionTime, err = k.Keeper.Undelegate(ctx, delegatorAddress, addr, shares)
@@ -658,4 +613,47 @@ func (k msgServer) Undelegate(goCtx context.Context, msg *types.MsgUndelegate) (
 	return &types.MsgUndelegateResponse{
 		CompletionTime: completionTime,
 	}, nil
+}
+
+func (k msgServer) calculateDelegateLicenseCount(ctx sdk.Context, amount sdk.Coin, validator types.Validator, delegatorAddress sdk.AccAddress, shares sdk.Dec) (sdk.Int, error) {
+	currentDelegation, existsDelegation := k.Keeper.GetDelegation(ctx, delegatorAddress, validator.GetOperator())
+
+	if !shares.IsNil() {
+		// Validate minimum amount , currentDelegation - unbond >= min delegation
+		if !currentDelegation.Shares.Equal(shares) {
+			// NOT remove entire shares , only unbond some of it.
+			if !validator.MinDelegation.IsNil() && currentDelegation.Shares.Sub(shares).LT(validator.MinDelegation.ToDec()) {
+				return sdk.NewInt(0), types.ErrDelegationBelowMinimum
+			}
+		}
+	}
+
+	// Validate Minimum and Increment
+	if !validator.MinDelegation.IsNil() && !existsDelegation && amount.Amount.LT(validator.MinDelegation) {
+		return sdk.NewInt(0), types.ErrDelegationBelowMinimum
+	}
+
+	delegateLicenseCount := sdk.ZeroInt()
+	// Deduct minimum from value to validate increment
+	amountToValidateIncrement := sdk.NewIntFromBigInt(amount.Amount.BigInt())
+	if !validator.MinDelegation.IsNil() && !existsDelegation {
+		amountToValidateIncrement = amountToValidateIncrement.Sub(validator.MinDelegation)
+		delegateLicenseCount = delegateLicenseCount.Add(sdk.OneInt())
+	}
+
+	// Validate DelegationIncrement
+	increment := sdk.OneInt()
+	if !validator.DelegationIncrement.IsNil() {
+		increment = validator.DelegationIncrement
+	}
+
+	if amountToValidateIncrement.GT(sdk.ZeroInt()) {
+		divAmount := amountToValidateIncrement.Quo(increment)
+		modAmount := amountToValidateIncrement.Mod(increment)
+		if modAmount.GT(sdk.ZeroInt()) {
+			return sdk.NewInt(0), types.ErrInvalidIncrementDelegation
+		}
+		delegateLicenseCount = delegateLicenseCount.Add(divAmount)
+	}
+	return delegateLicenseCount, nil
 }

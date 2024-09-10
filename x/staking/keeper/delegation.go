@@ -843,7 +843,7 @@ func (k Keeper) Undelegate(
 	1. Return asset immediately after undelegate request aka one block ahead
 */
 
-func (k Keeper) UndelegatSpecial(
+func (k Keeper) UndelegateSpecial(
 	ctx sdk.Context, delAddr sdk.AccAddress, valAddr sdk.ValAddress, sharesAmount sdk.Dec,
 ) (time.Time, error) {
 	validator, found := k.GetValidator(ctx, valAddr)

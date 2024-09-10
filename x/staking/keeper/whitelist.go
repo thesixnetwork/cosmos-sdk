@@ -11,8 +11,11 @@ import (
 func (k Keeper) SetWhitelistDelegator(ctx sdk.Context, whitelistDelegator types.WhitelistDelegator) {
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.KeyPrefix(types.WhitelistDelegatorKeyPrefix))
 	b := k.cdc.MustMarshal(&whitelistDelegator)
+
+	valAddr, _ := sdk.ValAddressFromBech32(whitelistDelegator.ValidatorAddress)
+
 	store.Set(types.WhitelistDelegatorKey(
-		sdk.ValAddress(whitelistDelegator.ValidatorAddress),
+		valAddr,
 	), b)
 }
 
@@ -24,7 +27,7 @@ func (k Keeper) GetWhitelistDelegator(
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.KeyPrefix(types.WhitelistDelegatorKeyPrefix))
 
 	b := store.Get(types.WhitelistDelegatorKey(
-		sdk.ValAddress(validator),
+		validator,
 	))
 	if b == nil {
 		return val, false
@@ -35,10 +38,7 @@ func (k Keeper) GetWhitelistDelegator(
 }
 
 // RemoveWhitelistDelegator removes a whitelistDelegator from the store
-func (k Keeper) RemoveWhitelistDelegator(
-	ctx sdk.Context,
-	validator sdk.ValAddress,
-) {
+func (k Keeper) _(ctx sdk.Context, validator sdk.ValAddress) {
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.KeyPrefix(types.WhitelistDelegatorKeyPrefix))
 	store.Delete(types.WhitelistDelegatorKey(
 		validator,
