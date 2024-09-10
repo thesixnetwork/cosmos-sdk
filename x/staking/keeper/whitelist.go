@@ -19,7 +19,7 @@ func (k Keeper) SetWhitelistDelegator(ctx sdk.Context, whitelistDelegator types.
 // GetWhitelistDelegator returns a whitelistDelegator from its index
 func (k Keeper) GetWhitelistDelegator(
 	ctx sdk.Context,
-	validator string,
+	validator sdk.ValAddress,
 ) (val types.WhitelistDelegator, found bool) {
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.KeyPrefix(types.WhitelistDelegatorKeyPrefix))
 
@@ -37,11 +37,11 @@ func (k Keeper) GetWhitelistDelegator(
 // RemoveWhitelistDelegator removes a whitelistDelegator from the store
 func (k Keeper) RemoveWhitelistDelegator(
 	ctx sdk.Context,
-	validator string,
+	validator sdk.ValAddress,
 ) {
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.KeyPrefix(types.WhitelistDelegatorKeyPrefix))
 	store.Delete(types.WhitelistDelegatorKey(
-		sdk.ValAddress(validator),
+		validator,
 	))
 }
 
@@ -61,14 +61,22 @@ func (k Keeper) GetAllWhitelistDelegator(ctx sdk.Context) (list []types.Whitelis
 	return
 }
 
-func (k Keeper) IsSpecialDelegator(ctx sdk.Context, val string, delegator string) (found bool) {
+func (k Keeper) IsSpecialDelegator(ctx sdk.Context, val sdk.ValAddress, delegator sdk.AccAddress) (found bool) {
+	// chekc if delegator is validator itself then return true
+	// if not then validator must add specific delegator to whitelist
+	if val.Equals(delegator){
+		return true
+	}
+
 	specialList, found := k.GetWhitelistDelegator(ctx, val)
 	if !found {
 		return false
 	}
 
-	for _, address := range specialList.DelegatorAddress {
-		if address == delegator {
+	for _, whiltelistAddress := range specialList.DelegatorAddress {
+		whiltelistAddressBech32, _ := sdk.AccAddressFromBech32(whiltelistAddress)
+
+		if whiltelistAddressBech32.Equals(delegator) {
 			return true
 		}
 	}
@@ -76,7 +84,7 @@ func (k Keeper) IsSpecialDelegator(ctx sdk.Context, val string, delegator string
 	return false
 }
 
-func (k Keeper) DelDelegatorFromWhitelist(ctx sdk.Context, validator, delegator string) (*types.MsgWhitelistDelegatorResponse, error) {
+func (k Keeper) DelDelegatorFromWhitelist(ctx sdk.Context, validator sdk.ValAddress, delegator string) (*types.MsgWhitelistDelegatorResponse, error) {
 
 	specialList, found := k.GetWhitelistDelegator(ctx, validator)
 	if !found {

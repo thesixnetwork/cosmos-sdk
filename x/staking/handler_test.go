@@ -378,7 +378,7 @@ func TestEditValidatorDecreaseMinSelfDelegation(t *testing.T) {
 		initBond, gotBond, bond)
 
 	newMinSelfDelegation := sdk.OneInt()
-	msgEditValidator := types.NewMsgEditValidator(validatorAddr, types.Description{}, nil, &newMinSelfDelegation)
+	msgEditValidator := types.NewMsgEditValidator(validatorAddr, types.Description{}, nil, &newMinSelfDelegation, sdk.Int{}, false, false)
 	tstaking.Handle(msgEditValidator, false)
 }
 
@@ -409,7 +409,7 @@ func TestEditValidatorIncreaseMinSelfDelegationBeyondCurrentBond(t *testing.T) {
 		initBond, gotBond, bond)
 
 	newMinSelfDelegation := initBond.Add(sdk.OneInt())
-	msgEditValidator := types.NewMsgEditValidator(validatorAddr, types.Description{}, nil, &newMinSelfDelegation)
+	msgEditValidator := types.NewMsgEditValidator(validatorAddr, types.Description{}, nil, &newMinSelfDelegation, sdk.Int{}, false ,false)
 	tstaking.Handle(msgEditValidator, false)
 }
 

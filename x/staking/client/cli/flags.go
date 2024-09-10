@@ -102,10 +102,17 @@ func FlagLicenseModeCreate() *flag.FlagSet {
 	return fs
 }
 
-// FlagLicenseMode         = "special-mode"
+
 func FlagSpecialModeCreate() *flag.FlagSet {
 	fs := flag.NewFlagSet("", flag.ContinueOnError)
-	fs.Bool(FlagLicenseMode, false, "special mode or not default false")
+	fs.Bool(FlagSpecialMode, false, "special mode or not default false")
+	return fs
+}
+
+
+func FlagSpecialModeEdit() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.Bool(FlagSpecialMode, false, "special mode or not default false")
 	return fs
 }
 

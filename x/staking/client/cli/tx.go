@@ -148,6 +148,8 @@ func NewEditValidatorCmd() *cobra.Command {
 			security, _ := cmd.Flags().GetString(FlagSecurityContact)
 			details, _ := cmd.Flags().GetString(FlagDetails)
 			maxLicense, _ := cmd.Flags().GetString(FlagMaxLicense)
+			licenceMode, _ := cmd.Flags().GetBool(FlagLicenseMode)
+			specialMode, _ := cmd.Flags().GetBool(FlagSpecialMode)
 			description := types.NewDescription(moniker, identity, website, security, details)
 
 			var newRate *sdk.Dec
@@ -184,8 +186,7 @@ func NewEditValidatorCmd() *cobra.Command {
 				newMaxLicense = msb
 			}
 
-			msg := types.NewMsgEditValidator(sdk.ValAddress(valAddr), description, newRate, newMinSelfDelegation)
-			msg.MaxLicense = newMaxLicense
+			msg := types.NewMsgEditValidator(sdk.ValAddress(valAddr), description, newRate, newMinSelfDelegation, newMaxLicense, licenceMode, specialMode)
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
@@ -194,6 +195,7 @@ func NewEditValidatorCmd() *cobra.Command {
 	cmd.Flags().AddFlagSet(flagSetCommissionUpdate())
 	cmd.Flags().AddFlagSet(FlagSetMinSelfDelegation())
 	cmd.Flags().AddFlagSet(FlagMaxLicenseEdit())
+	cmd.Flags().AddFlagSet(FlagSpecialModeEdit())
 	flags.AddTxFlagsToCmd(cmd)
 
 	return cmd
@@ -422,9 +424,10 @@ func newBuildCreateValidatorMsg(clientCtx client.Context, txf tx.Factory, fs *fl
 	// Special mode
 	specialMode, _ := fs.GetBool(FlagSpecialMode)
 
-
-	if licenseMode {
+	switch{
+	case licenseMode:
 		msg.LicenseMode = true
+		msg.SpecialMode = false
 		mlcStr, _ := fs.GetString(FlagMaxLicense)
 		maxLicense, ok := sdk.NewIntFromString(mlcStr)
 		if !ok {
@@ -449,7 +452,18 @@ func newBuildCreateValidatorMsg(clientCtx client.Context, txf tx.Factory, fs *fl
 		if divAmount.GT(msg.MaxLicense) {
 			return txf, nil, types.ErrNotEnoughLicense
 		}
+	case specialMode:
+		msg.LicenseMode = false
+		msg.SpecialMode = true
+	default:
+		msg.LicenseMode = false
+		msg.SpecialMode = false
 	}
+
+	if(msg.LicenseMode && msg.SpecialMode){
+		return txf, nil, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "Cannot enable license mode along side with specialmode")
+	}
+
 	// Enable Redelegation
 	msg.EnableRedelegation = enableRedelegation
 
@@ -489,6 +503,7 @@ func CreateValidatorMsgFlagSet(ipDefault string) (fs *flag.FlagSet, defaultsDesc
 	fsCreateValidator.AddFlagSet(FlagDelegationIncrementCreate())
 	fsCreateValidator.AddFlagSet(FlagLicenseModeCreate())
 	fsCreateValidator.AddFlagSet(FlagEnableRedelegationCreate())
+	fsCreateValidator.AddFlagSet(FlagSpecialModeCreate())
 
 	defaultsDesc = fmt.Sprintf(`
 	delegation amount:           %s
@@ -524,6 +539,7 @@ type TxCreateValidatorConfig struct {
 	LicenseMode        bool
 	MaxLicense         string
 	EnableRedelegation bool
+	SpecialMode        bool
 
 	PubKey cryptotypes.PubKey
 
@@ -647,6 +663,11 @@ func PrepareConfigForTxCreateValidator(flagSet *flag.FlagSet, moniker, nodeID, c
 		return c, err
 	}
 
+	c.SpecialMode, err = flagSet.GetBool(FlagSpecialMode)
+	if err != nil {
+		return c, err
+	}
+
 	return c, nil
 }
 
@@ -706,10 +727,10 @@ func BuildCreateValidatorMsg(clientCtx client.Context, config TxCreateValidatorC
 
 	enableRedelegation := config.EnableRedelegation
 
-	// License
-	licenseMode := config.LicenseMode
-	if licenseMode {
+	switch{
+	case config.LicenseMode:
 		msg.LicenseMode = true
+		msg.SpecialMode = false
 		mlcStr := config.MaxLicense
 		maxLicense, ok := sdk.NewIntFromString(mlcStr)
 		if !ok {
@@ -720,7 +741,18 @@ func BuildCreateValidatorMsg(clientCtx client.Context, config TxCreateValidatorC
 		if enableRedelegation {
 			return txBldr, nil, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "When license mode is used, redelegation must be disabled")
 		}
+	case config.SpecialMode:
+		msg.LicenseMode = false
+		msg.SpecialMode = true
+	default:
+		msg.LicenseMode = false
+		msg.SpecialMode = false
 	}
+
+	if(msg.LicenseMode && msg.SpecialMode){
+		return txBldr, nil, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "Cannot enable license mode along side with specialmode")
+	}
+
 	// Enable Redelegation
 	msg.EnableRedelegation = enableRedelegation
 

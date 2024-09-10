@@ -12,7 +12,7 @@ func (k msgServer) CreateWhitelistdelegator(goCtx context.Context, msg *types.Ms
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
 	// validate basic
-	_, err := sdk.ValAddressFromBech32(msg.ValidatorAddress)
+	valAddr, err := sdk.ValAddressFromBech32(msg.ValidatorAddress)
 	if err != nil {
 		return nil, sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid validator address (%s)", err)
 	}
@@ -21,7 +21,7 @@ func (k msgServer) CreateWhitelistdelegator(goCtx context.Context, msg *types.Ms
 		return nil, sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid delegator address (%s)", err)
 	}
 
-	whitelist, found := k.GetWhitelistDelegator(ctx, msg.ValidatorAddress)
+	whitelist, found := k.GetWhitelistDelegator(ctx, valAddr)
 	if !found {
 		whitelist = types.WhitelistDelegator{
 			ValidatorAddress: msg.ValidatorAddress,
@@ -69,7 +69,7 @@ func (k msgServer) DeleteWhitelistdelegator(goCtx context.Context, msg *types.Ms
 		return nil, sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid delegator address (%s)", err)
 	}
 
-	whitelist, err := k.DelDelegatorFromWhitelist(ctx, msg.ValidatorAddress, msg.DelegatorAddress)
+	whitelist, err := k.DelDelegatorFromWhitelist(ctx, validatorAddr, msg.DelegatorAddress)
 	if err != nil {
 		return nil, err
 	}

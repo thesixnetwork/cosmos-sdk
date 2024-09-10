@@ -50,9 +50,14 @@ func (k Querier) Whitelistdelegator(c context.Context, req *types.QueryGetWhitel
 
 	ctx := sdk.UnwrapSDKContext(c)
 
+	valAddr, err := sdk.ValAddressFromBech32(req.Validator)
+	if err != nil {
+		return nil, err
+	}
+
 	val, found := k.GetWhitelistDelegator(
 		ctx,
-		req.Validator,
+		valAddr,
 	)
 
 	if !found {
