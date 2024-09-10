@@ -146,7 +146,7 @@ func (k msgServer) CreateValidator(goCtx context.Context, msg *types.MsgCreateVa
 		validator.LicenseMode = true
 		if validator.MaxLicense = msg.MaxLicense; msg.MaxLicense.IsNil() {
 			return nil, types.ErrMaxLicenseMustBeDefined
-		} // bug is nill genersis
+		} // bug is nill genesis
 
 		// Count licesene amount for validator
 		divAmount := msg.Value.Amount.Quo(validator.DelegationIncrement)
@@ -236,7 +236,11 @@ func (k msgServer) EditValidator(goCtx context.Context, msg *types.MsgEditValida
 		}
 
 		amountShare := validator.GetDelegatorShares()
-		divAmount := amountShare.QuoRoundUp(validator.DelegatorShares)
+		divAmount := amountShare.Quo(validator.DelegationIncrement.ToDec())
+		divAmountRound := amountShare.QuoRoundUp(validator.DelegationIncrement.ToDec())
+		if (!divAmount.Equal(divAmountRound)){
+			return nil, types.ErrInvalidIncrementDelegation
+		}
 		validator.LicenseCount = sdk.Int(divAmount)
 		validator.EnableRedelegation = false
 	case msg.SpecialMode:
