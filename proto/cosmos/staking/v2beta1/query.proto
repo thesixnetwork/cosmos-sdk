@@ -1,7 +1,7 @@
 syntax = "proto3";
 package cosmos.staking.v2beta1;
 
-import "cosmos/base/query/v1beta1/pagination.proto";
+import "cosmos/base/query/v2beta1/pagination.proto";
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "cosmos/staking/v2beta1/staking.proto";
@@ -13,92 +13,92 @@ option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types";
 service Query {
   // Validators queries all validators that match the given status.
   rpc ValidatorApproval(QueryValidatorApprovalRequest) returns (QueryValidatorApprovalResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/validator_approval";
+    option (google.api.http).get = "/cosmos/staking/v2beta1/validator_approval";
   }
 
   // Validators queries all validators that match the given status.
   rpc Validators(QueryValidatorsRequest) returns (QueryValidatorsResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/validators";
+    option (google.api.http).get = "/cosmos/staking/v2beta1/validators";
   }
 
   // Validator queries validator info for given validator address.
   rpc Validator(QueryValidatorRequest) returns (QueryValidatorResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/validators/{validator_addr}";
+    option (google.api.http).get = "/cosmos/staking/v2beta1/validators/{validator_addr}";
   }
 
   // ValidatorDelegations queries delegate info for given validator.
   rpc ValidatorDelegations(QueryValidatorDelegationsRequest) returns (QueryValidatorDelegationsResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/validators/{validator_addr}/delegations";
+    option (google.api.http).get = "/cosmos/staking/v2beta1/validators/{validator_addr}/delegations";
   }
 
   // ValidatorUnbondingDelegations queries unbonding delegations of a validator.
   rpc ValidatorUnbondingDelegations(QueryValidatorUnbondingDelegationsRequest)
       returns (QueryValidatorUnbondingDelegationsResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/validators/{validator_addr}/unbonding_delegations";
+    option (google.api.http).get = "/cosmos/staking/v2beta1/validators/{validator_addr}/unbonding_delegations";
   }
 
   // Delegation queries delegate info for given validator delegator pair.
   rpc Delegation(QueryDelegationRequest) returns (QueryDelegationResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/validators/{validator_addr}/delegations/{delegator_addr}";
+    option (google.api.http).get = "/cosmos/staking/v2beta1/validators/{validator_addr}/delegations/{delegator_addr}";
   }
 
   // UnbondingDelegation queries unbonding info for given validator delegator
   // pair.
   rpc UnbondingDelegation(QueryUnbondingDelegationRequest) returns (QueryUnbondingDelegationResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/validators/{validator_addr}/delegations/{delegator_addr}/unbonding_delegation";
+    option (google.api.http).get = "/cosmos/staking/v2beta1/validators/{validator_addr}/delegations/{delegator_addr}/unbonding_delegation";
   }
 
   // DelegatorDelegations queries all delegations of a given delegator address.
   rpc DelegatorDelegations(QueryDelegatorDelegationsRequest) returns (QueryDelegatorDelegationsResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/delegations/{delegator_addr}";
+    option (google.api.http).get = "/cosmos/staking/v2beta1/delegations/{delegator_addr}";
   }
 
   // DelegatorUnbondingDelegations queries all unbonding delegations of a given
   // delegator address.
   rpc DelegatorUnbondingDelegations(QueryDelegatorUnbondingDelegationsRequest) returns (QueryDelegatorUnbondingDelegationsResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/delegators/{delegator_addr}/unbonding_delegations";
+    option (google.api.http).get = "/cosmos/staking/v2beta1/delegators/{delegator_addr}/unbonding_delegations";
   }
 
   // Redelegations queries redelegations of given address.
   rpc Redelegations(QueryRedelegationsRequest) returns (QueryRedelegationsResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/delegators/{delegator_addr}/redelegations";
+    option (google.api.http).get = "/cosmos/staking/v2beta1/delegators/{delegator_addr}/redelegations";
   }
 
   // DelegatorValidators queries all validators info for given delegator
   // address.
   rpc DelegatorValidators(QueryDelegatorValidatorsRequest) returns (QueryDelegatorValidatorsResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/delegators/{delegator_addr}/validators";
+    option (google.api.http).get = "/cosmos/staking/v2beta1/delegators/{delegator_addr}/validators";
   }
 
   // DelegatorValidator queries validator info for given delegator validator
   // pair.
   rpc DelegatorValidator(QueryDelegatorValidatorRequest) returns (QueryDelegatorValidatorResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/delegators/{delegator_addr}/validators/{validator_addr}";
+    option (google.api.http).get = "/cosmos/staking/v2beta1/delegators/{delegator_addr}/validators/{validator_addr}";
   }
 
   // HistoricalInfo queries the historical info for given height.
   rpc HistoricalInfo(QueryHistoricalInfoRequest) returns (QueryHistoricalInfoResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/historical_info/{height}";
+    option (google.api.http).get = "/cosmos/staking/v2beta1/historical_info/{height}";
   }
 
   // Pool queries the pool info.
   rpc Pool(QueryPoolRequest) returns (QueryPoolResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/pool";
+    option (google.api.http).get = "/cosmos/staking/v2beta1/pool";
   }
 
   // Parameters queries the staking parameters.
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/params";
+    option (google.api.http).get = "/cosmos/staking/v2beta1/params";
   }
 
   // Queries a DelegatorWhitelistdelegator by index.
   rpc Whitelistdelegator(QueryGetWhitelistDelegatorRequest) returns (QueryGetWhitelistDelegatorResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/whitelistdelegator/{validator}";
+    option (google.api.http).get = "/cosmos/staking/v2beta1/whitelistdelegator/{validator}";
   }
 
   // Queries a list of DelegatorWhitelistdelegator items.
   rpc WhitelistdelegatorAll(QueryAllWhitelistDelegatorRequest) returns (QueryAllWhitelistdelegatorResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/whitelistdelegator";
+    option (google.api.http).get = "/cosmos/staking/v2beta1/whitelistdelegator";
   }
 
 }
@@ -116,7 +116,7 @@ message QueryValidatorsRequest {
   string status = 1;
 
   // pagination defines an optional pagination for the request.
-  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+  cosmos.base.query.v2beta1.PageRequest pagination = 2;
 }
 
 // QueryValidatorsResponse is response type for the Query/Validators RPC method
@@ -125,7 +125,7 @@ message QueryValidatorsResponse {
   repeated Validator validators = 1 [(gogoproto.nullable) = false];
 
   // pagination defines the pagination in the response.
-  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+  cosmos.base.query.v2beta1.PageResponse pagination = 2;
 }
 
 // QueryValidatorRequest is response type for the Query/Validator RPC method
@@ -147,7 +147,7 @@ message QueryValidatorDelegationsRequest {
   string validator_addr = 1;
 
   // pagination defines an optional pagination for the request.
-  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+  cosmos.base.query.v2beta1.PageRequest pagination = 2;
 }
 
 // QueryValidatorDelegationsResponse is response type for the
@@ -157,7 +157,7 @@ message QueryValidatorDelegationsResponse {
       [(gogoproto.nullable) = false, (gogoproto.castrepeated) = "DelegationResponses"];
 
   // pagination defines the pagination in the response.
-  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+  cosmos.base.query.v2beta1.PageResponse pagination = 2;
 }
 
 // QueryValidatorUnbondingDelegationsRequest is required type for the
@@ -167,7 +167,7 @@ message QueryValidatorUnbondingDelegationsRequest {
   string validator_addr = 1;
 
   // pagination defines an optional pagination for the request.
-  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+  cosmos.base.query.v2beta1.PageRequest pagination = 2;
 }
 
 // QueryValidatorUnbondingDelegationsResponse is response type for the
@@ -176,7 +176,7 @@ message QueryValidatorUnbondingDelegationsResponse {
   repeated UnbondingDelegation unbonding_responses = 1 [(gogoproto.nullable) = false];
 
   // pagination defines the pagination in the response.
-  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+  cosmos.base.query.v2beta1.PageResponse pagination = 2;
 }
 
 // QueryDelegationRequest is request type for the Query/Delegation RPC method.
@@ -227,7 +227,7 @@ message QueryDelegatorDelegationsRequest {
   string delegator_addr = 1;
 
   // pagination defines an optional pagination for the request.
-  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+  cosmos.base.query.v2beta1.PageRequest pagination = 2;
 }
 
 // QueryDelegatorDelegationsResponse is response type for the
@@ -237,7 +237,7 @@ message QueryDelegatorDelegationsResponse {
   repeated DelegationResponse delegation_responses = 1 [(gogoproto.nullable) = false];
 
   // pagination defines the pagination in the response.
-  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+  cosmos.base.query.v2beta1.PageResponse pagination = 2;
 }
 
 // QueryDelegatorUnbondingDelegationsRequest is request type for the
@@ -250,7 +250,7 @@ message QueryDelegatorUnbondingDelegationsRequest {
   string delegator_addr = 1;
 
   // pagination defines an optional pagination for the request.
-  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+  cosmos.base.query.v2beta1.PageRequest pagination = 2;
 }
 
 // QueryUnbondingDelegatorDelegationsResponse is response type for the
@@ -259,7 +259,7 @@ message QueryDelegatorUnbondingDelegationsResponse {
   repeated UnbondingDelegation unbonding_responses = 1 [(gogoproto.nullable) = false];
 
   // pagination defines the pagination in the response.
-  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+  cosmos.base.query.v2beta1.PageResponse pagination = 2;
 }
 
 // QueryRedelegationsRequest is request type for the Query/Redelegations RPC
@@ -278,7 +278,7 @@ message QueryRedelegationsRequest {
   string dst_validator_addr = 3;
 
   // pagination defines an optional pagination for the request.
-  cosmos.base.query.v1beta1.PageRequest pagination = 4;
+  cosmos.base.query.v2beta1.PageRequest pagination = 4;
 }
 
 // QueryRedelegationsResponse is response type for the Query/Redelegations RPC
@@ -287,7 +287,7 @@ message QueryRedelegationsResponse {
   repeated RedelegationResponse redelegation_responses = 1 [(gogoproto.nullable) = false];
 
   // pagination defines the pagination in the response.
-  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+  cosmos.base.query.v2beta1.PageResponse pagination = 2;
 }
 
 // QueryDelegatorValidatorsRequest is request type for the
@@ -300,7 +300,7 @@ message QueryDelegatorValidatorsRequest {
   string delegator_addr = 1;
 
   // pagination defines an optional pagination for the request.
-  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+  cosmos.base.query.v2beta1.PageRequest pagination = 2;
 }
 
 // QueryDelegatorValidatorsResponse is response type for the
@@ -310,7 +310,7 @@ message QueryDelegatorValidatorsResponse {
   repeated Validator validators = 1 [(gogoproto.nullable) = false];
 
   // pagination defines the pagination in the response.
-  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+  cosmos.base.query.v2beta1.PageResponse pagination = 2;
 }
 
 // QueryDelegatorValidatorRequest is request type for the
@@ -375,10 +375,10 @@ message QueryGetWhitelistDelegatorResponse {
 }
 
 message QueryAllWhitelistDelegatorRequest {
-	cosmos.base.query.v1beta1.PageRequest pagination = 1;
+	cosmos.base.query.v2beta1.PageRequest pagination = 1;
 }
 
 message QueryAllWhitelistdelegatorResponse {
 	repeated WhitelistDelegator whitelist_delegator = 1 [(gogoproto.nullable) = false];
-	cosmos.base.query.v1beta1.PageResponse pagination = 2;
+	cosmos.base.query.v2beta1.PageResponse pagination = 2;
 }
