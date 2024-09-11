@@ -235,13 +235,17 @@ func (k msgServer) EditValidator(goCtx context.Context, msg *types.MsgEditValida
 			validator.MaxLicense = msg.MaxLicense
 		}
 
-		amountShare := validator.GetDelegatorShares()
-		divAmount := amountShare.Quo(validator.DelegationIncrement.ToDec())
-		divAmountRound := amountShare.QuoRoundUp(validator.DelegationIncrement.ToDec())
-		if (!divAmount.Equal(divAmountRound)){
+		amount := validator.GetDelegatorShares().Ceil().TruncateInt()
+		divAmount := amount.Quo(validator.DelegationIncrement)
+		modAmount := amount.Mod(validator.DelegationIncrement)
+		if modAmount.GT(sdk.ZeroInt()) {
 			return nil, types.ErrInvalidIncrementDelegation
 		}
-		validator.LicenseCount = sdk.Int(divAmount)
+		if divAmount.GT(validator.MaxLicense) {
+			return nil, types.ErrNotEnoughLicense
+		}
+
+		validator.LicenseCount = divAmount
 		validator.EnableRedelegation = false
 	case msg.SpecialMode:
 		validator.SpecialMode = true

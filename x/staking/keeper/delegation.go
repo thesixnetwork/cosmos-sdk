@@ -855,10 +855,10 @@ func (k Keeper) UndelegateSpecial(
 		return time.Time{}, types.ErrSpecialModeDisable
 	}
 
-	isSpecial := k.IsSpecialDelegator(ctx, valAddr, delAddr)
-	if !isSpecial {
-		return time.Time{}, types.ErrDelegatorIsNotSpecial
-	}
+	// isSpecial := k.IsSpecialDelegator(ctx, valAddr, delAddr)
+	// if !isSpecial {
+	// 	return time.Time{}, types.ErrDelegatorIsNotSpecial
+	// }
 
 	if k.HasMaxUnbondingDelegationEntries(ctx, delAddr, valAddr) {
 		return time.Time{}, types.ErrMaxUnbondingDelegationEntries

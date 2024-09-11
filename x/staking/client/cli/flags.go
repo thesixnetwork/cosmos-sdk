@@ -102,6 +102,13 @@ func FlagLicenseModeCreate() *flag.FlagSet {
 	return fs
 }
 
+func FlagLicenseModeEdit() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.Bool(FlagLicenseMode, false, "License mode or not")
+	fs.String(FlagMaxLicense, "", "The maximum license when license mode is on")
+
+	return fs
+}
 
 func FlagSpecialModeCreate() *flag.FlagSet {
 	fs := flag.NewFlagSet("", flag.ContinueOnError)
