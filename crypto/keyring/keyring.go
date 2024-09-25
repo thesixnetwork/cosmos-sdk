@@ -25,6 +25,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 )
 
 // Backend options for Keyring
@@ -357,7 +358,7 @@ func (ks keystore) Sign(uid string, msg []byte) ([]byte, types.PubKey, error) {
 		}
 
 	case ledgerInfo:
-		return SignWithLedger(info, msg)
+		return SignWithLedger(info, msg, signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON)
 
 	case offlineInfo, multiInfo:
 		return nil, info.GetPubKey(), errors.New("cannot sign with offline keys")
@@ -584,7 +585,7 @@ func (ks keystore) SupportedAlgorithms() (SigningAlgoList, SigningAlgoList) {
 // SignWithLedger signs a binary message with the ledger device referenced by an Info object
 // and returns the signed bytes and the public key. It returns an error if the device could
 // not be queried or it returned an error.
-func SignWithLedger(info Info, msg []byte) (sig []byte, pub types.PubKey, err error) {
+func SignWithLedger(info Info, msg []byte, signMode signing.SignMode) (sig []byte, pub types.PubKey, err error) {
 	switch info.(type) {
 	case *ledgerInfo, ledgerInfo:
 	default:
@@ -601,9 +602,19 @@ func SignWithLedger(info Info, msg []byte) (sig []byte, pub types.PubKey, err er
 		return
 	}
 
-	sig, err = priv.Sign(msg)
-	if err != nil {
-		return nil, nil, err
+	switch signMode {
+	case signing.SignMode_SIGN_MODE_TEXTUAL:
+		sig, err = priv.Sign(msg)
+		if err != nil {
+			return nil, nil, err
+		}
+	case signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON:
+		sig, err = priv.SignLedgerAminoJSON(msg)
+		if err != nil {
+			return nil, nil, err
+		}
+	default:
+		return nil, nil, sdkerrors.Wrap(ErrInvalidSignMode, fmt.Sprintf("%v", signMode))
 	}
 
 	return sig, priv.PubKey(), nil
