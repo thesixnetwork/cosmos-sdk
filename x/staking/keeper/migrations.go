@@ -19,3 +19,9 @@ func NewMigrator(keeper Keeper) Migrator {
 func (m Migrator) Migrate1to2(ctx sdk.Context) error {
 	return v043.MigrateStore(ctx, m.keeper.storeKey)
 }
+
+
+// NoOpStoreMigrate means no migration is needed
+func (m Migrator) NoOpStoreMigrate(ctx sdk.Context) error {
+	return nil
+}

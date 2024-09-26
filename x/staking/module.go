@@ -141,6 +141,9 @@ func (am AppModule) RegisterServices(cfg module.Configurator) {
 
 	m := keeper.NewMigrator(am.keeper)
 	cfg.RegisterMigration(types.ModuleName, 1, m.Migrate1to2)
+	
+	// nothing change just add new type to validator and it's boolean. On default it must be false
+	cfg.RegisterMigration(types.ModuleName, 2, m.NoOpStoreMigrate)
 }
 
 // InitGenesis performs genesis initialization for the staking module. It returns
