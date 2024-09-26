@@ -29,6 +29,13 @@ func (k msgServer) CreateWhitelistdelegator(goCtx context.Context, msg *types.Ms
 		}
 	}
 
+	// check duplicate 
+	for _, whitelist := range whitelist.DelegatorAddress {
+		if whitelist == msg.DelegatorAddress{
+			return nil, sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "duplicate delegator address (%s)", err)
+		}
+	}
+
 	// append value to key store
 	whitelist.DelegatorAddress = append(whitelist.DelegatorAddress, msg.DelegatorAddress)
 
