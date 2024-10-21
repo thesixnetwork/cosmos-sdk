@@ -19,6 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
+	Query_ValidatorApproval_FullMethodName             = "/cosmos.staking.v1beta1.Query/ValidatorApproval"
 	Query_Validators_FullMethodName                    = "/cosmos.staking.v1beta1.Query/Validators"
 	Query_Validator_FullMethodName                     = "/cosmos.staking.v1beta1.Query/Validator"
 	Query_ValidatorDelegations_FullMethodName          = "/cosmos.staking.v1beta1.Query/ValidatorDelegations"
@@ -39,6 +40,8 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type QueryClient interface {
+	// Validatorr Approval
+	ValidatorApproval(ctx context.Context, in *QueryValidatorApprovalRequest, opts ...grpc.CallOption) (*QueryValidatorApprovalResponse, error)
 	// Validators queries all validators that match the given status.
 	//
 	// When called from another module, this query might consume a high amount of
@@ -100,6 +103,15 @@ type queryClient struct {
 
 func NewQueryClient(cc grpc.ClientConnInterface) QueryClient {
 	return &queryClient{cc}
+}
+
+func (c *queryClient) ValidatorApproval(ctx context.Context, in *QueryValidatorApprovalRequest, opts ...grpc.CallOption) (*QueryValidatorApprovalResponse, error) {
+	out := new(QueryValidatorApprovalResponse)
+	err := c.cc.Invoke(ctx, Query_ValidatorApproval_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *queryClient) Validators(ctx context.Context, in *QueryValidatorsRequest, opts ...grpc.CallOption) (*QueryValidatorsResponse, error) {
@@ -232,6 +244,8 @@ func (c *queryClient) Params(ctx context.Context, in *QueryParamsRequest, opts .
 // All implementations must embed UnimplementedQueryServer
 // for forward compatibility
 type QueryServer interface {
+	// Validatorr Approval
+	ValidatorApproval(context.Context, *QueryValidatorApprovalRequest) (*QueryValidatorApprovalResponse, error)
 	// Validators queries all validators that match the given status.
 	//
 	// When called from another module, this query might consume a high amount of
@@ -292,6 +306,9 @@ type QueryServer interface {
 type UnimplementedQueryServer struct {
 }
 
+func (UnimplementedQueryServer) ValidatorApproval(context.Context, *QueryValidatorApprovalRequest) (*QueryValidatorApprovalResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ValidatorApproval not implemented")
+}
 func (UnimplementedQueryServer) Validators(context.Context, *QueryValidatorsRequest) (*QueryValidatorsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Validators not implemented")
 }
@@ -345,6 +362,24 @@ type UnsafeQueryServer interface {
 
 func RegisterQueryServer(s grpc.ServiceRegistrar, srv QueryServer) {
 	s.RegisterService(&Query_ServiceDesc, srv)
+}
+
+func _Query_ValidatorApproval_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryValidatorApprovalRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).ValidatorApproval(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Query_ValidatorApproval_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).ValidatorApproval(ctx, req.(*QueryValidatorApprovalRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _Query_Validators_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -606,6 +641,10 @@ var Query_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "cosmos.staking.v1beta1.Query",
 	HandlerType: (*QueryServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ValidatorApproval",
+			Handler:    _Query_ValidatorApproval_Handler,
+		},
 		{
 			MethodName: "Validators",
 			Handler:    _Query_Validators_Handler,
