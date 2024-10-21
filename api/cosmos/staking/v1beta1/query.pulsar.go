@@ -14487,6 +14487,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// QueryValidatorApprovalRequest is response type for the Query/ValidatorsApproval RPC method
 type QueryValidatorApprovalRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -14513,6 +14514,7 @@ func (*QueryValidatorApprovalRequest) Descriptor() ([]byte, []int) {
 	return file_cosmos_staking_v1beta1_query_proto_rawDescGZIP(), []int{0}
 }
 
+// QueryValidatorsApprovalRequest is request type for Query/ValidatorsApproval RPC method.
 type QueryValidatorApprovalResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

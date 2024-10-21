@@ -135,8 +135,10 @@ service Query {
   }
 }
 
+// QueryValidatorApprovalRequest is response type for the Query/ValidatorsApproval RPC method
 message QueryValidatorApprovalRequest {}
 
+// QueryValidatorsApprovalRequest is request type for Query/ValidatorsApproval RPC method.
 message QueryValidatorApprovalResponse {
   ValidatorApproval validator_approval = 1 [(gogoproto.nullable) = false];
 }

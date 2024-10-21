@@ -32,6 +32,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+// QueryValidatorApprovalRequest is response type for the Query/ValidatorsApproval RPC method
 type QueryValidatorApprovalRequest struct {
 }
 
@@ -68,6 +69,7 @@ func (m *QueryValidatorApprovalRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_QueryValidatorApprovalRequest proto.InternalMessageInfo
 
+// QueryValidatorsApprovalRequest is request type for Query/ValidatorsApproval RPC method.
 type QueryValidatorApprovalResponse struct {
 	ValidatorApproval ValidatorApproval `protobuf:"bytes,1,opt,name=validator_approval,json=validatorApproval,proto3" json:"validator_approval"`
 }

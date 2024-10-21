@@ -50,12 +50,14 @@ service Msg {
   rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
 }
 
+// MsgSetValidatorApproval defines a SDK message for creating a new validator approval.
 message MsgSetValidatorApproval {
   string approver_address     = 1;
   string new_approver_address = 2;
   bool   enabled              = 3;
 }
 
+// MsgSetValidatorApprovalResponse defines the Msg/SetValidatorApproval response type.
 message MsgSetValidatorApprovalResponse {}
 
 // MsgCreateValidator defines a SDK message for creating a new validator.

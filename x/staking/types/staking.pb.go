@@ -1251,6 +1251,7 @@ func (m *ValidatorUpdates) GetUpdates() []types3.ValidatorUpdate {
 	return nil
 }
 
+// ValidatorApproval
 type ValidatorApproval struct {
 	ApproverAddress string `protobuf:"bytes,1,opt,name=approver_address,json=approverAddress,proto3" json:"approver_address,omitempty"`
 	Enabled         bool   `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`

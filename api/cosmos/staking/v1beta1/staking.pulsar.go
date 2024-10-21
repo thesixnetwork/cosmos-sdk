@@ -14924,6 +14924,7 @@ func (x *ValidatorUpdates) GetUpdates() []*abci.ValidatorUpdate {
 	return nil
 }
 
+// ValidatorApproval
 type ValidatorApproval struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

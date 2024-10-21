@@ -416,6 +416,7 @@ message ValidatorUpdates {
   repeated tendermint.abci.ValidatorUpdate updates = 1 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
 }
 
+// ValidatorApproval
 message ValidatorApproval {
   string approver_address = 1;
   bool   enabled          = 2;

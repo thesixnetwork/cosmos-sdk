@@ -38,6 +38,7 @@ var _ = time.Kitchen
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+// MsgSetValidatorApproval defines a SDK message for creating a new validator approval.
 type MsgSetValidatorApproval struct {
 	ApproverAddress    string `protobuf:"bytes,1,opt,name=approver_address,json=approverAddress,proto3" json:"approver_address,omitempty"`
 	NewApproverAddress string `protobuf:"bytes,2,opt,name=new_approver_address,json=newApproverAddress,proto3" json:"new_approver_address,omitempty"`
@@ -98,6 +99,7 @@ func (m *MsgSetValidatorApproval) GetEnabled() bool {
 	return false
 }
 
+// MsgSetValidatorApprovalResponse defines the Msg/SetValidatorApproval response type.
 type MsgSetValidatorApprovalResponse struct {
 }
 

@@ -8437,6 +8437,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// MsgSetValidatorApproval defines a SDK message for creating a new validator approval.
 type MsgSetValidatorApproval struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -8488,6 +8489,7 @@ func (x *MsgSetValidatorApproval) GetEnabled() bool {
 	return false
 }
 
+// MsgSetValidatorApprovalResponse defines the Msg/SetValidatorApproval response type.
 type MsgSetValidatorApprovalResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
