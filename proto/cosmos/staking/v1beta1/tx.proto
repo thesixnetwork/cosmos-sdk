@@ -17,6 +17,9 @@ option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types";
 service Msg {
   option (cosmos.msg.v1.service) = true;
 
+  // CraeteValidatroApproval
+  rpc SetValidatorApproval(MsgSetValidatorApproval) returns (MsgSetValidatorApprovalResponse);
+
   // CreateValidator defines a method for creating a new validator.
   rpc CreateValidator(MsgCreateValidator) returns (MsgCreateValidatorResponse);
 
@@ -47,6 +50,14 @@ service Msg {
   rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
 }
 
+message MsgSetValidatorApproval {
+  string approver_address     = 1;
+  string new_approver_address = 2;
+  bool   enabled              = 3;
+}
+
+message MsgSetValidatorApprovalResponse {}
+
 // MsgCreateValidator defines a SDK message for creating a new validator.
 message MsgCreateValidator {
   option (cosmos.msg.v1.signer) = "validator_address";
@@ -63,13 +74,35 @@ message MsgCreateValidator {
     (gogoproto.nullable)   = false,
     (amino.dont_omitempty) = true
   ];
+
+  string min_delegation = 4 [
+    (cosmos_proto.scalar)  = "cosmos.Int",
+    (gogoproto.customtype) = "cosmossdk.io/math.Int",
+    (gogoproto.nullable)   = false,
+    (amino.dont_omitempty) = true
+  ];
+  string delegation_increment = 5 [
+    (cosmos_proto.scalar)  = "cosmos.Int",
+    (gogoproto.customtype) = "cosmossdk.io/math.Int",
+    (gogoproto.nullable)   = false,
+    (amino.dont_omitempty) = true
+  ];
+  string max_license = 6 [
+    (cosmos_proto.scalar)  = "cosmos.Int",
+    (gogoproto.customtype) = "cosmossdk.io/math.Int",
+    (gogoproto.nullable)   = false,
+    (amino.dont_omitempty) = true
+  ];
+  bool license_mode        = 7;
+  bool enable_redelegation = 8;
   // Deprecated: Use of Delegator Address in MsgCreateValidator is deprecated.
   // The validator address bytes and delegator address bytes refer to the same account while creating validator (defer
   // only in bech32 notation).
-  string                   delegator_address = 4 [(cosmos_proto.scalar) = "cosmos.AddressString", deprecated = true];
-  string                   validator_address = 5 [(cosmos_proto.scalar) = "cosmos.ValidatorAddressString"];
-  google.protobuf.Any      pubkey            = 6 [(cosmos_proto.accepts_interface) = "cosmos.crypto.PubKey"];
-  cosmos.base.v1beta1.Coin value             = 7 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
+  string                   delegator_address = 9 [(cosmos_proto.scalar) = "cosmos.AddressString", deprecated = true];
+  string                   validator_address = 10 [(cosmos_proto.scalar) = "cosmos.ValidatorAddressString"];
+  string                   approver_address  = 11 [(gogoproto.moretags) = "yaml:\"approver_address\""];
+  google.protobuf.Any      pubkey            = 12 [(cosmos_proto.accepts_interface) = "cosmos.crypto.PubKey"];
+  cosmos.base.v1beta1.Coin value             = 13 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
 }
 
 // MsgCreateValidatorResponse defines the Msg/CreateValidator response type.
@@ -94,6 +127,7 @@ message MsgEditValidator {
       [(cosmos_proto.scalar) = "cosmos.Dec", (gogoproto.customtype) = "cosmossdk.io/math.LegacyDec"];
   string min_self_delegation = 4
       [(cosmos_proto.scalar) = "cosmos.Int", (gogoproto.customtype) = "cosmossdk.io/math.Int"];
+  string max_license = 5 [(cosmos_proto.scalar) = "cosmos.Int", (gogoproto.customtype) = "cosmossdk.io/math.Int"];
 }
 
 // MsgEditValidatorResponse defines the Msg/EditValidator response type.
