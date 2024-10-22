@@ -52,6 +52,9 @@ service Msg {
 
 // MsgSetValidatorApproval defines a SDK message for creating a new validator approval.
 message MsgSetValidatorApproval {
+  option (cosmos.msg.v1.signer) = "approver_address";
+  option (amino.name)           = "cosmos-sdk/MsgSetValidatorApproval";
+
   string approver_address     = 1;
   string new_approver_address = 2;
   bool   enabled              = 3;
