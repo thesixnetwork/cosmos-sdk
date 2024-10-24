@@ -11,7 +11,18 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
+// staking message types
+const (
+	TypeMsgSetValidatorApproval = "set_validator_approval"
+	TypeMsgUndelegate           = "begin_unbonding"
+	TypeMsgEditValidator        = "edit_validator"
+	TypeMsgCreateValidator      = "create_validator"
+	TypeMsgDelegate             = "delegate"
+	TypeMsgBeginRedelegate      = "begin_redelegate"
+)
+
 var (
+	_ sdk.Msg                            = &MsgSetValidatorApproval{}
 	_ sdk.Msg                            = &MsgCreateValidator{}
 	_ codectypes.UnpackInterfacesMessage = (*MsgCreateValidator)(nil)
 	_ sdk.Msg                            = &MsgEditValidator{}
@@ -21,6 +32,14 @@ var (
 	_ sdk.Msg                            = &MsgCancelUnbondingDelegation{}
 	_ sdk.Msg                            = &MsgUpdateParams{}
 )
+
+func NewMsgSetValidatorApproval(
+	approver string,
+	new_approver string,
+	enabled bool,
+) (*MsgSetValidatorApproval, error) {
+	return &MsgSetValidatorApproval{ApproverAddress: approver, NewApproverAddress: new_approver, Enabled: enabled}, nil
+}
 
 // NewMsgCreateValidator creates a new MsgCreateValidator instance.
 // Delegator address and validator address are the same.
@@ -80,6 +99,42 @@ func (msg MsgCreateValidator) Validate(ac address.Codec) error {
 		)
 	}
 
+	if !msg.MinDelegation.IsNil() && !msg.MinDelegation.IsPositive() {
+		return errorsmod.Wrap(
+			sdkerrors.ErrInvalidRequest,
+			"minimum delegation must be a positive integer",
+		)
+	}
+
+	if !msg.DelegationIncrement.IsNil() && !msg.DelegationIncrement.IsPositive() {
+		return errorsmod.Wrap(
+			sdkerrors.ErrInvalidRequest,
+			"delegation increment must be a positive integer",
+		)
+	}
+
+	if msg.LicenseMode {
+		if msg.MaxLicense.IsNil() {
+			return errorsmod.Wrap(
+				sdkerrors.ErrInvalidRequest,
+				"max license is required when license mode is used",
+			)
+		}
+		if !msg.MaxLicense.IsNil() && !msg.MaxLicense.IsPositive() {
+			return errorsmod.Wrap(
+				sdkerrors.ErrInvalidRequest,
+				"max license must be a positive integer",
+			)
+		}
+
+		if msg.EnableRedelegation {
+			return errorsmod.Wrap(
+				sdkerrors.ErrInvalidRequest,
+				"When license mode is used, redelegation must be disabled",
+			)
+		}
+	}
+
 	if msg.Value.Amount.LT(msg.MinSelfDelegation) {
 		return ErrSelfDelegationBelowMinimum
 	}
@@ -94,12 +149,15 @@ func (msg MsgCreateValidator) UnpackInterfaces(unpacker codectypes.AnyUnpacker) 
 }
 
 // NewMsgEditValidator creates a new MsgEditValidator instance
-func NewMsgEditValidator(valAddr string, description Description, newRate *math.LegacyDec, newMinSelfDelegation *math.Int) *MsgEditValidator {
+func NewMsgEditValidator(valAddr string, description Description, newRate *math.LegacyDec, newMinSelfDelegation, maxLicence *math.Int, licenceMode, specialMode bool) *MsgEditValidator {
 	return &MsgEditValidator{
 		Description:       description,
 		CommissionRate:    newRate,
 		ValidatorAddress:  valAddr,
 		MinSelfDelegation: newMinSelfDelegation,
+		LicenseMode:       licenceMode,
+		MaxLicense:        maxLicence,
+		SpecialMode:       specialMode,
 	}
 }
 

@@ -225,6 +225,7 @@ func GenesisStateWithValSet(
 
 	validators := make([]stakingtypes.Validator, 0, len(valSet.Validators))
 	delegations := make([]stakingtypes.Delegation, 0, len(valSet.Validators))
+	var approval stakingtypes.ValidatorApproval
 
 	bondAmt := sdk.DefaultPowerReduction
 
@@ -258,7 +259,7 @@ func GenesisStateWithValSet(
 	}
 
 	// set validators and delegations
-	stakingGenesis := stakingtypes.NewGenesisState(stakingtypes.DefaultParams(), validators, delegations)
+	stakingGenesis := stakingtypes.NewGenesisState(stakingtypes.DefaultParams(), validators, delegations, approval)
 	genesisState[stakingtypes.ModuleName] = codec.MustMarshalJSON(stakingGenesis)
 
 	totalSupply := sdk.NewCoins()

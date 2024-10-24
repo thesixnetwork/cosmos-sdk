@@ -32,8 +32,11 @@ func NewMsgServerImpl(keeper *Keeper) types.MsgServer {
 
 var _ types.MsgServer = msgServer{}
 
-func (k msgServer) SetValidatorApproval(goCtx context.Context, msg *types.MsgSetValidatorApproval) (*types.MsgSetValidatorApprovalResponse, error) {
-	ctx := sdk.UnwrapSDKContext(goCtx)
+func (k msgServer) SetValidatorApproval(ctx context.Context, msg *types.MsgSetValidatorApproval) (*types.MsgSetValidatorApprovalResponse, error) {
+	_, err :=k.authKeeper.AddressCodec().StringToBytes(msg.NewApproverAddress)
+	if err != nil {
+		return nil, sdkerrors.ErrInvalidAddress.Wrapf("invalid approver address: %s", err)
+	}
 
 	validatorApproval, found := k.GetValidatorApproval(ctx)
 	if !found {
@@ -144,8 +147,48 @@ func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateVali
 		return nil, err
 	}
 
-	validator.MinSelfDelegation = msg.MinSelfDelegation
 
+	validator.MinSelfDelegation = msg.MinSelfDelegation
+	// CustomValidator
+	validator.MinDelegation = msg.MinDelegation
+	validator.DelegationIncrement = msg.DelegationIncrement
+	// when Min Delegation is not defined, default as DelegationIncrement
+	if msg.MinDelegation.IsNil() {
+		validator.MinDelegation = validator.DelegationIncrement
+	}
+
+	switch {
+	case msg.LicenseMode:
+		// Verify that MinDelegation and DelegationIncrement is  defined and contains the same value
+		if msg.DelegationIncrement.IsNil() || !validator.MinDelegation.Equal(validator.DelegationIncrement) {
+			return nil, types.ErrLicenseIncrement
+		}
+
+		validator.LicenseMode = true
+		if validator.MaxLicense = msg.MaxLicense; msg.MaxLicense.IsNil() {
+			return nil, types.ErrMaxLicenseMustBeDefined
+		} // bug is nill genesis
+
+		// Count licesene amount for validator
+		divAmount := msg.Value.Amount.Quo(validator.DelegationIncrement)
+		modAmount := msg.Value.Amount.Mod(validator.DelegationIncrement)
+		if modAmount.GT(math.ZeroInt()) {
+			return nil, types.ErrInvalidIncrementDelegation
+		}
+		if divAmount.GT(validator.MaxLicense) {
+			return nil, types.ErrNotEnoughLicense
+		}
+		validator.LicenseCount = divAmount
+		// Force disable redelegation when
+		validator.EnableRedelegation = false
+		validator.SpecialMode = false
+	case msg.SpecialMode:
+		validator.LicenseMode = false
+		validator.SpecialMode = true
+		validator.EnableRedelegation = msg.EnableRedelegation
+	default:
+		validator.EnableRedelegation = msg.EnableRedelegation
+	}
 	err = k.SetValidator(ctx, validator)
 	if err != nil {
 		return nil, err
@@ -231,6 +274,40 @@ func (k msgServer) EditValidator(ctx context.Context, msg *types.MsgEditValidato
 	}
 
 	validator.Description = description
+
+	switch {
+	case msg.LicenseMode:
+		validator.SpecialMode = false
+		validator.LicenseMode = true
+
+		// validate max license
+		if !msg.MaxLicense.IsNil() && msg.MaxLicense.LT(validator.MaxLicense) {
+			return nil, types.ErrMaxLicenseMustBeGeater
+		}
+
+		if !msg.MaxLicense.IsNil() {
+			validator.MaxLicense = *msg.MaxLicense
+		}
+
+		amount := validator.GetDelegatorShares().Ceil().TruncateInt()
+		divAmount := amount.Quo(validator.DelegationIncrement)
+		modAmount := amount.Mod(validator.DelegationIncrement)
+		if modAmount.GT(math.ZeroInt()) {
+			return nil, types.ErrInvalidIncrementDelegation
+		}
+		if divAmount.GT(validator.MaxLicense) {
+			return nil, types.ErrNotEnoughLicense
+		}
+
+		validator.LicenseCount = divAmount
+		validator.EnableRedelegation = false
+	case msg.SpecialMode:
+		validator.SpecialMode = true
+		validator.LicenseMode = false
+	default:
+		validator.SpecialMode = false
+		validator.LicenseMode = false
+	}
 
 	if msg.CommissionRate != nil {
 		commission, err := k.UpdateValidatorCommission(ctx, validator, *msg.CommissionRate)

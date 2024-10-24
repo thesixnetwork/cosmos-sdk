@@ -1,21 +1,23 @@
 syntax = "proto3";
-package cosmos.staking.v1beta1;
+package cosmos.staking.v2beta1;
 
 import "cosmos/base/query/v1beta1/pagination.proto";
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
-import "cosmos/staking/v1beta1/staking.proto";
+import "cosmos/staking/v2beta1/staking.proto";
+import "cosmos/staking/v2beta1/whitelist.proto";
 import "cosmos_proto/cosmos.proto";
 import "cosmos/query/v1/query.proto";
 import "amino/amino.proto";
 
-option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types/v1";
+option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types";
 
 // Query defines the gRPC querier service.
 service Query {
   // Validatorr Approval
   rpc ValidatorApproval(QueryValidatorApprovalRequest) returns (QueryValidatorApprovalResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/validator_approval";
+    option (cosmos.query.v1.module_query_safe) = true;
+    option (google.api.http).get               = "/cosmos/staking/v2beta1/validator_approval";
   }
 
   // Validators queries all validators that match the given status.
@@ -24,13 +26,13 @@ service Query {
   // gas if the pagination field is incorrectly set.
   rpc Validators(QueryValidatorsRequest) returns (QueryValidatorsResponse) {
     option (cosmos.query.v1.module_query_safe) = true;
-    option (google.api.http).get               = "/cosmos/staking/v1beta1/validators";
+    option (google.api.http).get               = "/cosmos/staking/v2beta1/validators";
   }
 
   // Validator queries validator info for given validator address.
   rpc Validator(QueryValidatorRequest) returns (QueryValidatorResponse) {
     option (cosmos.query.v1.module_query_safe) = true;
-    option (google.api.http).get               = "/cosmos/staking/v1beta1/validators/{validator_addr}";
+    option (google.api.http).get               = "/cosmos/staking/v2beta1/validators/{validator_addr}";
   }
 
   // ValidatorDelegations queries delegate info for given validator.
@@ -39,7 +41,7 @@ service Query {
   // gas if the pagination field is incorrectly set.
   rpc ValidatorDelegations(QueryValidatorDelegationsRequest) returns (QueryValidatorDelegationsResponse) {
     option (cosmos.query.v1.module_query_safe) = true;
-    option (google.api.http).get               = "/cosmos/staking/v1beta1/validators/{validator_addr}/delegations";
+    option (google.api.http).get               = "/cosmos/staking/v2beta1/validators/{validator_addr}/delegations";
   }
 
   // ValidatorUnbondingDelegations queries unbonding delegations of a validator.
@@ -49,14 +51,14 @@ service Query {
   rpc ValidatorUnbondingDelegations(QueryValidatorUnbondingDelegationsRequest)
       returns (QueryValidatorUnbondingDelegationsResponse) {
     option (cosmos.query.v1.module_query_safe) = true;
-    option (google.api.http).get               = "/cosmos/staking/v1beta1/validators/"
+    option (google.api.http).get               = "/cosmos/staking/v2beta1/validators/"
                                                  "{validator_addr}/unbonding_delegations";
   }
 
   // Delegation queries delegate info for given validator delegator pair.
   rpc Delegation(QueryDelegationRequest) returns (QueryDelegationResponse) {
     option (cosmos.query.v1.module_query_safe) = true;
-    option (google.api.http).get               = "/cosmos/staking/v1beta1/validators/{validator_addr}/delegations/"
+    option (google.api.http).get               = "/cosmos/staking/v2beta1/validators/{validator_addr}/delegations/"
                                                  "{delegator_addr}";
   }
 
@@ -64,7 +66,7 @@ service Query {
   // pair.
   rpc UnbondingDelegation(QueryUnbondingDelegationRequest) returns (QueryUnbondingDelegationResponse) {
     option (cosmos.query.v1.module_query_safe) = true;
-    option (google.api.http).get               = "/cosmos/staking/v1beta1/validators/{validator_addr}/delegations/"
+    option (google.api.http).get               = "/cosmos/staking/v2beta1/validators/{validator_addr}/delegations/"
                                                  "{delegator_addr}/unbonding_delegation";
   }
 
@@ -74,7 +76,7 @@ service Query {
   // gas if the pagination field is incorrectly set.
   rpc DelegatorDelegations(QueryDelegatorDelegationsRequest) returns (QueryDelegatorDelegationsResponse) {
     option (cosmos.query.v1.module_query_safe) = true;
-    option (google.api.http).get               = "/cosmos/staking/v1beta1/delegations/{delegator_addr}";
+    option (google.api.http).get               = "/cosmos/staking/v2beta1/delegations/{delegator_addr}";
   }
 
   // DelegatorUnbondingDelegations queries all unbonding delegations of a given
@@ -85,7 +87,7 @@ service Query {
   rpc DelegatorUnbondingDelegations(QueryDelegatorUnbondingDelegationsRequest)
       returns (QueryDelegatorUnbondingDelegationsResponse) {
     option (cosmos.query.v1.module_query_safe) = true;
-    option (google.api.http).get               = "/cosmos/staking/v1beta1/delegators/"
+    option (google.api.http).get               = "/cosmos/staking/v2beta1/delegators/"
                                                  "{delegator_addr}/unbonding_delegations";
   }
 
@@ -95,7 +97,7 @@ service Query {
   // gas if the pagination field is incorrectly set.
   rpc Redelegations(QueryRedelegationsRequest) returns (QueryRedelegationsResponse) {
     option (cosmos.query.v1.module_query_safe) = true;
-    option (google.api.http).get               = "/cosmos/staking/v1beta1/delegators/{delegator_addr}/redelegations";
+    option (google.api.http).get               = "/cosmos/staking/v2beta1/delegators/{delegator_addr}/redelegations";
   }
 
   // DelegatorValidators queries all validators info for given delegator
@@ -105,33 +107,45 @@ service Query {
   // gas if the pagination field is incorrectly set.
   rpc DelegatorValidators(QueryDelegatorValidatorsRequest) returns (QueryDelegatorValidatorsResponse) {
     option (cosmos.query.v1.module_query_safe) = true;
-    option (google.api.http).get               = "/cosmos/staking/v1beta1/delegators/{delegator_addr}/validators";
+    option (google.api.http).get               = "/cosmos/staking/v2beta1/delegators/{delegator_addr}/validators";
   }
 
   // DelegatorValidator queries validator info for given delegator validator
   // pair.
   rpc DelegatorValidator(QueryDelegatorValidatorRequest) returns (QueryDelegatorValidatorResponse) {
     option (cosmos.query.v1.module_query_safe) = true;
-    option (google.api.http).get               = "/cosmos/staking/v1beta1/delegators/{delegator_addr}/validators/"
+    option (google.api.http).get               = "/cosmos/staking/v2beta1/delegators/{delegator_addr}/validators/"
                                                  "{validator_addr}";
   }
 
   // HistoricalInfo queries the historical info for given height.
   rpc HistoricalInfo(QueryHistoricalInfoRequest) returns (QueryHistoricalInfoResponse) {
     option (cosmos.query.v1.module_query_safe) = true;
-    option (google.api.http).get               = "/cosmos/staking/v1beta1/historical_info/{height}";
+    option (google.api.http).get               = "/cosmos/staking/v2beta1/historical_info/{height}";
   }
 
   // Pool queries the pool info.
   rpc Pool(QueryPoolRequest) returns (QueryPoolResponse) {
     option (cosmos.query.v1.module_query_safe) = true;
-    option (google.api.http).get               = "/cosmos/staking/v1beta1/pool";
+    option (google.api.http).get               = "/cosmos/staking/v2beta1/pool";
   }
 
   // Parameters queries the staking parameters.
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
     option (cosmos.query.v1.module_query_safe) = true;
-    option (google.api.http).get               = "/cosmos/staking/v1beta1/params";
+    option (google.api.http).get               = "/cosmos/staking/v2beta1/params";
+  }
+
+  // Queries a DelegatorWhitelistdelegator by index.
+  rpc Whitelistdelegator(QueryGetWhitelistDelegatorRequest) returns (QueryWhitelistdelegatorResponse) {
+    option (cosmos.query.v1.module_query_safe) = true;
+    option (google.api.http).get               = "/cosmos/staking/v2beta1/whitelistdelegator/{validator}";
+  }
+
+  // Queries a list of DelegatorWhitelistdelegator items.
+  rpc WhitelistdelegatorAll(QueryAllWhitelistDelegatorRequest) returns (QueryWhitelistdelegatorAllResponse) {
+    option (cosmos.query.v1.module_query_safe) = true;
+    option (google.api.http).get               = "/cosmos/staking/v2beta1/whitelistdelegator";
   }
 }
 
@@ -397,4 +411,25 @@ message QueryParamsRequest {}
 message QueryParamsResponse {
   // params holds all the parameters of this module.
   Params params = 1 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
+}
+
+// QueryGetWhitelistDelegatorRequest is request type for the Query/WhiltelistDelegator RPC method.
+message QueryGetWhitelistDelegatorRequest {
+  string validator = 1;
+}
+
+// QueryGetWhitelistDelegatorRequest is response type for the Query/WhiltelistDelegator RPC method.
+message QueryWhitelistdelegatorResponse {
+  WhitelistDelegator whitelist_delegator = 1 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
+}
+
+// QueryAllWhitelistDelegatorRequest is request type for the Query/ListWhiltelistDelegator RPC method.
+message QueryAllWhitelistDelegatorRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+// QueryWhitelistdelegatorAllResponse is response type for the Query/ListWhiltelistDelegator RPC method.
+message QueryWhitelistdelegatorAllResponse {
+  repeated WhitelistDelegator whitelist_delegator   = 1 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }

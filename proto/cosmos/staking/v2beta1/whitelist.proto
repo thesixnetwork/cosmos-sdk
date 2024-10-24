@@ -1,0 +1,10 @@
+syntax = "proto3";
+package cosmos.staking.v2beta1;
+
+option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types";
+
+// WhitelistDelegator
+message WhitelistDelegator {
+  string          validator_address = 1;
+  repeated string delegator_address = 2;
+}

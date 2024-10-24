@@ -31,6 +31,8 @@ var (
 	defaultCommissionMaxRate       = "0.2"
 	defaultCommissionMaxChangeRate = "0.01"
 	defaultMinSelfDelegation       = "1"
+	defaultMinDelegation           = "1"
+	defaultDelegationIncrement     = "1"
 )
 
 // NewTxCmd returns a root CLI command handler for all x/staking transaction commands.
@@ -44,6 +46,7 @@ func NewTxCmd(valAddrCodec, ac address.Codec) *cobra.Command {
 	}
 
 	stakingTxCmd.AddCommand(
+		NewSetValidatorApprovalCmd(),
 		NewCreateValidatorCmd(valAddrCodec),
 		NewEditValidatorCmd(valAddrCodec),
 		NewDelegateCmd(valAddrCodec, ac),
@@ -53,6 +56,39 @@ func NewTxCmd(valAddrCodec, ac address.Codec) *cobra.Command {
 	)
 
 	return stakingTxCmd
+}
+
+func NewSetValidatorApprovalCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "set-validator-approval",
+		Short: "set new validator approval state",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+			approverAddr := clientCtx.GetFromAddress()
+			newApproverAddr, _ := cmd.Flags().GetString(FlagAddressNewApprover)
+			approvalEnabled, _ := cmd.Flags().GetBool(FlagApprovalEnabled)
+
+			msg, err := types.NewMsgSetValidatorApproval(approverAddr.String(), newApproverAddr, approvalEnabled)
+			if err != nil {
+				return fmt.Errorf("error create message: %v", err)
+			}
+
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+
+	cmd.Flags().AddFlagSet(FlagSetNewApprover())
+	cmd.Flags().AddFlagSet(FlagSetApprovalEnabled())
+	flags.AddTxFlagsToCmd(cmd)
+
+	_ = cmd.MarkFlagRequired(flags.FlagFrom)
+	_ = cmd.MarkFlagRequired(FlagAddressNewApprover)
+	_ = cmd.MarkFlagRequired(FlagApprovalEnabled)
+
+	return cmd
 }
 
 // NewCreateValidatorCmd returns a CLI command handler for creating a MsgCreateValidator transaction.
@@ -108,6 +144,12 @@ where we can get the pubkey using "%s tendermint show-validator"
 			return tx.GenerateOrBroadcastTxWithFactory(clientCtx, txf, msg)
 		},
 	}
+	cmd.Flags().AddFlagSet(FlagSetApprover())
+	cmd.Flags().AddFlagSet(FlagMinDelegationCreate())
+	cmd.Flags().AddFlagSet(FlagDelegationIncrementCreate())
+	cmd.Flags().AddFlagSet(FlagLicenseModeCreate())
+	cmd.Flags().AddFlagSet(FlagEnableRedelegationCreate())
+	cmd.Flags().AddFlagSet(FlagSpecialModeCreate())
 
 	cmd.Flags().String(FlagIP, "", fmt.Sprintf("The node's public IP. It takes effect only when used in combination with --%s", flags.FlagGenerateOnly))
 	cmd.Flags().String(FlagNodeID, "", "The node's ID")
@@ -134,6 +176,9 @@ func NewEditValidatorCmd(ac address.Codec) *cobra.Command {
 			website, _ := cmd.Flags().GetString(FlagWebsite)
 			security, _ := cmd.Flags().GetString(FlagSecurityContact)
 			details, _ := cmd.Flags().GetString(FlagDetails)
+			maxLicense, _ := cmd.Flags().GetString(FlagMaxLicense)
+			licenceMode, _ := cmd.Flags().GetBool(FlagLicenseMode)
+			specialMode, _ := cmd.Flags().GetBool(FlagSpecialMode)
 			description := types.NewDescription(moniker, identity, website, security, details)
 
 			var newRate *math.LegacyDec
@@ -165,8 +210,16 @@ func NewEditValidatorCmd(ac address.Codec) *cobra.Command {
 				return err
 			}
 
-			msg := types.NewMsgEditValidator(valAddr, description, newRate, newMinSelfDelegation)
+			var newMaxLicense *math.Int
+			if maxLicense != "" {
 
+				msb, ok := math.NewIntFromString(maxLicense)
+				if !ok {
+					return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "When license mode is used, max license is required and must be positive")
+				}
+				newMaxLicense = &msb
+			}
+			msg := types.NewMsgEditValidator(valAddr, description, newRate, newMinSelfDelegation, newMaxLicense, licenceMode, specialMode)
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
@@ -434,6 +487,11 @@ func CreateValidatorMsgFlagSet(ipDefault string) (fs *flag.FlagSet, defaultsDesc
 	fsCreateValidator.AddFlagSet(FlagSetMinSelfDelegation())
 	fsCreateValidator.AddFlagSet(FlagSetAmount())
 	fsCreateValidator.AddFlagSet(FlagSetPublicKey())
+	fsCreateValidator.AddFlagSet(FlagMinDelegationCreate())
+	fsCreateValidator.AddFlagSet(FlagDelegationIncrementCreate())
+	fsCreateValidator.AddFlagSet(FlagLicenseModeCreate())
+	fsCreateValidator.AddFlagSet(FlagEnableRedelegationCreate())
+	fsCreateValidator.AddFlagSet(FlagSpecialModeCreate())
 
 	defaultsDesc = fmt.Sprintf(`
 	delegation amount:           %s
@@ -441,9 +499,13 @@ func CreateValidatorMsgFlagSet(ipDefault string) (fs *flag.FlagSet, defaultsDesc
 	commission max rate:         %s
 	commission max change rate:  %s
 	minimum self delegation:     %s
+	minimum delegation:     %s
+	delegation increment:     %s
 `, defaultAmount, defaultCommissionRate,
 		defaultCommissionMaxRate, defaultCommissionMaxChangeRate,
-		defaultMinSelfDelegation)
+		defaultMinSelfDelegation,
+		defaultMinDelegation,
+		defaultDelegationIncrement)
 
 	return fsCreateValidator, defaultsDesc
 }
@@ -459,6 +521,13 @@ type TxCreateValidatorConfig struct {
 	CommissionMaxRate       string
 	CommissionMaxChangeRate string
 	MinSelfDelegation       string
+	MinDelegation           string
+	DelegationIncrement     string
+
+	LicenseMode        bool
+	MaxLicense         string
+	EnableRedelegation bool
+	SpecialMode        bool
 
 	PubKey cryptotypes.PubKey
 
@@ -565,6 +634,33 @@ func PrepareConfigForTxCreateValidator(flagSet *flag.FlagSet, moniker, nodeID, c
 	if c.MinSelfDelegation == "" {
 		c.MinSelfDelegation = defaultMinSelfDelegation
 	}
+	if c.MinDelegation == "" {
+		c.MinDelegation = defaultMinDelegation
+	}
+
+	if c.DelegationIncrement == "" {
+		c.DelegationIncrement = defaultDelegationIncrement
+	}
+
+	c.LicenseMode, err = flagSet.GetBool(FlagLicenseMode)
+	if err != nil {
+		return c, err
+	}
+
+	c.EnableRedelegation, err = flagSet.GetBool(FlagEnableRedelegation)
+	if err != nil {
+		return c, err
+	}
+
+	c.MaxLicense, err = flagSet.GetString(FlagMaxLicense)
+	if err != nil {
+		return c, err
+	}
+
+	c.SpecialMode, err = flagSet.GetBool(FlagSpecialMode)
+	if err != nil {
+		return c, err
+	}
 
 	return c, nil
 }
@@ -616,6 +712,53 @@ func BuildCreateValidatorMsg(clientCtx client.Context, config TxCreateValidatorC
 		commissionRates,
 		minSelfDelegation,
 	)
+
+	mdlStr := config.MinDelegation
+	minDelegation, ok := math.NewIntFromString(mdlStr)
+	if !ok {
+		return txBldr, nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "minimum delegation must be a positive integer")
+	}
+	msg.MinDelegation = minDelegation
+	msg.MinDelegation = minDelegation
+
+	dliStr := config.DelegationIncrement
+	delegationIncrement, ok := math.NewIntFromString(dliStr)
+	if !ok {
+		return txBldr, nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "delegation increment must be a positive integer")
+	}
+	msg.DelegationIncrement = delegationIncrement
+
+	enableRedelegation := config.EnableRedelegation
+
+	switch {
+	case config.LicenseMode:
+		msg.LicenseMode = true
+		msg.SpecialMode = false
+		mlcStr := config.MaxLicense
+		maxLicense, ok := math.NewIntFromString(mlcStr)
+		if !ok {
+			return txBldr, nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "When license mode is used, max license is required and must be positive")
+		}
+		msg.MaxLicense = maxLicense
+
+		if enableRedelegation {
+			return txBldr, nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "When license mode is used, redelegation must be disabled")
+		}
+	case config.SpecialMode:
+		msg.LicenseMode = false
+		msg.SpecialMode = true
+	default:
+		msg.LicenseMode = false
+		msg.SpecialMode = false
+	}
+
+	if msg.LicenseMode && msg.SpecialMode {
+		return txBldr, nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "Cannot enable license mode along side with specialmode")
+	}
+
+	// Enable Redelegation
+	msg.EnableRedelegation = enableRedelegation
+
 	if err != nil {
 		return txBldr, msg, err
 	}

@@ -205,6 +205,9 @@ func (k Keeper) InitGenesis(ctx context.Context, data *types.GenesisState) (res 
 		}
 	}
 
+	// Add genesis validator approval
+	k.SetNewValidatorApprovalState(ctx, data.ValidatorApproval)
+
 	return res
 }
 

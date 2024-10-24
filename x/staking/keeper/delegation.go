@@ -1151,6 +1151,67 @@ func (k Keeper) Undelegate(
 	return completionTime, returnAmount, nil
 }
 
+/*
+	TODO: Undelegate for special mode
+	1. Return asset immediately after undelegate request aka one block ahead
+*/
+
+func (k Keeper) UndelegateSpecial(
+	ctx context.Context, delAddr sdk.AccAddress, valAddr sdk.ValAddress, sharesAmount math.LegacyDec,
+) (time.Time, math.Int, error) {
+	validator, err := k.GetValidator(ctx, valAddr)
+	if err != nil {
+		return time.Time{}, math.Int{}, err
+	}
+	if !validator.SpecialMode {
+		return time.Time{}, math.Int{}, types.ErrSpecialModeDisable
+	}
+
+	// isSpecial := k.IsSpecialDelegator(ctx, valAddr, delAddr)
+	// if !isSpecial {
+	// 	return time.Time{}, types.ErrDelegatorIsNotSpecial
+	// }
+
+	hasMaxEntries, err := k.HasMaxUnbondingDelegationEntries(ctx, delAddr, valAddr)
+	if err != nil {
+		return time.Time{}, math.Int{}, err
+	}
+
+	if hasMaxEntries {
+		return time.Time{}, math.Int{}, types.ErrMaxUnbondingDelegationEntries
+	}
+
+	returnAmount, err := k.Unbond(ctx, delAddr, valAddr, sharesAmount)
+	if err != nil {
+		return time.Time{}, math.Int{}, err
+	}
+
+	// transfer the validator tokens to the not bonded pool
+	if validator.IsBonded() {
+		err = k.bondedTokensToNotBonded(ctx, returnAmount)
+		if err != nil {
+			return time.Time{}, math.Int{}, err
+		}
+	}
+
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	prevblockCtx := sdkCtx.WithBlockHeight(sdkCtx.BlockHeader().Height - 1)
+	timeDiff := sdkCtx.BlockHeader().Time.Sub(prevblockCtx.BlockHeader().Time)
+
+	completionTime := sdkCtx.BlockHeader().Time.Add(timeDiff)
+	ubd, err := k.SetUnbondingDelegationEntry(ctx, delAddr, valAddr, sdkCtx.BlockHeight(), completionTime, returnAmount)
+	if err != nil {
+		return time.Time{}, math.Int{}, err
+	}
+
+	err = k.InsertUBDQueue(ctx, ubd, completionTime)
+	if err != nil {
+		return time.Time{}, math.Int{}, err
+	}
+
+	return completionTime, returnAmount, nil
+}
+
 // CompleteUnbonding completes the unbonding of all mature entries in the
 // retrieved unbonding delegation object and returns the total unbonding balance
 // or an error upon failure.
@@ -1234,6 +1295,91 @@ func (k Keeper) BeginRedelegation(
 	} else if err != nil {
 		return time.Time{}, err
 	}
+
+	// check if this is a transitive redelegation
+	hasRecRedel, err := k.HasReceivingRedelegation(ctx, delAddr, valSrcAddr)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	if hasRecRedel {
+		return time.Time{}, types.ErrTransitiveRedelegation
+	}
+
+	hasMaxRedels, err := k.HasMaxRedelegationEntries(ctx, delAddr, valSrcAddr, valDstAddr)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	if hasMaxRedels {
+		return time.Time{}, types.ErrMaxRedelegationEntries
+	}
+
+	returnAmount, err := k.Unbond(ctx, delAddr, valSrcAddr, sharesAmount)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	if returnAmount.IsZero() {
+		return time.Time{}, types.ErrTinyRedelegationAmount
+	}
+
+	sharesCreated, err := k.Delegate(ctx, delAddr, returnAmount, srcValidator.GetStatus(), dstValidator, false)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	// create the unbonding delegation
+	completionTime, height, completeNow, err := k.getBeginInfo(ctx, valSrcAddr)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	if completeNow { // no need to create the redelegation object
+		return completionTime, nil
+	}
+
+	red, err := k.SetRedelegationEntry(
+		ctx, delAddr, valSrcAddr, valDstAddr,
+		height, completionTime, returnAmount, sharesAmount, sharesCreated,
+	)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	err = k.InsertRedelegationQueue(ctx, red, completionTime)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return completionTime, nil
+}
+
+// BeginRedelegation for only special node
+func (k Keeper) BeginRedelegationSpecial(
+	ctx context.Context, delAddr sdk.AccAddress, valSrcAddr, valDstAddr sdk.ValAddress, sharesAmount math.LegacyDec,
+) (completionTime time.Time, err error) {
+	if bytes.Equal(valSrcAddr, valDstAddr) {
+		return time.Time{}, types.ErrSelfRedelegation
+	}
+
+	dstValidator, err := k.GetValidator(ctx, valDstAddr)
+	if errors.Is(err, types.ErrNoValidatorFound) {
+		return time.Time{}, types.ErrBadRedelegationDst
+	} else if err != nil {
+		return time.Time{}, err
+	}
+
+	srcValidator, err := k.GetValidator(ctx, valSrcAddr)
+	if errors.Is(err, types.ErrNoValidatorFound) {
+		return time.Time{}, types.ErrBadRedelegationSrc
+	} else if err != nil {
+		return time.Time{}, err
+	}
+
+	// if !srcValidator.SpecialMode {
+	// 	return time.Time{}, types.ErrBadRedelegationNotSpecial
+	// }
 
 	// check if this is a transitive redelegation
 	hasRecRedel, err := k.HasReceivingRedelegation(ctx, delAddr, valSrcAddr)

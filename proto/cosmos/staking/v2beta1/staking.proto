@@ -1,5 +1,5 @@
 syntax = "proto3";
-package cosmos.staking.v1beta1;
+package cosmos.staking.v2beta1;
 
 import "gogoproto/gogo.proto";
 import "google/protobuf/any.proto";
@@ -12,7 +12,7 @@ import "amino/amino.proto";
 import "tendermint/types/types.proto";
 import "tendermint/abci/types.proto";
 
-option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types/v1";
+option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types";
 
 // HistoricalInfo contains header and validator information for a given block.
 // It is stored as part of staking module's state, which persists the `n` most
@@ -152,11 +152,13 @@ message Validator {
   bool license_mode        = 16;
   bool enable_redelegation = 17;
 
+  bool special_mode = 18;
+
   // strictly positive if this validator's unbonding has been stopped by external modules
-  int64 unbonding_on_hold_ref_count = 18;
+  int64 unbonding_on_hold_ref_count = 19;
 
   // list of unbonding ids, each uniquely identifing an unbonding of this validator
-  repeated uint64 unbonding_ids = 19;
+  repeated uint64 unbonding_ids = 20;
 }
 
 // BondStatus is the status of a validator.
