@@ -1,0 +1,20 @@
+go 1.21
+
+use (
+	.
+	./api
+	./client/v2
+	./orm
+	./simapp
+	./tests
+	./store
+	./tools/cosmovisor
+	./tools/confix
+	./tools/hubl
+	./x/tx
+	./x/nft
+	./x/circuit
+	./x/feegrant
+	./x/evidence
+	./x/upgrade
+)
