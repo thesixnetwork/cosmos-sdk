@@ -12,7 +12,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
-	typesv1 "github.com/cosmos/cosmos-sdk/x/staking/types/v1"
 )
 
 // GetQueryCmd returns the cli query commands for this module
@@ -325,9 +324,9 @@ $ %s query staking delegation %s1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p %s1gghju
 			if err == nil {
 				return clientCtx.PrintProto(res.DelegationResponse)
 			} else {
-				queryClientLegacy := typesv1.NewQueryClient(clientCtx)
+				queryClientLegacy := types.NewQueryClient(clientCtx)
 
-				paramsV2 := &typesv1.QueryDelegationRequest{
+				paramsV2 := &types.QueryDelegationRequest{
 					DelegatorAddr: delAddr.String(),
 					ValidatorAddr: valAddr.String(),
 				}
@@ -390,9 +389,9 @@ $ %s query staking delegations %s1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
 			if err == nil {
 				return clientCtx.PrintProto(res)
 			} else {
-				queryClientLegacy := typesv1.NewQueryClient(clientCtx)
+				queryClientLegacy := types.NewQueryClient(clientCtx)
 
-				paramsV2 := &typesv1.QueryDelegatorDelegationsRequest{
+				paramsV2 := &types.QueryDelegatorDelegationsRequest{
 					DelegatorAddr: delAddr.String(),
 					Pagination:    pageReq,
 				}
@@ -455,9 +454,9 @@ $ %s query staking delegations-to %s1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 			if err == nil {
 				return clientCtx.PrintProto(res)
 			} else {
-				queryClientLegacy := typesv1.NewQueryClient(clientCtx)
+				queryClientLegacy := types.NewQueryClient(clientCtx)
 
-				paramsV2 := &typesv1.QueryValidatorDelegationsRequest{
+				paramsV2 := &types.QueryValidatorDelegationsRequest{
 					ValidatorAddr: valAddr.String(),
 					Pagination:    pageReq,
 				}
@@ -521,9 +520,9 @@ $ %s query staking unbonding-delegation %s1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9
 			if err == nil {
 				return clientCtx.PrintProto(res)
 			} else {
-				queryClientLegacy := typesv1.NewQueryClient(clientCtx)
+				queryClientLegacy := types.NewQueryClient(clientCtx)
 
-				paramsV2 := &typesv1.QueryUnbondingDelegationRequest{
+				paramsV2 := &types.QueryUnbondingDelegationRequest{
 					DelegatorAddr: delAddr.String(),
 					ValidatorAddr: valAddr.String(),
 				}
@@ -585,9 +584,9 @@ $ %s query staking unbonding-delegations %s1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru
 			if err == nil {
 				return clientCtx.PrintProto(res)
 			} else {
-				queryClientLegacy := typesv1.NewQueryClient(clientCtx)
+				queryClientLegacy := types.NewQueryClient(clientCtx)
 
-				paramsV2 := &typesv1.QueryDelegatorUnbondingDelegationsRequest{
+				paramsV2 := &types.QueryDelegatorUnbondingDelegationsRequest{
 					DelegatorAddr: delegatorAddr.String(),
 					Pagination:    pageReq,
 				}
@@ -657,8 +656,8 @@ $ %s query staking redelegation %s1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p %s1l2r
 			if err == nil {
 				return clientCtx.PrintProto(res)
 			} else {
-				queryClientLegacy := typesv1.NewQueryClient(clientCtx)
-				paramsV2 := &typesv1.QueryRedelegationsRequest{
+				queryClientLegacy := types.NewQueryClient(clientCtx)
+				paramsV2 := &types.QueryRedelegationsRequest{
 					DelegatorAddr:    delAddr.String(),
 					DstValidatorAddr: valDstAddr.String(),
 					SrcValidatorAddr: valSrcAddr.String(),
@@ -721,8 +720,8 @@ $ %s query staking redelegation %s1gghjut3ccd8ay0zduzj64hwre2fxs9ld75ru9p
 			if err == nil {
 				return clientCtx.PrintProto(res)
 			} else {
-				queryClientLegacy := typesv1.NewQueryClient(clientCtx)
-				paramsV2 := &typesv1.QueryRedelegationsRequest{
+				queryClientLegacy := types.NewQueryClient(clientCtx)
+				paramsV2 := &types.QueryRedelegationsRequest{
 					DelegatorAddr: delAddr.String(),
 					Pagination:    pageReq,
 				}
@@ -773,8 +772,8 @@ $ %s query staking historical-info 5
 			if err == nil {
 				return clientCtx.PrintProto(res)
 			} else {
-				queryClientLegacy := typesv1.NewQueryClient(clientCtx)
-				paramsV2 := &typesv1.QueryHistoricalInfoRequest{Height: height}
+				queryClientLegacy := types.NewQueryClient(clientCtx)
+				paramsV2 := &types.QueryHistoricalInfoRequest{Height: height}
 				resV2, err := queryClientLegacy.HistoricalInfo(cmd.Context(), paramsV2)
 				if err != nil {
 					return err
@@ -815,8 +814,8 @@ $ %s query staking pool
 			if err == nil {
 				return clientCtx.PrintProto(res)
 			} else {
-				queryClientLegacy := typesv1.NewQueryClient(clientCtx)
-				resV2, err := queryClientLegacy.Pool(cmd.Context(), &typesv1.QueryPoolRequest{})
+				queryClientLegacy := types.NewQueryClient(clientCtx)
+				resV2, err := queryClientLegacy.Pool(cmd.Context(), &types.QueryPoolRequest{})
 				if err != nil {
 					return err
 				}
@@ -856,8 +855,8 @@ $ %s query staking params
 			if err == nil {
 				return clientCtx.PrintProto(res)
 			} else {
-				queryClientLegacy := typesv1.NewQueryClient(clientCtx)
-				resV2, err := queryClientLegacy.Params(cmd.Context(), &typesv1.QueryParamsRequest{})
+				queryClientLegacy := types.NewQueryClient(clientCtx)
+				resV2, err := queryClientLegacy.Params(cmd.Context(), &types.QueryParamsRequest{})
 				if err != nil {
 					return err
 				}
