@@ -5,8 +5,9 @@ import "cosmos/base/query/v1beta1/pagination.proto";
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "cosmos/staking/v1beta1/staking.proto";
+import "cosmos/staking/v1beta1/whitelist.proto";
 
-option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types/v1";
+option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types";
 
 // Query defines the gRPC querier service.
 service Query {
@@ -33,21 +34,19 @@ service Query {
   // ValidatorUnbondingDelegations queries unbonding delegations of a validator.
   rpc ValidatorUnbondingDelegations(QueryValidatorUnbondingDelegationsRequest)
       returns (QueryValidatorUnbondingDelegationsResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/validators/"
-                                   "{validator_addr}/unbonding_delegations";
+    option (google.api.http).get = "/cosmos/staking/v1beta1/validators/{validator_addr}/unbonding_delegations";
   }
 
   // Delegation queries delegate info for given validator delegator pair.
   rpc Delegation(QueryDelegationRequest) returns (QueryDelegationResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/validators/{validator_addr}/delegations/"
-                                   "{delegator_addr}";
+    option (google.api.http).get = "/cosmos/staking/v1beta1/validators/{validator_addr}/delegations/{delegator_addr}";
   }
 
   // UnbondingDelegation queries unbonding info for given validator delegator
   // pair.
   rpc UnbondingDelegation(QueryUnbondingDelegationRequest) returns (QueryUnbondingDelegationResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/validators/{validator_addr}/delegations/"
-                                   "{delegator_addr}/unbonding_delegation";
+    option (google.api.http).get =
+        "/cosmos/staking/v1beta1/validators/{validator_addr}/delegations/{delegator_addr}/unbonding_delegation";
   }
 
   // DelegatorDelegations queries all delegations of a given delegator address.
@@ -59,8 +58,7 @@ service Query {
   // delegator address.
   rpc DelegatorUnbondingDelegations(QueryDelegatorUnbondingDelegationsRequest)
       returns (QueryDelegatorUnbondingDelegationsResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/delegators/"
-                                   "{delegator_addr}/unbonding_delegations";
+    option (google.api.http).get = "/cosmos/staking/v1beta1/delegators/{delegator_addr}/unbonding_delegations";
   }
 
   // Redelegations queries redelegations of given address.
@@ -77,8 +75,7 @@ service Query {
   // DelegatorValidator queries validator info for given delegator validator
   // pair.
   rpc DelegatorValidator(QueryDelegatorValidatorRequest) returns (QueryDelegatorValidatorResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/delegators/{delegator_addr}/validators/"
-                                   "{validator_addr}";
+    option (google.api.http).get = "/cosmos/staking/v1beta1/delegators/{delegator_addr}/validators/{validator_addr}";
   }
 
   // HistoricalInfo queries the historical info for given height.
@@ -95,11 +92,22 @@ service Query {
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
     option (google.api.http).get = "/cosmos/staking/v1beta1/params";
   }
+
+  // Queries a DelegatorWhitelistdelegator by index.
+  rpc Whitelistdelegator(QueryGetWhitelistDelegatorRequest) returns (QueryWhitelistdelegatorResponse) {
+    option (google.api.http).get = "/cosmos/staking/v1beta1/whitelistdelegator/{validator}";
+  }
+
+  // Queries a list of DelegatorWhitelistdelegator items.
+  rpc WhitelistdelegatorAll(QueryAllWhitelistDelegatorRequest) returns (QueryWhitelistdelegatorAllResponse) {
+    option (google.api.http).get = "/cosmos/staking/v1beta1/whitelistdelegator";
+  }
 }
 
-message QueryValidatorApprovalRequest {
-}
+// QueryValidatorApprovalRequest is request type for Query/ValidatorsApproval RPC method.
+message QueryValidatorApprovalRequest {}
 
+// QueryValidatorApprovalResponse is response type for the Query/ValidatorsApproval RPC method
 message QueryValidatorApprovalResponse {
   ValidatorApproval validator_approval = 1 [(gogoproto.nullable) = false];
 }
@@ -357,4 +365,25 @@ message QueryParamsRequest {}
 message QueryParamsResponse {
   // params holds all the parameters of this module.
   Params params = 1 [(gogoproto.nullable) = false];
+}
+
+// QueryGetWhitelistDelegatorRequest is request type for the Query/WhiltelistDeleagator RPC method.
+message QueryGetWhitelistDelegatorRequest {
+  string validator = 1;
+}
+
+// QueryWhitelistdelegatorResponse is response type for the Query/WhiltelistDeleagator RPC method.
+message QueryWhitelistdelegatorResponse {
+  WhitelistDelegator whitelist_delegator = 1 [(gogoproto.nullable) = false];
+}
+
+// QueryAllWhitelistDelegatorRequest is request type for the Query/AllWhiltelistDeleagator RPC method.
+message QueryAllWhitelistDelegatorRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+// QueryWhitelistdelegatorAllResponse is response type for the Query/AllWhiltelistDeleagator RPC method.
+message QueryWhitelistdelegatorAllResponse {
+  repeated WhitelistDelegator            whitelist_delegator = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination          = 2;
 }

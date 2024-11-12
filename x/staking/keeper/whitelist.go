@@ -84,7 +84,7 @@ func (k Keeper) IsSpecialDelegator(ctx sdk.Context, val sdk.ValAddress, delegato
 	return false
 }
 
-func (k Keeper) DelDelegatorFromWhitelist(ctx sdk.Context, validator sdk.ValAddress, delegator string) (*types.MsgWhitelistDelegatorResponse, error) {
+func (k Keeper) DelDelegatorFromWhitelist(ctx sdk.Context, validator sdk.ValAddress, delegator string) (*types.MsgDeleteWhitelistdelegatorResponse, error) {
 
 	specialList, found := k.GetWhitelistDelegator(ctx, validator)
 	if !found {
@@ -103,5 +103,5 @@ func (k Keeper) DelDelegatorFromWhitelist(ctx sdk.Context, validator sdk.ValAddr
 		DelegatorAddress: specialList.DelegatorAddress,
 	})
 
-	return &types.MsgWhitelistDelegatorResponse{WhitelistDelegator: &specialList}, nil
+	return &types.MsgDeleteWhitelistdelegatorResponse{WhitelistDelegator: &specialList}, nil
 }

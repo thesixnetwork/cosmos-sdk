@@ -14,7 +14,7 @@ import (
 
 
 // DelegatorWhitelistdelegatorAll implements types.QueryServer.
-func (k Querier) WhitelistdelegatorAll(c context.Context, req *types.QueryAllWhitelistDelegatorRequest) (*types.QueryAllWhitelistdelegatorResponse, error) {
+func (k Querier) WhitelistdelegatorAll(c context.Context, req *types.QueryAllWhitelistDelegatorRequest) (*types.QueryWhitelistdelegatorAllResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
 	}
@@ -39,11 +39,11 @@ func (k Querier) WhitelistdelegatorAll(c context.Context, req *types.QueryAllWhi
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	return &types.QueryAllWhitelistdelegatorResponse{WhitelistDelegator: delegatorWhitelist, Pagination: pageRes}, nil
+	return &types.QueryWhitelistdelegatorAllResponse{WhitelistDelegator: delegatorWhitelist, Pagination: pageRes}, nil
 }
 
 // DelegatorWhitelistdelegator implements types.QueryServer.
-func (k Querier) Whitelistdelegator(c context.Context, req *types.QueryGetWhitelistDelegatorRequest) (*types.QueryGetWhitelistDelegatorResponse, error) {
+func (k Querier) Whitelistdelegator(c context.Context, req *types.QueryGetWhitelistDelegatorRequest) (*types.QueryWhitelistdelegatorResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid request")
 	}
@@ -64,5 +64,5 @@ func (k Querier) Whitelistdelegator(c context.Context, req *types.QueryGetWhitel
 		return nil, status.Error(codes.NotFound, "not found")
 	}
 
-	return &types.QueryGetWhitelistDelegatorResponse{WhitelistDelegator: val}, nil
+	return &types.QueryWhitelistdelegatorResponse{WhitelistDelegator: val}, nil
 }

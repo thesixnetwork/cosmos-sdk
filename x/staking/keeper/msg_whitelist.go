@@ -8,7 +8,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
-func (k msgServer) CreateWhitelistdelegator(goCtx context.Context, msg *types.MsgCreateWhitelistDelegator) (*types.MsgWhitelistDelegatorResponse, error) {
+func (k msgServer) CreateWhitelistdelegator(goCtx context.Context, msg *types.MsgCreateWhitelistDelegator) (*types.MsgCreateWhitelistdelegatorResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
 	// validate basic
@@ -52,12 +52,12 @@ func (k msgServer) CreateWhitelistdelegator(goCtx context.Context, msg *types.Ms
 		),
 	})
 
-	return &types.MsgWhitelistDelegatorResponse{WhitelistDelegator: &whitelist}, nil
+	return &types.MsgCreateWhitelistdelegatorResponse{WhitelistDelegator: &whitelist}, nil
 }
 
 
 // DeleteWhitelistdelegator implements types.MsgServer.
-func (k msgServer) DeleteWhitelistdelegator(goCtx context.Context, msg *types.MsgDeleteWhitelistDelegator) (*types.MsgWhitelistDelegatorResponse, error) {
+func (k msgServer) DeleteWhitelistdelegator(goCtx context.Context, msg *types.MsgDeleteWhitelistDelegator) (*types.MsgDeleteWhitelistdelegatorResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 	
 	// validate basic

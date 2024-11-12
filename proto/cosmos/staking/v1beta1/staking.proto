@@ -10,7 +10,7 @@ import "cosmos_proto/cosmos.proto";
 import "cosmos/base/v1beta1/coin.proto";
 import "tendermint/types/types.proto";
 
-option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types/v1";
+option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types";
 
 // HistoricalInfo contains header and validator information for a given block.
 // It is stored as part of staking module's state, which persists the `n` most
@@ -117,30 +117,30 @@ message Validator {
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
     (gogoproto.nullable)   = false
   ];
-  string          min_delegation = 12 [
+  string min_delegation = 12 [
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
     (gogoproto.moretags)   = "yaml:\"min_delegation\"",
     (gogoproto.nullable)   = false
   ];
-  string          delegation_increment = 13 [
+  string delegation_increment = 13 [
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
     (gogoproto.moretags)   = "yaml:\"delegation_increment\"",
     (gogoproto.nullable)   = false
   ];
-  string          max_license = 14 [
+  string max_license = 14 [
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
     (gogoproto.moretags)   = "yaml:\"max_license\"",
     (gogoproto.nullable)   = false
   ];
-  string          license_count = 15 [
+  string license_count = 15 [
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
     (gogoproto.moretags)   = "yaml:\"license_count\"",
     (gogoproto.nullable)   = false
   ];
-  bool            license_mode = 16 [
-    (gogoproto.moretags) = "yaml:\"license_mode\""
-  ];
-  bool            enable_redelegation = 17 [(gogoproto.moretags) = "yaml:\"enable_redelegation\""];
+  bool license_mode        = 16 [(gogoproto.moretags) = "yaml:\"license_mode\""];
+  bool enable_redelegation = 17 [(gogoproto.moretags) = "yaml:\"enable_redelegation\""];
+
+  bool special_mode = 18 [(gogoproto.moretags) = "yaml:\"special_mode\""];
 }
 
 // BondStatus is the status of a validator.
@@ -357,7 +357,8 @@ message Pool {
   ];
 }
 
+// ValidatorApproval
 message ValidatorApproval {
-  string approver_address  = 1 [(gogoproto.moretags) = "yaml:\"approver_address\""];
-  bool enabled = 2;
+  string approver_address = 1 [(gogoproto.moretags) = "yaml:\"approver_address\""];
+  bool   enabled          = 2;
 }

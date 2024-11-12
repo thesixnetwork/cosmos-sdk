@@ -8,11 +8,13 @@ import "gogoproto/gogo.proto";
 import "cosmos_proto/cosmos.proto";
 import "cosmos/base/v1beta1/coin.proto";
 import "cosmos/staking/v1beta1/staking.proto";
+import "cosmos/staking/v1beta1/whitelist.proto";
 
-option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types/v1";
+option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types";
 
 // Msg defines the staking Msg service.
 service Msg {
+  // Set who allow to create validator
   rpc SetValidatorApproval(MsgSetValidatorApproval) returns (MsgSetValidatorApprovalResponse);
 
   // CreateValidator defines a method for creating a new validator.
@@ -32,14 +34,21 @@ service Msg {
   // Undelegate defines a method for performing an undelegation from a
   // delegate and a validator.
   rpc Undelegate(MsgUndelegate) returns (MsgUndelegateResponse);
+
+  // create white list for special delegator
+  rpc CreateWhitelistdelegator(MsgCreateWhitelistDelegator) returns (MsgCreateWhitelistdelegatorResponse);
+  // delete white list for special delegator
+  rpc DeleteWhitelistdelegator(MsgDeleteWhitelistDelegator) returns (MsgDeleteWhitelistdelegatorResponse);
 }
 
+// MsgSetValidatorApproval
 message MsgSetValidatorApproval {
-  string approver_address = 1 [(gogoproto.moretags) = "yaml:\"approver_address\""];
+  string approver_address     = 1 [(gogoproto.moretags) = "yaml:\"approver_address\""];
   string new_approver_address = 2 [(gogoproto.moretags) = "yaml:\"new_approver_address\""];
-  bool enabled = 3;
+  bool   enabled              = 3;
 }
 
+// MsgSetValidatorApprovalResponse
 message MsgSetValidatorApprovalResponse {}
 
 // MsgCreateValidator defines a SDK message for creating a new validator.
@@ -54,28 +63,29 @@ message MsgCreateValidator {
     (gogoproto.moretags)   = "yaml:\"min_self_delegation\"",
     (gogoproto.nullable)   = false
   ];
-  string          min_delegation = 4 [
+  string min_delegation = 4 [
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
     (gogoproto.moretags)   = "yaml:\"min_delegation\"",
     (gogoproto.nullable)   = false
   ];
-  string          delegation_increment = 5 [
+  string delegation_increment = 5 [
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
     (gogoproto.moretags)   = "yaml:\"delegation_increment\"",
     (gogoproto.nullable)   = false
   ];
-  string          max_license = 6 [
+  string max_license = 6 [
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
     (gogoproto.moretags)   = "yaml:\"max_delegator\"",
     (gogoproto.nullable)   = false
   ];
-  bool            license_mode = 7 [(gogoproto.moretags) = "yaml:\"license_mode\""];
-  bool            enable_redelegation = 8 [(gogoproto.moretags) = "yaml:\"enable_redelegation\""];
-  string                   delegator_address = 9 [(gogoproto.moretags) = "yaml:\"delegator_address\""];
-  string                   validator_address = 10 [(gogoproto.moretags) = "yaml:\"validator_address\""];
-  string                   approver_address  = 11 [(gogoproto.moretags) = "yaml:\"approver_address\""];
-  google.protobuf.Any      pubkey            = 12 [(cosmos_proto.accepts_interface) = "cosmos.crypto.PubKey"];
-  cosmos.base.v1beta1.Coin value             = 13 [(gogoproto.nullable) = false];
+  bool                     license_mode        = 7 [(gogoproto.moretags) = "yaml:\"license_mode\""];
+  bool                     enable_redelegation = 8 [(gogoproto.moretags) = "yaml:\"enable_redelegation\""];
+  string                   delegator_address   = 9 [(gogoproto.moretags) = "yaml:\"delegator_address\""];
+  string                   validator_address   = 10 [(gogoproto.moretags) = "yaml:\"validator_address\""];
+  string                   approver_address    = 11 [(gogoproto.moretags) = "yaml:\"approver_address\""];
+  google.protobuf.Any      pubkey              = 12 [(cosmos_proto.accepts_interface) = "cosmos.crypto.PubKey"];
+  cosmos.base.v1beta1.Coin value               = 13 [(gogoproto.nullable) = false];
+  bool                     special_mode        = 14 [(gogoproto.moretags) = "yaml:\"special_mode\""];
 }
 
 // MsgCreateValidatorResponse defines the Msg/CreateValidator response type.
@@ -101,11 +111,13 @@ message MsgEditValidator {
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
     (gogoproto.moretags)   = "yaml:\"min_self_delegation\""
   ];
-  string          max_license = 5 [
+  string max_license = 5 [
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Int",
     (gogoproto.moretags)   = "yaml:\"max_license\"",
     (gogoproto.nullable)   = false
   ];
+  bool license_mode = 6 [(gogoproto.moretags) = "yaml:\"license_mode\""];
+  bool special_mode = 7 [(gogoproto.moretags) = "yaml:\"special_mode\""];
 }
 
 // MsgEditValidatorResponse defines the Msg/EditValidator response type.
@@ -156,4 +168,28 @@ message MsgUndelegate {
 // MsgUndelegateResponse defines the Msg/Undelegate response type.
 message MsgUndelegateResponse {
   google.protobuf.Timestamp completion_time = 1 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+}
+
+// MsgCreateWhitelistDelegator defines the Msg/MsgCreateWhitelistDelegator response type.
+message MsgCreateWhitelistDelegator {
+  string creator           = 1;
+  string validator_address = 2 [(gogoproto.moretags) = "yaml:\"validator_address\""];
+  string delegator_address = 3 [(gogoproto.moretags) = "yaml:\"delegator_address\""];
+}
+
+// MsgDeleteWhitelistDelegator defines the Msg/MsgCreateWhitelistDelegator response type.
+message MsgDeleteWhitelistDelegator {
+  string creator           = 1;
+  string validator_address = 2 [(gogoproto.moretags) = "yaml:\"validator_address\""];
+  string delegator_address = 3 [(gogoproto.moretags) = "yaml:\"delegator_address\""];
+}
+
+// MsgCreateWhitelistdelegatorResponse defines the Msg/MsgListCreateWhitelistDelegator response type.
+message MsgCreateWhitelistdelegatorResponse {
+  WhitelistDelegator whitelist_delegator = 1;
+}
+
+// MsgCreateWhitelistdelegatorResponse defines the Msg/MsgListDeleteWhitelistDelegator response type.
+message MsgDeleteWhitelistdelegatorResponse {
+  WhitelistDelegator whitelist_delegator = 1;
 }
