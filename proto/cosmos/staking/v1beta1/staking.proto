@@ -128,12 +128,36 @@ message Validator {
     (gogoproto.customtype) = "cosmossdk.io/math.Int",
     (gogoproto.nullable)   = false
   ];
+  string min_delegation = 12 [
+    (cosmos_proto.scalar)  = "cosmos.Int",
+    (gogoproto.customtype) = "cosmossdk.io/math.Int",
+    (gogoproto.nullable)   = false
+  ];
+  string delegation_increment = 13 [
+    (cosmos_proto.scalar)  = "cosmos.Int",
+    (gogoproto.customtype) = "cosmossdk.io/math.Int",
+    (gogoproto.nullable)   = false
+  ];
+  string max_license = 14 [
+    (cosmos_proto.scalar)  = "cosmos.Int",
+    (gogoproto.customtype) = "cosmossdk.io/math.Int",
+    (gogoproto.nullable)   = false
+  ];
+  string license_count = 15 [
+    (cosmos_proto.scalar)  = "cosmos.Int",
+    (gogoproto.customtype) = "cosmossdk.io/math.Int",
+    (gogoproto.nullable)   = false
+  ];
+  bool license_mode        = 16;
+  bool enable_redelegation = 17;
 
   // strictly positive if this validator's unbonding has been stopped by external modules
-  int64 unbonding_on_hold_ref_count = 12;
+  int64 unbonding_on_hold_ref_count = 18;
 
   // list of unbonding ids, each uniquely identifing an unbonding of this validator
-  repeated uint64 unbonding_ids = 13;
+  repeated uint64 unbonding_ids = 19;
+
+  bool special_mode = 20;
 }
 
 // BondStatus is the status of a validator.
@@ -391,4 +415,10 @@ enum Infraction {
 // TODO: explore moving this to proto/cosmos/base to separate modules from tendermint dependence
 message ValidatorUpdates {
   repeated tendermint.abci.ValidatorUpdate updates = 1 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
+}
+
+// ValidatorApproval
+message ValidatorApproval {
+  string approver_address = 1 [(gogoproto.moretags) = "yaml:\"approver_address\""];
+  bool   enabled          = 2;
 }

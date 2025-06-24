@@ -19,6 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
+	Msg_SetValidatorApproval_FullMethodName      = "/cosmos.staking.v1beta1.Msg/SetValidatorApproval"
 	Msg_CreateValidator_FullMethodName           = "/cosmos.staking.v1beta1.Msg/CreateValidator"
 	Msg_EditValidator_FullMethodName             = "/cosmos.staking.v1beta1.Msg/EditValidator"
 	Msg_Delegate_FullMethodName                  = "/cosmos.staking.v1beta1.Msg/Delegate"
@@ -26,12 +27,16 @@ const (
 	Msg_Undelegate_FullMethodName                = "/cosmos.staking.v1beta1.Msg/Undelegate"
 	Msg_CancelUnbondingDelegation_FullMethodName = "/cosmos.staking.v1beta1.Msg/CancelUnbondingDelegation"
 	Msg_UpdateParams_FullMethodName              = "/cosmos.staking.v1beta1.Msg/UpdateParams"
+	Msg_CreateWhitelistdelegator_FullMethodName  = "/cosmos.staking.v1beta1.Msg/CreateWhitelistdelegator"
+	Msg_DeleteWhitelistdelegator_FullMethodName  = "/cosmos.staking.v1beta1.Msg/DeleteWhitelistdelegator"
 )
 
 // MsgClient is the client API for Msg service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MsgClient interface {
+	// Set who allow to create validator
+	SetValidatorApproval(ctx context.Context, in *MsgSetValidatorApproval, opts ...grpc.CallOption) (*MsgSetValidatorApprovalResponse, error)
 	// CreateValidator defines a method for creating a new validator.
 	CreateValidator(ctx context.Context, in *MsgCreateValidator, opts ...grpc.CallOption) (*MsgCreateValidatorResponse, error)
 	// EditValidator defines a method for editing an existing validator.
@@ -54,6 +59,10 @@ type MsgClient interface {
 	// parameters.
 	// Since: cosmos-sdk 0.47
 	UpdateParams(ctx context.Context, in *MsgUpdateParams, opts ...grpc.CallOption) (*MsgUpdateParamsResponse, error)
+	// create white list for special delegator
+	CreateWhitelistdelegator(ctx context.Context, in *MsgCreateWhitelistDelegator, opts ...grpc.CallOption) (*MsgCreateWhitelistdelegatorResponse, error)
+	// delete white list for special delegator
+	DeleteWhitelistdelegator(ctx context.Context, in *MsgDeleteWhitelistDelegator, opts ...grpc.CallOption) (*MsgDeleteWhitelistdelegatorResponse, error)
 }
 
 type msgClient struct {
@@ -62,6 +71,15 @@ type msgClient struct {
 
 func NewMsgClient(cc grpc.ClientConnInterface) MsgClient {
 	return &msgClient{cc}
+}
+
+func (c *msgClient) SetValidatorApproval(ctx context.Context, in *MsgSetValidatorApproval, opts ...grpc.CallOption) (*MsgSetValidatorApprovalResponse, error) {
+	out := new(MsgSetValidatorApprovalResponse)
+	err := c.cc.Invoke(ctx, Msg_SetValidatorApproval_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *msgClient) CreateValidator(ctx context.Context, in *MsgCreateValidator, opts ...grpc.CallOption) (*MsgCreateValidatorResponse, error) {
@@ -127,10 +145,30 @@ func (c *msgClient) UpdateParams(ctx context.Context, in *MsgUpdateParams, opts 
 	return out, nil
 }
 
+func (c *msgClient) CreateWhitelistdelegator(ctx context.Context, in *MsgCreateWhitelistDelegator, opts ...grpc.CallOption) (*MsgCreateWhitelistdelegatorResponse, error) {
+	out := new(MsgCreateWhitelistdelegatorResponse)
+	err := c.cc.Invoke(ctx, Msg_CreateWhitelistdelegator_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *msgClient) DeleteWhitelistdelegator(ctx context.Context, in *MsgDeleteWhitelistDelegator, opts ...grpc.CallOption) (*MsgDeleteWhitelistdelegatorResponse, error) {
+	out := new(MsgDeleteWhitelistdelegatorResponse)
+	err := c.cc.Invoke(ctx, Msg_DeleteWhitelistdelegator_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MsgServer is the server API for Msg service.
 // All implementations must embed UnimplementedMsgServer
 // for forward compatibility
 type MsgServer interface {
+	// Set who allow to create validator
+	SetValidatorApproval(context.Context, *MsgSetValidatorApproval) (*MsgSetValidatorApprovalResponse, error)
 	// CreateValidator defines a method for creating a new validator.
 	CreateValidator(context.Context, *MsgCreateValidator) (*MsgCreateValidatorResponse, error)
 	// EditValidator defines a method for editing an existing validator.
@@ -153,6 +191,10 @@ type MsgServer interface {
 	// parameters.
 	// Since: cosmos-sdk 0.47
 	UpdateParams(context.Context, *MsgUpdateParams) (*MsgUpdateParamsResponse, error)
+	// create white list for special delegator
+	CreateWhitelistdelegator(context.Context, *MsgCreateWhitelistDelegator) (*MsgCreateWhitelistdelegatorResponse, error)
+	// delete white list for special delegator
+	DeleteWhitelistdelegator(context.Context, *MsgDeleteWhitelistDelegator) (*MsgDeleteWhitelistdelegatorResponse, error)
 	mustEmbedUnimplementedMsgServer()
 }
 
@@ -160,6 +202,9 @@ type MsgServer interface {
 type UnimplementedMsgServer struct {
 }
 
+func (UnimplementedMsgServer) SetValidatorApproval(context.Context, *MsgSetValidatorApproval) (*MsgSetValidatorApprovalResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetValidatorApproval not implemented")
+}
 func (UnimplementedMsgServer) CreateValidator(context.Context, *MsgCreateValidator) (*MsgCreateValidatorResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateValidator not implemented")
 }
@@ -181,6 +226,12 @@ func (UnimplementedMsgServer) CancelUnbondingDelegation(context.Context, *MsgCan
 func (UnimplementedMsgServer) UpdateParams(context.Context, *MsgUpdateParams) (*MsgUpdateParamsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateParams not implemented")
 }
+func (UnimplementedMsgServer) CreateWhitelistdelegator(context.Context, *MsgCreateWhitelistDelegator) (*MsgCreateWhitelistdelegatorResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateWhitelistdelegator not implemented")
+}
+func (UnimplementedMsgServer) DeleteWhitelistdelegator(context.Context, *MsgDeleteWhitelistDelegator) (*MsgDeleteWhitelistdelegatorResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteWhitelistdelegator not implemented")
+}
 func (UnimplementedMsgServer) mustEmbedUnimplementedMsgServer() {}
 
 // UnsafeMsgServer may be embedded to opt out of forward compatibility for this service.
@@ -192,6 +243,24 @@ type UnsafeMsgServer interface {
 
 func RegisterMsgServer(s grpc.ServiceRegistrar, srv MsgServer) {
 	s.RegisterService(&Msg_ServiceDesc, srv)
+}
+
+func _Msg_SetValidatorApproval_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgSetValidatorApproval)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).SetValidatorApproval(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Msg_SetValidatorApproval_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).SetValidatorApproval(ctx, req.(*MsgSetValidatorApproval))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _Msg_CreateValidator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -320,6 +389,42 @@ func _Msg_UpdateParams_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Msg_CreateWhitelistdelegator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgCreateWhitelistDelegator)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).CreateWhitelistdelegator(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Msg_CreateWhitelistdelegator_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).CreateWhitelistdelegator(ctx, req.(*MsgCreateWhitelistDelegator))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Msg_DeleteWhitelistdelegator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgDeleteWhitelistDelegator)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).DeleteWhitelistdelegator(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Msg_DeleteWhitelistdelegator_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).DeleteWhitelistdelegator(ctx, req.(*MsgDeleteWhitelistDelegator))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Msg_ServiceDesc is the grpc.ServiceDesc for Msg service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -327,6 +432,10 @@ var Msg_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "cosmos.staking.v1beta1.Msg",
 	HandlerType: (*MsgServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "SetValidatorApproval",
+			Handler:    _Msg_SetValidatorApproval_Handler,
+		},
 		{
 			MethodName: "CreateValidator",
 			Handler:    _Msg_CreateValidator_Handler,
@@ -354,6 +463,14 @@ var Msg_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateParams",
 			Handler:    _Msg_UpdateParams_Handler,
+		},
+		{
+			MethodName: "CreateWhitelistdelegator",
+			Handler:    _Msg_CreateWhitelistdelegator_Handler,
+		},
+		{
+			MethodName: "DeleteWhitelistdelegator",
+			Handler:    _Msg_DeleteWhitelistdelegator_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

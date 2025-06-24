@@ -7,6 +7,10 @@ import (
 )
 
 const (
+	FlagAddressApprover    = "approver"
+	FlagAddressNewApprover = "new-approver"
+	FlagApprovalEnabled    = "approval-enabled"
+
 	FlagAddressValidator    = "validator"
 	FlagAddressValidatorSrc = "addr-validator-source"
 	FlagAddressValidatorDst = "addr-validator-dest"
@@ -32,6 +36,14 @@ const (
 	FlagNodeID        = "node-id"
 	FlagIP            = "ip"
 	FlagP2PPort       = "p2p-port"
+
+	// Flag for custom validator
+	FlagMinDelegation       = "min-delegation"
+	FlagDelegationIncrement = "delegation-increment"
+	FlagLicenseMode         = "license-mode"
+	FlagMaxLicense          = "max-license"
+	FlagEnableRedelegation  = "enable-redelegation"
+	FlagSpecialMode         = "special-mode"
 )
 
 // common flagsets to add to various functions
@@ -47,6 +59,83 @@ func init() {
 	fsValidator.String(FlagAddressValidator, "", "The address of the validator")
 	fsRedelegation.String(FlagAddressValidatorSrc, "", "The address of the source validator")
 	fsRedelegation.String(FlagAddressValidatorDst, "", "The address of the destination validator")
+}
+
+func FlagSetApprover() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.String(FlagAddressApprover, "", "Approver for create validator")
+	return fs
+}
+
+func FlagSetNewApprover() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.String(FlagAddressNewApprover, "", "New approver for create validator")
+	return fs
+}
+
+func FlagSetApprovalEnabled() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.Bool(FlagApprovalEnabled, true, "Enable approval for create validator")
+	return fs
+}
+
+// FlagMinDelegation       = "min-delegation"
+func FlagMinDelegationCreate() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.String(FlagMinDelegation, "", "The minimum delegation")
+	return fs
+}
+
+// FlagDelegationIncrement = "delegation-increment"
+func FlagDelegationIncrementCreate() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.String(FlagDelegationIncrement, "", "The delegation imcrement")
+	return fs
+}
+
+// FlagLicenseMode         = "license-mode"
+// FlagMaxLicense          = "max-license"
+func FlagLicenseModeCreate() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.Bool(FlagLicenseMode, false, "License mode or not")
+	fs.String(FlagMaxLicense, "", "The maximum license when license mode is on")
+
+	return fs
+}
+
+func FlagLicenseModeEdit() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.Bool(FlagLicenseMode, false, "License mode or not")
+	fs.String(FlagMaxLicense, "", "The maximum license when license mode is on")
+
+	return fs
+}
+
+func FlagSpecialModeCreate() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.Bool(FlagSpecialMode, false, "special mode or not default false")
+	return fs
+}
+
+func FlagSpecialModeEdit() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.Bool(FlagSpecialMode, false, "special mode or not default false")
+	return fs
+}
+
+func FlagMaxLicenseEdit() *flag.FlagSet {
+
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.String(FlagMaxLicense, "", "The max license should set to current or gather current")
+	return fs
+}
+
+// FlagEnableRedelegation  = "enable-redelegation"
+func FlagEnableRedelegationCreate() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.Bool(FlagEnableRedelegation, true, "To enable redelegation for this validator (default true)")
+
+	return fs
 }
 
 // FlagSetCommissionCreate Returns the FlagSet used for commission create.
@@ -97,6 +186,18 @@ func flagSetCommissionUpdate() *flag.FlagSet {
 	fs := flag.NewFlagSet("", flag.ContinueOnError)
 
 	fs.String(FlagCommissionRate, "", "The new commission rate percentage")
+
+	return fs
+}
+
+func flagSetDescriptionCreate() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+
+	fs.String(FlagMoniker, "", "The validator's name")
+	fs.String(FlagIdentity, "", "The optional identity signature (ex. UPort or Keybase)")
+	fs.String(FlagWebsite, "", "The validator's (optional) website")
+	fs.String(FlagSecurityContact, "", "The validator's (optional) security contact email")
+	fs.String(FlagDetails, "", "The validator's (optional) details")
 
 	return fs
 }
