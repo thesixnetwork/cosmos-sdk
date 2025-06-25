@@ -634,12 +634,10 @@ type TxCreateValidatorConfig struct {
 
 func PrepareConfigForTxCreateValidator(flagSet *flag.FlagSet, moniker, nodeID, chainID string, valPubKey cryptotypes.PubKey) (TxCreateValidatorConfig, error) {
 	c := TxCreateValidatorConfig{}
-
 	ip, err := flagSet.GetString(FlagIP)
 	if err != nil {
 		return c, err
 	}
-
 	if ip == "" {
 		_, _ = fmt.Fprintf(os.Stderr, "failed to retrieve an external IP; the tx's memo field will be unset")
 	}
@@ -727,7 +725,7 @@ func PrepareConfigForTxCreateValidator(flagSet *flag.FlagSet, moniker, nodeID, c
 	if c.MinSelfDelegation == "" {
 		c.MinSelfDelegation = defaultMinSelfDelegation
 	}
-	fmt.Println("c.MinDelegation ", c.MinDelegation)
+
 	if c.MinDelegation == "" {
 		c.MinDelegation = defaultMinDelegation
 	}
@@ -858,7 +856,6 @@ func BuildCreateValidatorMsg(clientCtx client.Context, config TxCreateValidatorC
 	if err != nil {
 		return txBldr, msg, err
 	}
-
 	if generateOnly {
 		ip := config.IP
 		p2pPort := config.P2PPort

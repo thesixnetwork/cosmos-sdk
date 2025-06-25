@@ -419,6 +419,6 @@ message ValidatorUpdates {
 
 // ValidatorApproval
 message ValidatorApproval {
-  string approver_address = 1 [(gogoproto.moretags) = "yaml:\"approver_address\""];
+  string approver_address = 1;
   bool   enabled          = 2;
 }

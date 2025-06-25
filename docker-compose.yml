@@ -1,13 +1,9 @@
 version: "3"
 
 services:
-  simdnode0:
-    container_name: simdnode0
-    image: "cosmossdk/simd"
-    environment:
-      - DEBUG=1
-      - ID=0
-      - LOG=${LOG:-simd.log}
+  simnode0:
+    container_name: simnode0
+    image: "cosmossdk/simnode:v0.50.10"
     cap_add:
       - SYS_PTRACE
     security_opt:
@@ -18,79 +14,91 @@ services:
       - "9090:9090"
       - "2345:2345"
     volumes:
-      - ./.testnets:/data:Z
+      - ./build/simnode0/:/opt/build/simapp_home/
+    command: bash ${COMMAND}.sh simnode0
+    environment:
+      - DEBUG=1
+      - ID=0
+      - LOG=${LOG:-simd.log}
+      - TZ=Asia/Bangkok
     networks:
-      localnet:
+      localnet_simnode:
         ipv4_address: 192.168.10.2
 
-  simdnode1:
-    container_name: simdnode1
-    image: "cosmossdk/simd"
-    environment:
-      - DEBUG=0
-      - ID=1
-      - LOG=${LOG:-simd.log}
+  simnode1:
+    container_name: simnode1
+    image: "cosmossdk/simnode:v0.50.10"
     cap_add:
       - SYS_PTRACE
     security_opt:
       - seccomp:unconfined
     ports:
-      - "26666-26667:26656-26657"
+      - "26659-26660:26656-26657"
       - "1318:1317"
       - "9091:9090"
       - "2346:2345"
     volumes:
-      - ./.testnets:/data:Z
-    networks:
-      localnet:
-        ipv4_address: 192.168.10.3
-
-  simdnode2:
-    container_name: simdnode2
-    image: "cosmossdk/simd"
+      - ./build/simnode1/:/opt/build/simapp_home/
+    command: bash ${COMMAND}.sh simnode1
     environment:
       - DEBUG=0
-      - ID=2
+      - ID=1
       - LOG=${LOG:-simd.log}
+      - TZ=Asia/Soul
+    networks:
+      localnet_simnode:
+        ipv4_address: 192.168.10.3
+
+  simnode2:
+    container_name: simnode2
+    image: "cosmossdk/simnode:v0.50.10"
     cap_add:
       - SYS_PTRACE
     security_opt:
       - seccomp:unconfined
     ports:
-      - "26676-26677:26656-26657"
+      - "26661-26662:26656-26657"
       - "1319:1317"
       - "9092:9090"
       - "2347:2345"
     volumes:
-      - ./.testnets:/data:Z
-    networks:
-      localnet:
-        ipv4_address: 192.168.10.4
-
-  simdnode3:
-    container_name: simdnode3
-    image: "cosmossdk/simd"
+      - ./build/simnode2/:/opt/build/simapp_home/
+    command: bash ${COMMAND}.sh simnode2
     environment:
       - DEBUG=0
-      - ID=3
+      - ID=2
       - LOG=${LOG:-simd.log}
+      - TZ=America/New_York
+    networks:
+      localnet_simnode:
+        ipv4_address: 192.168.10.4
+
+  simnode3:
+    container_name: simnode3
+    image: "cosmossdk/simnode:v0.50.10"
     cap_add:
       - SYS_PTRACE
     security_opt:
       - seccomp:unconfined
     ports:
-      - "26686-26687:26656-26657"
+      - "26663-26664:26656-26657"
       - "1320:1317"
       - "9093:9090"
       - "2348:2345"
     volumes:
-      - ./.testnets:/data:Z
+      - ./build/simnode3/:/opt/build/simapp_home/
+    command: bash ${COMMAND}.sh simnode3
+    environment:
+      - DEBUG=0
+      - ID=3
+      - LOG=${LOG:-simd.log}
+      - TZ=Europe/London
     networks:
-      localnet:
+      localnet_simnode:
         ipv4_address: 192.168.10.5
 
 networks:
-  localnet:
+  localnet_simnode: 
     driver: bridge
     ipam:
       driver: default

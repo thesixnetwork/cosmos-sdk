@@ -12,6 +12,7 @@ import (
 // RegisterLegacyAminoCodec registers the necessary x/staking interfaces and concrete types
 // on the provided LegacyAmino codec. These types are used for Amino JSON serialization.
 func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
+	legacy.RegisterAminoMsg(cdc, &MsgSetValidatorApproval{}, "cosmos-sdk/MsgSetValidatorApproval")
 	legacy.RegisterAminoMsg(cdc, &MsgCreateValidator{}, "cosmos-sdk/MsgCreateValidator")
 	legacy.RegisterAminoMsg(cdc, &MsgEditValidator{}, "cosmos-sdk/MsgEditValidator")
 	legacy.RegisterAminoMsg(cdc, &MsgDelegate{}, "cosmos-sdk/MsgDelegate")
@@ -19,6 +20,8 @@ func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	legacy.RegisterAminoMsg(cdc, &MsgBeginRedelegate{}, "cosmos-sdk/MsgBeginRedelegate")
 	legacy.RegisterAminoMsg(cdc, &MsgCancelUnbondingDelegation{}, "cosmos-sdk/MsgCancelUnbondingDelegation")
 	legacy.RegisterAminoMsg(cdc, &MsgUpdateParams{}, "cosmos-sdk/x/staking/MsgUpdateParams")
+	legacy.RegisterAminoMsg(cdc, &MsgCreateWhitelistDelegator{}, "cosmos-sdk/CreateWhitelistDelegator")
+	legacy.RegisterAminoMsg(cdc, &MsgDeleteWhitelistDelegator{}, "cosmos-sdk/DeleteWhitelistDelegator")
 
 	cdc.RegisterInterface((*isStakeAuthorization_Validators)(nil), nil)
 	cdc.RegisterConcrete(&StakeAuthorization_AllowList{}, "cosmos-sdk/StakeAuthorization/AllowList", nil)
@@ -30,6 +33,7 @@ func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 // RegisterInterfaces registers the x/staking interfaces types with the interface registry
 func RegisterInterfaces(registry types.InterfaceRegistry) {
 	registry.RegisterImplementations((*sdk.Msg)(nil),
+		&MsgSetValidatorApproval{},
 		&MsgCreateValidator{},
 		&MsgEditValidator{},
 		&MsgDelegate{},
@@ -37,6 +41,8 @@ func RegisterInterfaces(registry types.InterfaceRegistry) {
 		&MsgBeginRedelegate{},
 		&MsgCancelUnbondingDelegation{},
 		&MsgUpdateParams{},
+		&MsgCreateWhitelistDelegator{},
+		&MsgDeleteWhitelistDelegator{},
 	)
 	registry.RegisterImplementations(
 		(*authz.Authorization)(nil),

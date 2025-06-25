@@ -132,13 +132,11 @@ message MsgEditValidator {
   // it's not mandatory to update. If not updated, the deserialized rate will be
   // zero with no way to distinguish if an update was intended.
   // REF: #2373
-  string commission_rate = 3
-      [(cosmos_proto.scalar) = "cosmos.Dec", (gogoproto.customtype) = "cosmossdk.io/math.LegacyDec"];
-  string min_self_delegation = 4
-      [(cosmos_proto.scalar) = "cosmos.Int", (gogoproto.customtype) = "cosmossdk.io/math.Int"];
+  string commission_rate = 3 [(cosmos_proto.scalar) = "cosmos.Dec", (gogoproto.customtype) = "cosmossdk.io/math.LegacyDec"];
+  string min_self_delegation = 4 [(cosmos_proto.scalar) = "cosmos.Int", (gogoproto.customtype) = "cosmossdk.io/math.Int"];
   string max_license  = 5 [(cosmos_proto.scalar) = "cosmos.Int", (gogoproto.customtype) = "cosmossdk.io/math.Int"];
-  bool   license_mode = 6 [(gogoproto.moretags) = "yaml:\"license_mode\""];
-  bool   special_mode = 7 [(gogoproto.moretags) = "yaml:\"special_mode\""];
+  bool   license_mode = 6;
+  bool   special_mode = 7;
 }
 
 // MsgEditValidatorResponse defines the Msg/EditValidator response type.
@@ -255,8 +253,8 @@ message MsgCreateWhitelistDelegator {
   option (cosmos.msg.v1.signer) = "creator";
   option (amino.name)           = "cosmos-sdk/MsgCreateWhitelistDelegator";
   string creator                = 1;
-  string validator_address      = 2 [(gogoproto.moretags) = "yaml:\"validator_address\""];
-  string delegator_address      = 3 [(gogoproto.moretags) = "yaml:\"delegator_address\""];
+  string validator_address      = 2;
+  string delegator_address      = 3;
 }
 
 // MsgDeleteWhitelistDelegator defines the Msg/MsgCreateWhitelistDelegator response type.
@@ -264,8 +262,8 @@ message MsgDeleteWhitelistDelegator {
   option (cosmos.msg.v1.signer) = "creator";
   option (amino.name)           = "cosmos-sdk/MsgDeleteWhitelistDelegator";
   string creator                = 1;
-  string validator_address      = 2 [(gogoproto.moretags) = "yaml:\"validator_address\""];
-  string delegator_address      = 3 [(gogoproto.moretags) = "yaml:\"delegator_address\""];
+  string validator_address      = 2;
+  string delegator_address      = 3;
 }
 
 // MsgCreateWhitelistdelegatorResponse defines the Msg/MsgListCreateWhitelistDelegator response type.

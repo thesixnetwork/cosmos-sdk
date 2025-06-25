@@ -151,6 +151,35 @@ func NewMsgEditValidator(valAddr string, description Description, newRate *math.
 		SpecialMode:       specialMode,
 	}
 }
+// ValidateBasic implements the sdk.Msg interface.
+func (msg MsgEditValidator) ValidateBasic() error {
+	if msg.ValidatorAddress == "" {
+		return ErrEmptyValidatorAddr
+	}
+
+	if msg.Description == (Description{}) {
+		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "empty description")
+	}
+
+	if msg.MinSelfDelegation != nil && !msg.MinSelfDelegation.IsPositive() {
+		return errorsmod.Wrap(
+			sdkerrors.ErrInvalidRequest,
+			"minimum self delegation must be a positive integer",
+		)
+	}
+
+	if msg.CommissionRate != nil {
+		if msg.CommissionRate.GT(math.LegacyOneDec()) || msg.CommissionRate.IsNegative() {
+			return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "commission rate must be between 0 and 1 (inclusive)")
+		}
+	}
+
+	if msg.LicenseMode && msg.SpecialMode {
+		panic("Allow only one mode per validator")
+	}
+
+	return nil
+}
 
 // NewMsgDelegate creates a new MsgDelegate instance.
 func NewMsgDelegate(delAddr, valAddr string, amount sdk.Coin) *MsgDelegate {
