@@ -25,10 +25,6 @@ command -v jq > /dev/null 2>&1 || { echo >&2 "jq not installed. More info: https
 rm -rf ${STAKE_HOME} 
 make install
 
-# Set client config
-simd config set client keyring-backend $KEYRING --home ${STAKE_HOME}
-simd config set client chain-id $CHAINID --home ${STAKE_HOME}
-
 # if $KEY exists it should be deleted
 # mint to validator
 echo $SUPER_ADMIN_MNEMONIC | simd keys add super-admin --recover --home ${STAKE_HOME} --keyring-backend ${KEYRING} --algo ${KEYALGO}
@@ -38,6 +34,10 @@ echo $VAL1_MNEMONIC | simd keys add val1 --recover --home ${STAKE_HOME} --keyrin
 
 # Set moniker and chain-id for stake (Moniker can be anything, chain-id must be an integer)
 simd init $MONIKER --chain-id $CHAINID --home ${STAKE_HOME}
+
+# Set client config
+simd config set client chain-id $CHAINID --home ${STAKE_HOME}
+simd config set client keyring-backend ${KEYRING} --home ${STAKE_HOME}
 
 # Change parameter token denominations to stake
 ## from stake to stake
