@@ -38,6 +38,11 @@ func (k Keeper) InitGenesis(ctx context.Context, data *types.GenesisState) (res 
 		panic(err)
 	}
 
+	if err := k.SetNewValidatorApprovalState(ctx, data.ValidatorApproval); err != nil  {
+		panic(err)
+	}
+
+
 	for _, validator := range data.Validators {
 		if err := k.SetValidator(ctx, validator); err != nil {
 			panic(err)
