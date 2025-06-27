@@ -87,9 +87,9 @@ simd genesis add-genesis-account $(simd keys show -a super-admin --keyring-backe
 echo $KEYRING
 echo $KEY
 # Sign genesis transaction
-# simd gentx val1 1000000000000stake --keyring-backend $KEYRING --chain-id $CHAINID --home ${STAKE_HOME}
+simd genesis gentx val1 1000000000000stake --keyring-backend $KEYRING --chain-id $CHAINID --home ${STAKE_HOME}
 
-simd genesis gentx val1 1000000000000stake --min-self-delegation="10000000000" --license-mode=true --min-delegation="10000000000" --delegation-increment="10000000000" --max-license=100 --enable-redelegation=false --keyring-backend $KEYRING --chain-id $CHAINID
+# simd genesis gentx val1 1000000000000stake --min-self-delegation="10000000000" --license-mode=true --min-delegation="10000000000" --delegation-increment="10000000000" --max-license=100 --enable-redelegation=false --keyring-backend $KEYRING --chain-id $CHAINID
 
 # Collect genesis tx
 simd genesis collect-gentxs --home ${STAKE_HOME}
