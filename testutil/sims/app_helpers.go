@@ -130,10 +130,6 @@ func NextBlock(app *runtime.App, ctx sdk.Context, jumpTime time.Duration) (sdk.C
 		Time:   header.Time,
 	})
 
-	if err != nil {
-		return sdk.Context{}, err
-	}
-
 	return newCtx, err
 }
 
@@ -225,7 +221,6 @@ func GenesisStateWithValSet(
 
 	validators := make([]stakingtypes.Validator, 0, len(valSet.Validators))
 	delegations := make([]stakingtypes.Delegation, 0, len(valSet.Validators))
-	var approval stakingtypes.ValidatorApproval
 
 	bondAmt := sdk.DefaultPowerReduction
 
@@ -259,7 +254,7 @@ func GenesisStateWithValSet(
 	}
 
 	// set validators and delegations
-	stakingGenesis := stakingtypes.NewGenesisState(stakingtypes.DefaultParams(), validators, delegations, approval)
+	stakingGenesis := stakingtypes.NewGenesisState(stakingtypes.DefaultParams(), validators, delegations)
 	genesisState[stakingtypes.ModuleName] = codec.MustMarshalJSON(stakingGenesis)
 
 	totalSupply := sdk.NewCoins()

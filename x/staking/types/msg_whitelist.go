@@ -1,9 +1,10 @@
 package types
 
 import (
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/core/address"
+	errorsmod "cosmossdk.io/errors"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
@@ -26,7 +27,10 @@ func NewMsgCreateWhitelistDelegator(
 		DelegatorAddress: delegator,
 	}
 }
+
+// Validate validates the MsgCreateWhitelistDelegator sdk msg.
 func (msg MsgCreateWhitelistDelegator) Validate(ac address.Codec) error {
+	// note that unmarshaling from bech32 ensures both non-empty and valid
 	_, err := ac.StringToBytes(msg.ValidatorAddress)
 	if err != nil {
 		return sdkerrors.ErrInvalidAddress.Wrapf("invalid validator address: %s", err)
@@ -36,6 +40,7 @@ func (msg MsgCreateWhitelistDelegator) Validate(ac address.Codec) error {
 	if err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid delegator address (%s)", err)
 	}
+
 	return nil
 }
 
@@ -53,7 +58,8 @@ func NewMsgDeleteWhitelistDelegator(
 	}
 }
 
-func (msg MsgDeleteWhitelistDelegator) Validate(ac address.Codec) error {
+func (msg *MsgDeleteWhitelistDelegator) Validate(ac address.Codec) error {
+	// note that unmarshaling from bech32 ensures both non-empty and valid
 	_, err := ac.StringToBytes(msg.ValidatorAddress)
 	if err != nil {
 		return sdkerrors.ErrInvalidAddress.Wrapf("invalid validator address: %s", err)
@@ -63,5 +69,6 @@ func (msg MsgDeleteWhitelistDelegator) Validate(ac address.Codec) error {
 	if err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid delegator address (%s)", err)
 	}
+
 	return nil
 }

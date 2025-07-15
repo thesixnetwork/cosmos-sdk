@@ -55,13 +55,12 @@ func (k Querier) Whitelistdelegator(c context.Context, req *types.QueryGetWhitel
 		return nil, err
 	}
 
-	val, found := k.GetWhitelistDelegator(
+	val, err := k.GetWhitelistDelegator(
 		ctx,
 		valAddr,
 	)
-
-	if !found {
-		return nil, status.Error(codes.NotFound, "not found")
+	if err != nil {
+		return nil, err
 	}
 
 	return &types.QueryWhitelistdelegatorResponse{WhitelistDelegator: val}, nil

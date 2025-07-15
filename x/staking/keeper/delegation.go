@@ -1090,6 +1090,12 @@ func (k Keeper) getBeginInfo(
 
 	case validator.IsUnbonding():
 		return validator.UnbondingTime, validator.UnbondingHeight, false, nil
+	case validator.SpecialMode:
+		prevblockCtx := sdkCtx.WithBlockHeight(sdkCtx.BlockHeader().Height - 1)
+		nextBlock := sdkCtx.BlockHeight() + 1
+		timeDiff := sdkCtx.BlockHeader().Time.Sub(prevblockCtx.BlockHeader().Time)
+		completionTime := sdkCtx.BlockHeader().Time.Add(timeDiff)
+		return completionTime, nextBlock, true, nil
 
 	default:
 		panic(fmt.Sprintf("unknown validator status: %s", validator.Status))
@@ -1150,12 +1156,6 @@ func (k Keeper) Undelegate(
 
 	return completionTime, returnAmount, nil
 }
-
-/*
-	TODO: Undelegate for special mode
-	1. Return asset immediately after undelegate request aka one block ahead
-*/
-
 func (k Keeper) UndelegateSpecial(
 	ctx context.Context, delAddr sdk.AccAddress, valAddr sdk.ValAddress, sharesAmount math.LegacyDec,
 ) (time.Time, math.Int, error) {
@@ -1163,6 +1163,7 @@ func (k Keeper) UndelegateSpecial(
 	if err != nil {
 		return time.Time{}, math.Int{}, err
 	}
+
 	if !validator.SpecialMode {
 		return time.Time{}, math.Int{}, types.ErrSpecialModeDisable
 	}
@@ -1188,10 +1189,7 @@ func (k Keeper) UndelegateSpecial(
 
 	// transfer the validator tokens to the not bonded pool
 	if validator.IsBonded() {
-		err = k.bondedTokensToNotBonded(ctx, returnAmount)
-		if err != nil {
-			return time.Time{}, math.Int{}, err
-		}
+		k.bondedTokensToNotBonded(ctx, returnAmount)
 	}
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
@@ -1203,11 +1201,7 @@ func (k Keeper) UndelegateSpecial(
 	if err != nil {
 		return time.Time{}, math.Int{}, err
 	}
-
-	err = k.InsertUBDQueue(ctx, ubd, completionTime)
-	if err != nil {
-		return time.Time{}, math.Int{}, err
-	}
+	k.InsertUBDQueue(ctx, ubd, completionTime)
 
 	return completionTime, returnAmount, nil
 }
@@ -1377,9 +1371,9 @@ func (k Keeper) BeginRedelegationSpecial(
 		return time.Time{}, err
 	}
 
-	// if !srcValidator.SpecialMode {
-	// 	return time.Time{}, types.ErrBadRedelegationNotSpecial
-	// }
+	if !srcValidator.SpecialMode {
+		return time.Time{}, types.ErrBadRedelegationNotSpecial
+	}
 
 	// check if this is a transitive redelegation
 	hasRecRedel, err := k.HasReceivingRedelegation(ctx, delAddr, valSrcAddr)

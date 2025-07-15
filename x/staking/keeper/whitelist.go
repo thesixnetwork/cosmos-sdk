@@ -3,9 +3,8 @@ package keeper
 import (
 	"context"
 
-	"cosmossdk.io/store/prefix"
-
 	errorsmod "cosmossdk.io/errors"
+	"cosmossdk.io/store/prefix"
 	storetypes "cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -14,11 +13,12 @@ import (
 )
 
 // SetWhitelistDelegator set a specific whitelistDelegator in the store from its index
-func (k Keeper) SetWhitelistDelegator(ctx context.Context, whitelistDelegator types.WhitelistDelegator) {
-	storeAdapter := runtime.KVStoreAdapter(k.storeService.OpenKVStore(ctx))
-	store := prefix.NewStore(storeAdapter, types.KeyPrefix(types.WhitelistDelegatorKeyPrefix))
+func (k Keeper) SetWhitelistDelegator(ctx sdk.Context, whitelistDelegator types.WhitelistDelegator) {
+	store := k.storeService.OpenKVStore(ctx)
 	b := k.cdc.MustMarshal(&whitelistDelegator)
+
 	valAddr, _ := sdk.ValAddressFromBech32(whitelistDelegator.ValidatorAddress)
+
 	store.Set(types.WhitelistDelegatorKey(
 		valAddr,
 	), b)
@@ -28,18 +28,21 @@ func (k Keeper) SetWhitelistDelegator(ctx context.Context, whitelistDelegator ty
 func (k Keeper) GetWhitelistDelegator(
 	ctx context.Context,
 	validator sdk.ValAddress,
-) (val types.WhitelistDelegator, found bool) {
-	storeAdapter := runtime.KVStoreAdapter(k.storeService.OpenKVStore(ctx))
-	store := prefix.NewStore(storeAdapter, types.KeyPrefix(types.WhitelistDelegatorKeyPrefix))
-	b := store.Get(types.WhitelistDelegatorKey(
+) (val types.WhitelistDelegator, err error) {
+	store := k.storeService.OpenKVStore(ctx)
+	value, err := store.Get(types.WhitelistDelegatorKey(
 		validator,
 	))
-	if b == nil {
-		return val, false
+	if err != nil {
+		return val, err
 	}
 
-	k.cdc.MustUnmarshal(b, &val)
-	return val, true
+	if value == nil {
+		return val, types.ErrNoWhiltelistFound
+	}
+
+	k.cdc.MustUnmarshal(value, &val)
+	return val, nil
 }
 
 // RemoveWhitelistDelegator removes a whitelistDelegator from the store
@@ -51,7 +54,7 @@ func (k Keeper) _(ctx sdk.Context, validator sdk.ValAddress) {
 }
 
 // GetAllWhitelistDelegator returns all whitelistDelegator
-func (k Keeper) GetAllWhitelistDelegator(ctx context.Context) (list []types.WhitelistDelegator) {
+func (k Keeper) GetAllWhitelistDelegator(ctx sdk.Context) (list []types.WhitelistDelegator, err error) {
 	storeAdapter := runtime.KVStoreAdapter(k.storeService.OpenKVStore(ctx))
 	store := prefix.NewStore(storeAdapter, types.KeyPrefix(types.WhitelistDelegatorKeyPrefix))
 	iterator := storetypes.KVStorePrefixIterator(store, []byte{})
@@ -67,15 +70,15 @@ func (k Keeper) GetAllWhitelistDelegator(ctx context.Context) (list []types.Whit
 	return
 }
 
-func (k Keeper) IsSpecialDelegator(ctx sdk.Context, val sdk.ValAddress, delegator sdk.AccAddress) (found bool) {
+func (k Keeper) IsSpecialDelegator(ctx context.Context, val sdk.ValAddress, delegator sdk.AccAddress) (found bool) {
 	// chekc if delegator is validator itself then return true
 	// if not then validator must add specific delegator to whitelist
 	if val.Equals(delegator) {
 		return true
 	}
 
-	specialList, found := k.GetWhitelistDelegator(ctx, val)
-	if !found {
+	specialList, err := k.GetWhitelistDelegator(ctx, val)
+	if err != nil {
 		return false
 	}
 
@@ -91,8 +94,9 @@ func (k Keeper) IsSpecialDelegator(ctx sdk.Context, val sdk.ValAddress, delegato
 }
 
 func (k Keeper) DelDelegatorFromWhitelist(ctx sdk.Context, validator sdk.ValAddress, delegator string) (*types.MsgDeleteWhitelistdelegatorResponse, error) {
-	specialList, found := k.GetWhitelistDelegator(ctx, validator)
-	if !found {
+
+	specialList, err := k.GetWhitelistDelegator(ctx, validator)
+	if err != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "validator whitelist delegator doesn't exist")
 	}
 

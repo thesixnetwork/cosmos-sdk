@@ -11,16 +11,6 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-// staking message types
-const (
-	TypeMsgSetValidatorApproval = "set_validator_approval"
-	TypeMsgUndelegate           = "begin_unbonding"
-	TypeMsgEditValidator        = "edit_validator"
-	TypeMsgCreateValidator      = "create_validator"
-	TypeMsgDelegate             = "delegate"
-	TypeMsgBeginRedelegate      = "begin_redelegate"
-)
-
 var (
 	_ sdk.Msg                            = &MsgSetValidatorApproval{}
 	_ sdk.Msg                            = &MsgCreateValidator{}
@@ -44,7 +34,7 @@ func NewMsgSetValidatorApproval(
 // NewMsgCreateValidator creates a new MsgCreateValidator instance.
 // Delegator address and validator address are the same.
 func NewMsgCreateValidator(
-	valAddr string, pubKey cryptotypes.PubKey,
+	valAddr, approverAddr string, pubKey cryptotypes.PubKey,
 	selfDelegation sdk.Coin, description Description, commission CommissionRates, minSelfDelegation math.Int,
 ) (*MsgCreateValidator, error) {
 	var pkAny *codectypes.Any
@@ -57,6 +47,7 @@ func NewMsgCreateValidator(
 	return &MsgCreateValidator{
 		Description:       description,
 		ValidatorAddress:  valAddr,
+		ApproverAddress:   approverAddr,
 		Pubkey:            pkAny,
 		Value:             selfDelegation,
 		Commission:        commission,
@@ -149,7 +140,7 @@ func (msg MsgCreateValidator) UnpackInterfaces(unpacker codectypes.AnyUnpacker) 
 }
 
 // NewMsgEditValidator creates a new MsgEditValidator instance
-func NewMsgEditValidator(valAddr string, description Description, newRate *math.LegacyDec, newMinSelfDelegation, maxLicence *math.Int, licenceMode, specialMode bool) *MsgEditValidator {
+func NewMsgEditValidator(valAddr string, description Description, newRate *math.LegacyDec, newMinSelfDelegation *math.Int, maxLicence *math.Int, licenceMode, specialMode bool) *MsgEditValidator {
 	return &MsgEditValidator{
 		Description:       description,
 		CommissionRate:    newRate,
@@ -159,6 +150,35 @@ func NewMsgEditValidator(valAddr string, description Description, newRate *math.
 		MaxLicense:        maxLicence,
 		SpecialMode:       specialMode,
 	}
+}
+// ValidateBasic implements the sdk.Msg interface.
+func (msg MsgEditValidator) ValidateBasic() error {
+	if msg.ValidatorAddress == "" {
+		return ErrEmptyValidatorAddr
+	}
+
+	if msg.Description == (Description{}) {
+		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "empty description")
+	}
+
+	if msg.MinSelfDelegation != nil && !msg.MinSelfDelegation.IsPositive() {
+		return errorsmod.Wrap(
+			sdkerrors.ErrInvalidRequest,
+			"minimum self delegation must be a positive integer",
+		)
+	}
+
+	if msg.CommissionRate != nil {
+		if msg.CommissionRate.GT(math.LegacyOneDec()) || msg.CommissionRate.IsNegative() {
+			return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "commission rate must be between 0 and 1 (inclusive)")
+		}
+	}
+
+	if msg.LicenseMode && msg.SpecialMode {
+		panic("Allow only one mode per validator")
+	}
+
+	return nil
 }
 
 // NewMsgDelegate creates a new MsgDelegate instance.

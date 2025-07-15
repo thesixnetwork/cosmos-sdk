@@ -7,25 +7,25 @@ import (
 )
 
 // get a single validator
-func (k Keeper) GetValidatorApproval(ctx context.Context) (validatorApproval types.ValidatorApproval, found bool) {
+func (k Keeper) GetValidatorApproval(ctx context.Context) (validatorApproval types.ValidatorApproval, err error) {
 	store := k.storeService.OpenKVStore(ctx)
 
 	value, err := store.Get(types.ValidatorApprovalKey)
 	if err != nil {
-		return validatorApproval, false
+		return validatorApproval, err
 	}
 
 	if value == nil {
-		return validatorApproval, false
+		return validatorApproval, types.ErrNoValidatorFound
 	}
 
 	validatorApproval = types.MustUnmarshalValidatorApproval(k.cdc, value)
-	return validatorApproval, true
+	return validatorApproval, nil
 }
 
 // set the main record holding validator details
-func (k Keeper) SetNewValidatorApprovalState(ctx context.Context, validatorApproval types.ValidatorApproval) {
+func (k Keeper) SetNewValidatorApprovalState(ctx context.Context, validatorApproval types.ValidatorApproval) error {
 	store := k.storeService.OpenKVStore(ctx)
 	bz := types.MustMarshalValidatorApproval(k.cdc, &validatorApproval)
-	store.Set(types.ValidatorApprovalKey, bz)
+	return store.Set(types.ValidatorApprovalKey, bz)
 }

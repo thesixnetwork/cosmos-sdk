@@ -34,13 +34,15 @@ const (
 	Query_HistoricalInfo_FullMethodName                = "/cosmos.staking.v1beta1.Query/HistoricalInfo"
 	Query_Pool_FullMethodName                          = "/cosmos.staking.v1beta1.Query/Pool"
 	Query_Params_FullMethodName                        = "/cosmos.staking.v1beta1.Query/Params"
+	Query_Whitelistdelegator_FullMethodName            = "/cosmos.staking.v1beta1.Query/Whitelistdelegator"
+	Query_WhitelistdelegatorAll_FullMethodName         = "/cosmos.staking.v1beta1.Query/WhitelistdelegatorAll"
 )
 
 // QueryClient is the client API for Query service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type QueryClient interface {
-	// Validatorr Approval
+	// Validators queries all validators that match the given status.
 	ValidatorApproval(ctx context.Context, in *QueryValidatorApprovalRequest, opts ...grpc.CallOption) (*QueryValidatorApprovalResponse, error)
 	// Validators queries all validators that match the given status.
 	//
@@ -95,6 +97,10 @@ type QueryClient interface {
 	Pool(ctx context.Context, in *QueryPoolRequest, opts ...grpc.CallOption) (*QueryPoolResponse, error)
 	// Parameters queries the staking parameters.
 	Params(ctx context.Context, in *QueryParamsRequest, opts ...grpc.CallOption) (*QueryParamsResponse, error)
+	// Queries a DelegatorWhitelistdelegator by index.
+	Whitelistdelegator(ctx context.Context, in *QueryGetWhitelistDelegatorRequest, opts ...grpc.CallOption) (*QueryWhitelistdelegatorResponse, error)
+	// Queries a list of DelegatorWhitelistdelegator items.
+	WhitelistdelegatorAll(ctx context.Context, in *QueryAllWhitelistDelegatorRequest, opts ...grpc.CallOption) (*QueryWhitelistdelegatorAllResponse, error)
 }
 
 type queryClient struct {
@@ -240,11 +246,29 @@ func (c *queryClient) Params(ctx context.Context, in *QueryParamsRequest, opts .
 	return out, nil
 }
 
+func (c *queryClient) Whitelistdelegator(ctx context.Context, in *QueryGetWhitelistDelegatorRequest, opts ...grpc.CallOption) (*QueryWhitelistdelegatorResponse, error) {
+	out := new(QueryWhitelistdelegatorResponse)
+	err := c.cc.Invoke(ctx, Query_Whitelistdelegator_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *queryClient) WhitelistdelegatorAll(ctx context.Context, in *QueryAllWhitelistDelegatorRequest, opts ...grpc.CallOption) (*QueryWhitelistdelegatorAllResponse, error) {
+	out := new(QueryWhitelistdelegatorAllResponse)
+	err := c.cc.Invoke(ctx, Query_WhitelistdelegatorAll_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // QueryServer is the server API for Query service.
 // All implementations must embed UnimplementedQueryServer
 // for forward compatibility
 type QueryServer interface {
-	// Validatorr Approval
+	// Validators queries all validators that match the given status.
 	ValidatorApproval(context.Context, *QueryValidatorApprovalRequest) (*QueryValidatorApprovalResponse, error)
 	// Validators queries all validators that match the given status.
 	//
@@ -299,6 +323,10 @@ type QueryServer interface {
 	Pool(context.Context, *QueryPoolRequest) (*QueryPoolResponse, error)
 	// Parameters queries the staking parameters.
 	Params(context.Context, *QueryParamsRequest) (*QueryParamsResponse, error)
+	// Queries a DelegatorWhitelistdelegator by index.
+	Whitelistdelegator(context.Context, *QueryGetWhitelistDelegatorRequest) (*QueryWhitelistdelegatorResponse, error)
+	// Queries a list of DelegatorWhitelistdelegator items.
+	WhitelistdelegatorAll(context.Context, *QueryAllWhitelistDelegatorRequest) (*QueryWhitelistdelegatorAllResponse, error)
 	mustEmbedUnimplementedQueryServer()
 }
 
@@ -350,6 +378,12 @@ func (UnimplementedQueryServer) Pool(context.Context, *QueryPoolRequest) (*Query
 }
 func (UnimplementedQueryServer) Params(context.Context, *QueryParamsRequest) (*QueryParamsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Params not implemented")
+}
+func (UnimplementedQueryServer) Whitelistdelegator(context.Context, *QueryGetWhitelistDelegatorRequest) (*QueryWhitelistdelegatorResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Whitelistdelegator not implemented")
+}
+func (UnimplementedQueryServer) WhitelistdelegatorAll(context.Context, *QueryAllWhitelistDelegatorRequest) (*QueryWhitelistdelegatorAllResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method WhitelistdelegatorAll not implemented")
 }
 func (UnimplementedQueryServer) mustEmbedUnimplementedQueryServer() {}
 
@@ -634,6 +668,42 @@ func _Query_Params_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Query_Whitelistdelegator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryGetWhitelistDelegatorRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).Whitelistdelegator(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Query_Whitelistdelegator_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).Whitelistdelegator(ctx, req.(*QueryGetWhitelistDelegatorRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Query_WhitelistdelegatorAll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryAllWhitelistDelegatorRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).WhitelistdelegatorAll(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Query_WhitelistdelegatorAll_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).WhitelistdelegatorAll(ctx, req.(*QueryAllWhitelistDelegatorRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Query_ServiceDesc is the grpc.ServiceDesc for Query service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -700,6 +770,14 @@ var Query_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Params",
 			Handler:    _Query_Params_Handler,
+		},
+		{
+			MethodName: "Whitelistdelegator",
+			Handler:    _Query_Whitelistdelegator_Handler,
+		},
+		{
+			MethodName: "WhitelistdelegatorAll",
+			Handler:    _Query_WhitelistdelegatorAll_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

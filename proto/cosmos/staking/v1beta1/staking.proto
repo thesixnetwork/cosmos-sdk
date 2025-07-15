@@ -12,7 +12,7 @@ import "amino/amino.proto";
 import "tendermint/types/types.proto";
 import "tendermint/abci/types.proto";
 
-option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types/v1";
+option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types";
 
 // HistoricalInfo contains header and validator information for a given block.
 // It is stored as part of staking module's state, which persists the `n` most
@@ -128,7 +128,6 @@ message Validator {
     (gogoproto.customtype) = "cosmossdk.io/math.Int",
     (gogoproto.nullable)   = false
   ];
-
   string min_delegation = 12 [
     (cosmos_proto.scalar)  = "cosmos.Int",
     (gogoproto.customtype) = "cosmossdk.io/math.Int",
@@ -157,6 +156,8 @@ message Validator {
 
   // list of unbonding ids, each uniquely identifing an unbonding of this validator
   repeated uint64 unbonding_ids = 19;
+
+  bool special_mode = 20;
 }
 
 // BondStatus is the status of a validator.

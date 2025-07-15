@@ -21,11 +21,6 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Long:      "Query details about all validators on a network.",
 				},
 				{
-					RpcMethod: "ValidatorApproval",
-					Short:     "Query a validator approval",
-					Long:      "Query details about validator approval.",
-				},
-				{
 					RpcMethod: "Validator",
 					Use:       "validator [validator-addr]",
 					Short:     "Query a validator",

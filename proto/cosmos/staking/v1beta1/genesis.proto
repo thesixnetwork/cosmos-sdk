@@ -1,7 +1,7 @@
 syntax = "proto3";
 package cosmos.staking.v1beta1;
 
-option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types/v1";
+option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types";
 
 import "gogoproto/gogo.proto";
 import "cosmos/staking/v1beta1/staking.proto";
@@ -25,8 +25,9 @@ message GenesisState {
   // last_validator_powers is a special index that provides a historical list
   // of the last-block's bonded validators.
   repeated LastValidatorPower last_validator_powers = 3 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
+
   // validator approval
-  ValidatorApproval validator_approval = 4 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
+  ValidatorApproval validator_approval = 4 [(gogoproto.nullable) = false];
 
   // validators defines the validator set at genesis.
   repeated Validator validators = 5 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];

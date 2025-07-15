@@ -20,14 +20,14 @@ func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	legacy.RegisterAminoMsg(cdc, &MsgBeginRedelegate{}, "cosmos-sdk/MsgBeginRedelegate")
 	legacy.RegisterAminoMsg(cdc, &MsgCancelUnbondingDelegation{}, "cosmos-sdk/MsgCancelUnbondingDelegation")
 	legacy.RegisterAminoMsg(cdc, &MsgUpdateParams{}, "cosmos-sdk/x/staking/MsgUpdateParams")
+	legacy.RegisterAminoMsg(cdc, &MsgCreateWhitelistDelegator{}, "cosmos-sdk/CreateWhitelistDelegator")
+	legacy.RegisterAminoMsg(cdc, &MsgDeleteWhitelistDelegator{}, "cosmos-sdk/DeleteWhitelistDelegator")
 
 	cdc.RegisterInterface((*isStakeAuthorization_Validators)(nil), nil)
 	cdc.RegisterConcrete(&StakeAuthorization_AllowList{}, "cosmos-sdk/StakeAuthorization/AllowList", nil)
 	cdc.RegisterConcrete(&StakeAuthorization_DenyList{}, "cosmos-sdk/StakeAuthorization/DenyList", nil)
 	cdc.RegisterConcrete(&StakeAuthorization{}, "cosmos-sdk/StakeAuthorization", nil)
 	cdc.RegisterConcrete(Params{}, "cosmos-sdk/x/staking/Params", nil)
-	cdc.RegisterConcrete(&MsgCreateWhitelistDelegator{}, "cosmos-sdk/CreateWhitelistDelegator", nil)
-	cdc.RegisterConcrete(&MsgDeleteWhitelistDelegator{}, "cosmos-sdk/DeleteWhitelistDelegator", nil)
 }
 
 // RegisterInterfaces registers the x/staking interfaces types with the interface registry

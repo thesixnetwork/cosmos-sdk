@@ -8,14 +8,16 @@ import "cosmos/staking/v1beta1/staking.proto";
 import "cosmos_proto/cosmos.proto";
 import "cosmos/query/v1/query.proto";
 import "amino/amino.proto";
+import "cosmos/staking/v1beta1/whitelist.proto";
 
-option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types/v1";
+option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types";
 
 // Query defines the gRPC querier service.
 service Query {
-  // Validatorr Approval
+  // Validators queries all validators that match the given status.
   rpc ValidatorApproval(QueryValidatorApprovalRequest) returns (QueryValidatorApprovalResponse) {
-    option (google.api.http).get = "/cosmos/staking/v1beta1/validator_approval";
+    option (cosmos.query.v1.module_query_safe) = true;
+    option (google.api.http).get               = "/cosmos/staking/v1beta1/validator_approval";
   }
 
   // Validators queries all validators that match the given status.
@@ -133,12 +135,24 @@ service Query {
     option (cosmos.query.v1.module_query_safe) = true;
     option (google.api.http).get               = "/cosmos/staking/v1beta1/params";
   }
+
+  // Queries a DelegatorWhitelistdelegator by index.
+  rpc Whitelistdelegator(QueryGetWhitelistDelegatorRequest) returns (QueryWhitelistdelegatorResponse) {
+    option (cosmos.query.v1.module_query_safe) = true;
+    option (google.api.http).get               = "/cosmos/staking/v1beta1/whitelistdelegator/{validator}";
+  }
+
+  // Queries a list of DelegatorWhitelistdelegator items.
+  rpc WhitelistdelegatorAll(QueryAllWhitelistDelegatorRequest) returns (QueryWhitelistdelegatorAllResponse) {
+    option (cosmos.query.v1.module_query_safe) = true;
+    option (google.api.http).get               = "/cosmos/staking/v1beta1/whitelistdelegator";
+  }
 }
 
-// QueryValidatorApprovalRequest is response type for the Query/ValidatorsApproval RPC method
+// QueryValidatorApprovalRequest is request type for Query/ValidatorsApproval RPC method.
 message QueryValidatorApprovalRequest {}
 
-// QueryValidatorsApprovalRequest is request type for Query/ValidatorsApproval RPC method.
+// QueryValidatorApprovalResponse is response type for the Query/ValidatorsApproval RPC method
 message QueryValidatorApprovalResponse {
   ValidatorApproval validator_approval = 1 [(gogoproto.nullable) = false];
 }
@@ -397,4 +411,25 @@ message QueryParamsRequest {}
 message QueryParamsResponse {
   // params holds all the parameters of this module.
   Params params = 1 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
+}
+
+// QueryGetWhitelistDelegatorRequest is request type for the Query/WhiltelistDeleagator RPC method.
+message QueryGetWhitelistDelegatorRequest {
+  string validator = 1 [(cosmos_proto.scalar) = "cosmos.ValidatorAddressString"];
+}
+
+// QueryWhitelistdelegatorResponse is response type for the Query/WhiltelistDeleagator RPC method.
+message QueryWhitelistdelegatorResponse {
+  WhitelistDelegator whitelist_delegator = 1 [(gogoproto.nullable) = false];
+}
+
+// QueryAllWhitelistDelegatorRequest is request type for the Query/AllWhiltelistDeleagator RPC method.
+message QueryAllWhitelistDelegatorRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+// QueryWhitelistdelegatorAllResponse is response type for the Query/AllWhiltelistDeleagator RPC method.
+message QueryWhitelistdelegatorAllResponse {
+  repeated WhitelistDelegator            whitelist_delegator = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination          = 2;
 }

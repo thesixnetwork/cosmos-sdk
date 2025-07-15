@@ -27,14 +27,16 @@ func NewQuerier(keeper *Keeper) Querier {
 	return Querier{Keeper: keeper}
 }
 
-func (k Querier) ValidatorApproval(ctx context.Context, req *types.QueryValidatorApprovalRequest) (*types.QueryValidatorApprovalResponse, error) {
+func (k Querier) ValidatorApproval(c context.Context, req *types.QueryValidatorApprovalRequest) (*types.QueryValidatorApprovalResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "empty request")
 	}
 
-	validatorApproval, found := k.GetValidatorApproval(ctx)
-	if !found {
-		return nil, status.Errorf(codes.NotFound, "Validator approval not found")
+	ctx := sdk.UnwrapSDKContext(c)
+
+	validatorApproval, err := k.GetValidatorApproval(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	return &types.QueryValidatorApprovalResponse{ValidatorApproval: validatorApproval}, nil
