@@ -153,11 +153,6 @@ func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateVali
 
 	validator.MinSelfDelegation = msg.MinSelfDelegation
 
-	err = k.SetValidator(ctx, validator)
-	if err != nil {
-		return nil, err
-	}
-
 	validator.MinSelfDelegation = msg.MinSelfDelegation
 	// CustomValidator
 	validator.MinDelegation = msg.MinDelegation
@@ -198,6 +193,10 @@ func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateVali
 		validator.EnableRedelegation = msg.EnableRedelegation
 	default:
 		validator.EnableRedelegation = msg.EnableRedelegation
+	}
+	err = k.SetValidator(ctx, validator)
+	if err != nil {
+		return nil, err
 	}
 
 	err = k.SetValidatorByConsAddr(ctx, validator)
