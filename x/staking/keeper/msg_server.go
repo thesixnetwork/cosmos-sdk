@@ -193,6 +193,8 @@ func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateVali
 		validator.EnableRedelegation = msg.EnableRedelegation
 	default:
 		validator.EnableRedelegation = msg.EnableRedelegation
+		validator.SpecialMode = false
+		validator.LicenseMode = false
 	}
 	err = k.SetValidator(ctx, validator)
 	if err != nil {
@@ -521,7 +523,7 @@ func (k msgServer) BeginRedelegate(ctx context.Context, msg *types.MsgBeginRedel
 	}
 	// Deduct minimum from value to validate increment
 	amountToValidateIncrement := math.NewIntFromBigInt(msg.Amount.Amount.BigInt())
-	if !sourceVal.MinDelegation.IsNil(){
+	if !sourceVal.MinDelegation.IsNil() {
 		amountToValidateIncrement = amountToValidateIncrement.Sub(sourceVal.MinDelegation)
 	}
 
@@ -635,12 +637,9 @@ func (k msgServer) Undelegate(ctx context.Context, msg *types.MsgUndelegate) (*t
 		)
 	}
 
-	completionTime, undelegatedAmt, err := k.Keeper.Undelegate(ctx, delegatorAddress, addr, shares)
-	if err != nil {
-		return nil, err
-	}
-
-	undelegatedCoin := sdk.NewCoin(msg.Amount.Denom, undelegatedAmt)
+	var completionTime time.Time
+	var undelegatedCoin sdk.Coin
+	var undelegatedAmt math.Int
 	/// Custom Validator
 	// Get Current Validator
 	validator, err := k.GetValidator(ctx, addr)
@@ -660,20 +659,23 @@ func (k msgServer) Undelegate(ctx context.Context, msg *types.MsgUndelegate) (*t
 		// Update Validator
 		k.Keeper.SetValidator(ctx, validator)
 
+		completionTime, undelegatedAmt, err = k.Keeper.Undelegate(ctx, delegatorAddress, addr, shares)
+		if err != nil {
+			return nil, err
+		}
+		undelegatedCoin = sdk.NewCoin(msg.Amount.Denom, undelegatedAmt)
+	case validator.SpecialMode:
+		completionTime, _, err = k.Keeper.UndelegateSpecial(ctx, delegatorAddress, addr, shares)
+		if err != nil {
+			return nil, err
+		}
+		undelegatedCoin = sdk.NewCoin(msg.Amount.Denom, undelegatedAmt)
+	default:
 		completionTime, _, err = k.Keeper.Undelegate(ctx, delegatorAddress, addr, shares)
 		if err != nil {
 			return nil, err
 		}
-	case validator.SpecialMode:
-		completionTime,  _, err = k.Keeper.UndelegateSpecial(ctx, delegatorAddress, addr, shares)
-		if err != nil {
-			return nil, err
-		}
-	default:
-		completionTime,  _, err = k.Keeper.Undelegate(ctx, delegatorAddress, addr, shares)
-		if err != nil {
-			return nil, err
-		}
+		undelegatedCoin = sdk.NewCoin(msg.Amount.Denom, undelegatedAmt)
 	}
 
 	if msg.Amount.Amount.IsInt64() {
