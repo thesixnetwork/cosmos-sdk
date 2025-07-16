@@ -81,11 +81,11 @@ message Description {
 
 // Validator Mode
 enum ValidatorMode {
-  // NORMAL.
+  // normal mode.
   MODE_NORMAL = 0;
-  // LICENSE.
+  // license mode, limit delegator and fixed delegation amount
   MODE_LICENSE = 1;
-  // FAST
+  // fast mode, no unboding time
   MODE_FAST = 2;
 }
 
@@ -159,7 +159,7 @@ message Validator {
     (gogoproto.nullable)   = false
   ];
 
-  ValidatorMode mode = 16;
+  ValidatorMode mode = 16 [(amino.dont_omitempty) = true];
 
   bool enable_redelegation = 17;
 
