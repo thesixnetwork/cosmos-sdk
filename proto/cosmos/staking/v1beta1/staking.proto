@@ -79,6 +79,16 @@ message Description {
   string details = 5;
 }
 
+// Validator Mode
+enum ValidatorMode {
+  // NORMAL.
+  MODE_NORMAL = 0;
+  // LICENSE.
+  MODE_LICENSE = 1;
+  // FAST
+  MODE_FAST = 2;
+}
+
 // Validator defines a validator, together with the total amount of the
 // Validator's bond shares and their exchange rate to coins. Slashing results in
 // a decrease in the exchange rate, allowing correct calculation of future
@@ -148,7 +158,9 @@ message Validator {
     (gogoproto.customtype) = "cosmossdk.io/math.Int",
     (gogoproto.nullable)   = false
   ];
-  bool license_mode        = 16;
+
+  ValidatorMode mode = 16;
+
   bool enable_redelegation = 17;
 
   // strictly positive if this validator's unbonding has been stopped by external modules
@@ -156,8 +168,6 @@ message Validator {
 
   // list of unbonding ids, each uniquely identifing an unbonding of this validator
   repeated uint64 unbonding_ids = 19;
-
-  bool special_mode = 20;
 }
 
 // BondStatus is the status of a validator.

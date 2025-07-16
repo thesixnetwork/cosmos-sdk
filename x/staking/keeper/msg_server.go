@@ -162,14 +162,14 @@ func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateVali
 		validator.MinDelegation = validator.DelegationIncrement
 	}
 
-	switch {
-	case msg.LicenseMode:
+	switch msg.Mode {
+	case types.ValidatorMode_MODE_LICENSE:
+		validator.Mode = types.ValidatorMode_MODE_LICENSE
 		// Verify that MinDelegation and DelegationIncrement is  defined and contains the same value
 		if msg.DelegationIncrement.IsNil() || !validator.MinDelegation.Equal(validator.DelegationIncrement) {
 			return nil, types.ErrLicenseIncrement
 		}
 
-		validator.LicenseMode = true
 		if validator.MaxLicense = msg.MaxLicense; msg.MaxLicense.IsNil() {
 			return nil, types.ErrMaxLicenseMustBeDefined
 		} // bug is nill genesis
@@ -186,15 +186,12 @@ func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateVali
 		validator.LicenseCount = divAmount
 		// Force disable redelegation when
 		validator.EnableRedelegation = false
-		validator.SpecialMode = false
-	case msg.SpecialMode:
-		validator.LicenseMode = false
-		validator.SpecialMode = true
+	case types.ValidatorMode_MODE_FAST:
+		validator.Mode = types.ValidatorMode_MODE_FAST
 		validator.EnableRedelegation = msg.EnableRedelegation
 	default:
+		validator.Mode = types.ValidatorMode_MODE_NORMAL
 		validator.EnableRedelegation = msg.EnableRedelegation
-		validator.SpecialMode = false
-		validator.LicenseMode = false
 	}
 	err = k.SetValidator(ctx, validator)
 	if err != nil {
@@ -282,11 +279,9 @@ func (k msgServer) EditValidator(ctx context.Context, msg *types.MsgEditValidato
 
 	validator.Description = description
 
-	switch {
-	case msg.LicenseMode:
-		validator.SpecialMode = false
-		validator.LicenseMode = true
-
+	switch msg.Mode {
+	case types.ValidatorMode_MODE_LICENSE:
+		validator.Mode = types.ValidatorMode_MODE_LICENSE
 		// validate max license
 		if !msg.MaxLicense.IsNil() && msg.MaxLicense.LT(validator.MaxLicense) {
 			return nil, types.ErrMaxLicenseMustBeGeater
@@ -308,12 +303,10 @@ func (k msgServer) EditValidator(ctx context.Context, msg *types.MsgEditValidato
 
 		validator.LicenseCount = divAmount
 		validator.EnableRedelegation = false
-	case msg.SpecialMode:
-		validator.SpecialMode = true
-		validator.LicenseMode = false
+	case types.ValidatorMode_MODE_FAST:
+		validator.Mode = types.ValidatorMode_MODE_FAST
 	default:
-		validator.SpecialMode = false
-		validator.LicenseMode = false
+		validator.Mode = types.ValidatorMode_MODE_NORMAL
 	}
 
 	if msg.CommissionRate != nil {
@@ -397,8 +390,8 @@ func (k msgServer) Delegate(ctx context.Context, msg *types.MsgDelegate) (*types
 	// CustomValidator
 	// New Delegation or Update
 
-	switch {
-	case validator.LicenseMode:
+	switch validator.Mode{
+	case types.ValidatorMode_MODE_LICENSE:
 		delegateLicenseCount, err := k.calculateDelegateLicenseCount(ctx, msg.Amount, validator, sdk.AccAddress(msg.DelegatorAddress), math.LegacyDec{})
 		if err != nil {
 			return nil, err
@@ -415,7 +408,7 @@ func (k msgServer) Delegate(ctx context.Context, msg *types.MsgDelegate) (*types
 		validator.LicenseCount = delegateLicenseCount.Add(validator.LicenseCount)
 		// Update Validator
 		k.Keeper.SetValidator(ctx, validator)
-	case validator.SpecialMode:
+	case types.ValidatorMode_MODE_FAST:
 		isSpecial := k.IsSpecialDelegator(ctx, valAddr, delegatorAddress)
 		if !isSpecial {
 			return nil, types.ErrDelegatorIsNotSpecial
@@ -647,8 +640,8 @@ func (k msgServer) Undelegate(ctx context.Context, msg *types.MsgUndelegate) (*t
 		return nil, err
 	}
 
-	switch {
-	case validator.LicenseMode:
+	switch validator.Mode{
+	case types.ValidatorMode_MODE_LICENSE:
 		delegateLicenseCount, err := k.calculateDelegateLicenseCount(ctx, msg.Amount, validator, delegatorAddress, shares)
 		if err != nil {
 			return nil, err
@@ -664,7 +657,7 @@ func (k msgServer) Undelegate(ctx context.Context, msg *types.MsgUndelegate) (*t
 			return nil, err
 		}
 		undelegatedCoin = sdk.NewCoin(msg.Amount.Denom, undelegatedAmt)
-	case validator.SpecialMode:
+	case types.ValidatorMode_MODE_FAST:
 		completionTime, _, err = k.Keeper.UndelegateSpecial(ctx, delegatorAddress, addr, shares)
 		if err != nil {
 			return nil, err
