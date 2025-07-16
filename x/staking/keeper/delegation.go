@@ -1090,7 +1090,7 @@ func (k Keeper) getBeginInfo(
 
 	case validator.IsUnbonding():
 		return validator.UnbondingTime, validator.UnbondingHeight, false, nil
-	case validator.SpecialMode:
+	case validator.Mode == types.ValidatorMode_MODE_FAST:
 		prevblockCtx := sdkCtx.WithBlockHeight(sdkCtx.BlockHeader().Height - 1)
 		nextBlock := sdkCtx.BlockHeight() + 1
 		timeDiff := sdkCtx.BlockHeader().Time.Sub(prevblockCtx.BlockHeader().Time)
@@ -1164,7 +1164,7 @@ func (k Keeper) UndelegateSpecial(
 		return time.Time{}, math.Int{}, err
 	}
 
-	if !validator.SpecialMode {
+	if validator.Mode != types.ValidatorMode_MODE_FAST {
 		return time.Time{}, math.Int{}, types.ErrSpecialModeDisable
 	}
 
@@ -1371,7 +1371,7 @@ func (k Keeper) BeginRedelegationSpecial(
 		return time.Time{}, err
 	}
 
-	if !srcValidator.SpecialMode {
+	if srcValidator.Mode != types.ValidatorMode_MODE_FAST {
 		return time.Time{}, types.ErrBadRedelegationNotSpecial
 	}
 

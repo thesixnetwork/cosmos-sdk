@@ -1791,8 +1791,8 @@ func TestABCI_PrepareProposal_VoteExtensions(t *testing.T) {
 	prepareOpt := func(bapp *baseapp.BaseApp) {
 		bapp.SetPrepareProposal(func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 			ctx = ctx.WithBlockHeight(req.Height).WithChainID(bapp.ChainID())
-			_, info := extendedCommitToLastCommit(req.LocalLastCommit)
-			ctx = ctx.WithCometInfo(info)
+			// _, info := extendedCommitToLastCommit(req.LocalLastCommit)
+			// ctx = ctx.WithCometInfo(info)
 			err := baseapp.ValidateVoteExtensions(ctx, valStore, 0, "", req.LocalLastCommit)
 			if err != nil {
 				return nil, err
@@ -1988,9 +1988,11 @@ func TestABCI_HaltChain(t *testing.T) {
 		expHalt     bool
 	}{
 		{"default", 0, 0, 10, 0, false},
-		{"halt-height-edge", 10, 0, 10, 0, false},
-		{"halt-height", 10, 0, 11, 0, true},
-		{"halt-time-edge", 0, 10, 1, 10, false},
+		{"halt-height-edge", 11, 0, 10, 0, false},
+		{"halt-height-equal", 10, 0, 10, 0, true},
+		{"halt-height", 10, 0, 10, 0, true},
+		{"halt-time-edge", 0, 11, 1, 10, false},
+		{"halt-time-equal", 0, 10, 1, 10, true},
 		{"halt-time", 0, 10, 1, 11, true},
 	}
 
@@ -2103,8 +2105,8 @@ func TestBaseApp_VoteExtensions(t *testing.T) {
 		app.SetPrepareProposal(func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 			txs := [][]byte{}
 			ctx = ctx.WithBlockHeight(req.Height).WithChainID(app.ChainID())
-			_, info := extendedCommitToLastCommit(req.LocalLastCommit)
-			ctx = ctx.WithCometInfo(info)
+			// _, info := extendedCommitToLastCommit(req.LocalLastCommit)
+			// ctx = ctx.WithCometInfo(info)
 			if err := baseapp.ValidateVoteExtensions(ctx, valStore, 0, "", req.LocalLastCommit); err != nil {
 				return nil, err
 			}

@@ -155,9 +155,8 @@ where we can get the pubkey using "%s tendermint show-validator"
 	cmd.Flags().AddFlagSet(FlagSetApprover())
 	cmd.Flags().AddFlagSet(FlagMinDelegationCreate())
 	cmd.Flags().AddFlagSet(FlagDelegationIncrementCreate())
-	cmd.Flags().AddFlagSet(FlagLicenseModeCreate())
 	cmd.Flags().AddFlagSet(FlagEnableRedelegationCreate())
-	cmd.Flags().AddFlagSet(FlagSpecialModeCreate())
+	cmd.Flags().AddFlagSet(FlagValidatorModeCreate())
 
 	cmd.Flags().String(FlagIP, "", fmt.Sprintf("The node's public IP. It takes effect only when used in combination with --%s", flags.FlagGenerateOnly))
 	cmd.Flags().String(FlagNodeID, "", "The node's ID")
@@ -166,7 +165,7 @@ where we can get the pubkey using "%s tendermint show-validator"
 	_ = cmd.MarkFlagRequired(flags.FlagFrom)
 	_ = cmd.MarkFlagRequired(FlagAmount)
 	_ = cmd.MarkFlagRequired(FlagPubKey)
-	_ = cmd.MarkFlagRequired(FlagMoniker)	
+	_ = cmd.MarkFlagRequired(FlagMoniker)
 
 	return cmd
 }
@@ -187,9 +186,8 @@ func NewEditValidatorCmd(ac address.Codec) *cobra.Command {
 			website, _ := cmd.Flags().GetString(FlagWebsite)
 			security, _ := cmd.Flags().GetString(FlagSecurityContact)
 			details, _ := cmd.Flags().GetString(FlagDetails)
+			validatorMode, _ := cmd.Flags().GetString(FlagValidatorMode)
 			maxLicense, _ := cmd.Flags().GetString(FlagMaxLicense)
-			licenceMode, _ := cmd.Flags().GetBool(FlagLicenseMode)
-			specialMode, _ := cmd.Flags().GetBool(FlagSpecialMode)
 			description := types.NewDescription(moniker, identity, website, security, details)
 
 			var newRate *math.LegacyDec
@@ -231,7 +229,9 @@ func NewEditValidatorCmd(ac address.Codec) *cobra.Command {
 				return err
 			}
 
-			msg := types.NewMsgEditValidator(valAddr, description, newRate, newMinSelfDelegation, newMaxLicense, licenceMode, specialMode)
+			mode := convertValidatorFlag(validatorMode)
+
+			msg := types.NewMsgEditValidator(valAddr, description, newRate, newMinSelfDelegation, mode, newMaxLicense)
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
@@ -241,8 +241,7 @@ func NewEditValidatorCmd(ac address.Codec) *cobra.Command {
 	cmd.Flags().AddFlagSet(flagSetCommissionUpdate())
 	cmd.Flags().AddFlagSet(FlagSetMinSelfDelegation())
 	// cmd.Flags().AddFlagSet(FlagMaxLicenseEdit())
-	cmd.Flags().AddFlagSet(FlagLicenseModeEdit())
-	cmd.Flags().AddFlagSet(FlagSpecialModeEdit())
+	cmd.Flags().AddFlagSet(FlagValidatorModeEdit())
 	flags.AddTxFlagsToCmd(cmd)
 
 	return cmd
@@ -442,16 +441,16 @@ func newBuildCreateValidatorMsg(clientCtx client.Context, txf tx.Factory, fs *fl
 
 	enableRedelegation, _ := fs.GetBool(FlagEnableRedelegation)
 
-	// License
-	licenseMode, _ := fs.GetBool(FlagLicenseMode)
+	flagMode, err := fs.GetString(FlagValidatorMode)
+	if err != nil {
+		return txf, nil, err
+	}
 
-	// Special mode
-	specialMode, _ := fs.GetBool(FlagSpecialMode)
+	validatorMode := convertValidatorFlag(flagMode)
 
-	switch{
-	case licenseMode:
-		msg.LicenseMode = true
-		msg.SpecialMode = false
+	switch validatorMode {
+	case types.ValidatorMode_MODE_LICENSE:
+		msg.Mode = types.ValidatorMode_MODE_LICENSE
 		mlcStr, _ := fs.GetString(FlagMaxLicense)
 		maxLicense, ok := math.NewIntFromString(mlcStr)
 		if !ok {
@@ -463,10 +462,6 @@ func newBuildCreateValidatorMsg(clientCtx client.Context, txf tx.Factory, fs *fl
 			return txf, nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "When license mode is used, redelegation must be disabled")
 		}
 
-		if specialMode {
-			return txf, nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "When license mode is used, special mode must be disabled")
-		}
-
 		// check Count licesene amount for validator
 		divAmount := val.Amount.Amount.Quo(msg.DelegationIncrement)
 		modAmount := msg.Value.Amount.Mod(msg.DelegationIncrement)
@@ -476,16 +471,10 @@ func newBuildCreateValidatorMsg(clientCtx client.Context, txf tx.Factory, fs *fl
 		if divAmount.GT(msg.MaxLicense) {
 			return txf, nil, types.ErrNotEnoughLicense
 		}
-	case specialMode:
-		msg.LicenseMode = false
-		msg.SpecialMode = true
+	case types.ValidatorMode_MODE_FAST:
+		msg.Mode = types.ValidatorMode_MODE_FAST
 	default:
-		msg.LicenseMode = false
-		msg.SpecialMode = false
-	}
-
-	if(msg.LicenseMode && msg.SpecialMode){
-		return txf, nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "Cannot enable license mode along side with specialmode")
+		msg.Mode = types.ValidatorMode_MODE_NORMAL
 	}
 
 	// Enable Redelegation
@@ -581,9 +570,8 @@ func CreateValidatorMsgFlagSet(ipDefault string) (fs *flag.FlagSet, defaultsDesc
 	fsCreateValidator.AddFlagSet(FlagSetPublicKey())
 	fsCreateValidator.AddFlagSet(FlagMinDelegationCreate())
 	fsCreateValidator.AddFlagSet(FlagDelegationIncrementCreate())
-	fsCreateValidator.AddFlagSet(FlagLicenseModeCreate())
+	fsCreateValidator.AddFlagSet(FlagValidatorModeCreate())
 	fsCreateValidator.AddFlagSet(FlagEnableRedelegationCreate())
-	fsCreateValidator.AddFlagSet(FlagSpecialModeCreate())
 
 	defaultsDesc = fmt.Sprintf(`
 	delegation amount:           %s
@@ -617,10 +605,9 @@ type TxCreateValidatorConfig struct {
 	MinDelegation           string
 	DelegationIncrement     string
 
-	LicenseMode        bool
+	ValidatorMode      types.ValidatorMode
 	MaxLicense         string
 	EnableRedelegation bool
-	SpecialMode        bool
 
 	PubKey cryptotypes.PubKey
 
@@ -734,10 +721,12 @@ func PrepareConfigForTxCreateValidator(flagSet *flag.FlagSet, moniker, nodeID, c
 		c.DelegationIncrement = defaultDelegationIncrement
 	}
 
-	c.LicenseMode, err = flagSet.GetBool(FlagLicenseMode)
+	validatorMode, err := flagSet.GetString(FlagValidatorMode)
 	if err != nil {
 		return c, err
 	}
+
+	c.ValidatorMode = convertValidatorFlag(validatorMode)
 
 	c.EnableRedelegation, err = flagSet.GetBool(FlagEnableRedelegation)
 	if err != nil {
@@ -745,11 +734,6 @@ func PrepareConfigForTxCreateValidator(flagSet *flag.FlagSet, moniker, nodeID, c
 	}
 
 	c.MaxLicense, err = flagSet.GetString(FlagMaxLicense)
-	if err != nil {
-		return c, err
-	}
-
-	c.SpecialMode, err = flagSet.GetBool(FlagSpecialMode)
 	if err != nil {
 		return c, err
 	}
@@ -824,10 +808,10 @@ func BuildCreateValidatorMsg(clientCtx client.Context, config TxCreateValidatorC
 
 	enableRedelegation := config.EnableRedelegation
 
-	switch{
-	case config.LicenseMode:
-		msg.LicenseMode = true
-		msg.SpecialMode = false
+
+	switch config.ValidatorMode {
+	case types.ValidatorMode_MODE_LICENSE:
+		msg.Mode = types.ValidatorMode_MODE_LICENSE
 		mlcStr := config.MaxLicense
 		maxLicense, ok := math.NewIntFromString(mlcStr)
 		if !ok {
@@ -838,16 +822,10 @@ func BuildCreateValidatorMsg(clientCtx client.Context, config TxCreateValidatorC
 		if enableRedelegation {
 			return txBldr, nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "When license mode is used, redelegation must be disabled")
 		}
-	case config.SpecialMode:
-		msg.LicenseMode = false
-		msg.SpecialMode = true
+	case types.ValidatorMode_MODE_FAST:
+		msg.Mode = types.ValidatorMode_MODE_FAST
 	default:
-		msg.LicenseMode = false
-		msg.SpecialMode = false
-	}
-
-	if(msg.LicenseMode && msg.SpecialMode){
-		return txBldr, nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "Cannot enable license mode along side with specialmode")
+		msg.Mode = types.ValidatorMode_MODE_NORMAL
 	}
 
 	// Enable Redelegation

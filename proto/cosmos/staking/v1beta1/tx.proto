@@ -101,8 +101,8 @@ message MsgCreateValidator {
     (amino.dont_omitempty) = true,
     (gogoproto.nullable)   = false
   ];
-  bool license_mode        = 7;
-  bool enable_redelegation = 8;
+  ValidatorMode mode                = 7;
+  bool          enable_redelegation = 8;
   // Deprecated: Use of Delegator Address in MsgCreateValidator is deprecated.
   // The validator address bytes and delegator address bytes refer to the same account while creating validator (defer
   // only in bech32 notation).
@@ -111,7 +111,6 @@ message MsgCreateValidator {
   string                   approver_address  = 11 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   google.protobuf.Any      pubkey            = 12 [(cosmos_proto.accepts_interface) = "cosmos.crypto.PubKey"];
   cosmos.base.v1beta1.Coin value             = 13 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
-  bool                     special_mode      = 14;
 }
 
 // MsgCreateValidatorResponse defines the Msg/CreateValidator response type.
@@ -136,9 +135,8 @@ message MsgEditValidator {
       [(cosmos_proto.scalar) = "cosmos.Dec", (gogoproto.customtype) = "cosmossdk.io/math.LegacyDec"];
   string min_self_delegation = 4
       [(cosmos_proto.scalar) = "cosmos.Int", (gogoproto.customtype) = "cosmossdk.io/math.Int"];
-  string max_license  = 5 [(cosmos_proto.scalar) = "cosmos.Int", (gogoproto.customtype) = "cosmossdk.io/math.Int"];
-  bool   license_mode = 6;
-  bool   special_mode = 7;
+  string max_license = 5 [(cosmos_proto.scalar) = "cosmos.Int", (gogoproto.customtype) = "cosmossdk.io/math.Int"];
+  ValidatorMode mode = 6;
 }
 
 // MsgEditValidatorResponse defines the Msg/EditValidator response type.

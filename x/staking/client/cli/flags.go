@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"strings"
+
 	flag "github.com/spf13/pflag"
 
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -40,10 +42,9 @@ const (
 	// Flag for custom validator
 	FlagMinDelegation       = "min-delegation"
 	FlagDelegationIncrement = "delegation-increment"
-	FlagLicenseMode         = "license-mode"
 	FlagMaxLicense          = "max-license"
 	FlagEnableRedelegation  = "enable-redelegation"
-	FlagSpecialMode         = "special-mode"
+	FlagValidatorMode       = "validator-mode"
 )
 
 // common flagsets to add to various functions
@@ -95,31 +96,19 @@ func FlagDelegationIncrementCreate() *flag.FlagSet {
 
 // FlagLicenseMode         = "license-mode"
 // FlagMaxLicense          = "max-license"
-func FlagLicenseModeCreate() *flag.FlagSet {
+func FlagValidatorModeCreate() *flag.FlagSet {
 	fs := flag.NewFlagSet("", flag.ContinueOnError)
-	fs.Bool(FlagLicenseMode, false, "License mode or not")
+	fs.String(FlagValidatorMode, "", "Validator mode normal=0, license=1, fast=2")
 	fs.String(FlagMaxLicense, "", "The maximum license when license mode is on")
 
 	return fs
 }
 
-func FlagLicenseModeEdit() *flag.FlagSet {
+func FlagValidatorModeEdit() *flag.FlagSet {
 	fs := flag.NewFlagSet("", flag.ContinueOnError)
-	fs.Bool(FlagLicenseMode, false, "License mode or not")
+	fs.String(FlagValidatorMode, "", "Validator mode normal=0, license=1, fast=2")
 	fs.String(FlagMaxLicense, "", "The maximum license when license mode is on")
 
-	return fs
-}
-
-func FlagSpecialModeCreate() *flag.FlagSet {
-	fs := flag.NewFlagSet("", flag.ContinueOnError)
-	fs.Bool(FlagSpecialMode, false, "special mode or not default false")
-	return fs
-}
-
-func FlagSpecialModeEdit() *flag.FlagSet {
-	fs := flag.NewFlagSet("", flag.ContinueOnError)
-	fs.Bool(FlagSpecialMode, false, "special mode or not default false")
 	return fs
 }
 
@@ -200,4 +189,17 @@ func flagSetDescriptionCreate() *flag.FlagSet {
 	fs.String(FlagDetails, "", "The validator's (optional) details")
 
 	return fs
+}
+
+func convertValidatorFlag(flag string) types.ValidatorMode {
+	switch strings.ToLower(flag) {
+	case "0", "normal", "mode_normal":
+		return types.ValidatorMode_MODE_NORMAL
+	case "1", "license", "mode_license":
+		return types.ValidatorMode_MODE_LICENSE
+	case "2", "fast", "mode_fast":
+		return types.ValidatorMode_MODE_FAST
+	default:
+		panic("Invalid validator mode")
+	}
 }

@@ -104,7 +104,7 @@ func (msg MsgCreateValidator) Validate(ac address.Codec) error {
 		)
 	}
 
-	if msg.LicenseMode {
+	if msg.Mode == ValidatorMode_MODE_LICENSE {
 		if msg.MaxLicense.IsNil() {
 			return errorsmod.Wrap(
 				sdkerrors.ErrInvalidRequest,
@@ -140,17 +140,17 @@ func (msg MsgCreateValidator) UnpackInterfaces(unpacker codectypes.AnyUnpacker) 
 }
 
 // NewMsgEditValidator creates a new MsgEditValidator instance
-func NewMsgEditValidator(valAddr string, description Description, newRate *math.LegacyDec, newMinSelfDelegation *math.Int, maxLicence *math.Int, licenceMode, specialMode bool) *MsgEditValidator {
+func NewMsgEditValidator(valAddr string, description Description, newRate *math.LegacyDec, newMinSelfDelegation *math.Int, validatorMode ValidatorMode, maxLicence *math.Int) *MsgEditValidator {
 	return &MsgEditValidator{
 		Description:       description,
 		CommissionRate:    newRate,
 		ValidatorAddress:  valAddr,
 		MinSelfDelegation: newMinSelfDelegation,
-		LicenseMode:       licenceMode,
+		Mode:              validatorMode,
 		MaxLicense:        maxLicence,
-		SpecialMode:       specialMode,
 	}
 }
+
 // ValidateBasic implements the sdk.Msg interface.
 func (msg MsgEditValidator) ValidateBasic() error {
 	if msg.ValidatorAddress == "" {
@@ -172,10 +172,6 @@ func (msg MsgEditValidator) ValidateBasic() error {
 		if msg.CommissionRate.GT(math.LegacyOneDec()) || msg.CommissionRate.IsNegative() {
 			return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "commission rate must be between 0 and 1 (inclusive)")
 		}
-	}
-
-	if msg.LicenseMode && msg.SpecialMode {
-		panic("Allow only one mode per validator")
 	}
 
 	return nil
