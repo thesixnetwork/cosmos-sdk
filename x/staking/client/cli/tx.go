@@ -33,6 +33,7 @@ var (
 	defaultMinSelfDelegation       = "1"
 	defaultMinDelegation           = "1"
 	defaultDelegationIncrement     = "1"
+	defaultValidatorMode           = types.ValidatorMode_MODE_NORMAL
 )
 
 // NewTxCmd returns a root CLI command handler for all x/staking transaction commands.

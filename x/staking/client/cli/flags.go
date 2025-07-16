@@ -200,6 +200,6 @@ func convertValidatorFlag(flag string) types.ValidatorMode {
 	case "2", "fast", "mode_fast":
 		return types.ValidatorMode_MODE_FAST
 	default:
-		panic("Invalid validator mode")
+		return defaultValidatorMode
 	}
 }
