@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -177,6 +178,7 @@ func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateVali
 		// Count licesene amount for validator
 		divAmount := msg.Value.Amount.Quo(validator.DelegationIncrement)
 		modAmount := msg.Value.Amount.Mod(validator.DelegationIncrement)
+		fmt.Printf("DEBUG MSG_SERVER: divAmount=%s, maxLicense=%s, amount=%s, increment=%s\n", divAmount.String(), validator.MaxLicense.String(), msg.Value.Amount.String(), validator.DelegationIncrement.String())
 		if modAmount.GT(math.ZeroInt()) {
 			return nil, types.ErrInvalidIncrementDelegation
 		}
@@ -390,7 +392,7 @@ func (k msgServer) Delegate(ctx context.Context, msg *types.MsgDelegate) (*types
 	// CustomValidator
 	// New Delegation or Update
 
-	switch validator.Mode{
+	switch validator.Mode {
 	case types.ValidatorMode_MODE_LICENSE:
 		delegateLicenseCount, err := k.calculateDelegateLicenseCount(ctx, msg.Amount, validator, sdk.AccAddress(msg.DelegatorAddress), math.LegacyDec{})
 		if err != nil {
@@ -640,7 +642,7 @@ func (k msgServer) Undelegate(ctx context.Context, msg *types.MsgUndelegate) (*t
 		return nil, err
 	}
 
-	switch validator.Mode{
+	switch validator.Mode {
 	case types.ValidatorMode_MODE_LICENSE:
 		delegateLicenseCount, err := k.calculateDelegateLicenseCount(ctx, msg.Amount, validator, delegatorAddress, shares)
 		if err != nil {

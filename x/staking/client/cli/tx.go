@@ -464,7 +464,7 @@ func newBuildCreateValidatorMsg(clientCtx client.Context, txf tx.Factory, fs *fl
 		}
 
 		// check Count licesene amount for validator
-		divAmount := val.Amount.Amount.Quo(msg.DelegationIncrement)
+		divAmount := msg.Value.Amount.Quo(msg.DelegationIncrement)
 		modAmount := msg.Value.Amount.Mod(msg.DelegationIncrement)
 		if modAmount.GT(math.ZeroInt()) {
 			return txf, nil, types.ErrInvalidIncrementDelegation
@@ -680,6 +680,16 @@ func PrepareConfigForTxCreateValidator(flagSet *flag.FlagSet, moniker, nodeID, c
 		return c, err
 	}
 
+	c.MinDelegation, err = flagSet.GetString(FlagMinDelegation)
+	if err != nil {
+		return c, err
+	}
+
+	c.DelegationIncrement, err = flagSet.GetString(FlagDelegationIncrement)
+	if err != nil {
+		return c, err
+	}
+
 	c.IP = ip
 	c.P2PPort = p2pPort
 	c.Website = website
@@ -808,7 +818,6 @@ func BuildCreateValidatorMsg(clientCtx client.Context, config TxCreateValidatorC
 	msg.DelegationIncrement = delegationIncrement
 
 	enableRedelegation := config.EnableRedelegation
-
 
 	switch config.ValidatorMode {
 	case types.ValidatorMode_MODE_LICENSE:
