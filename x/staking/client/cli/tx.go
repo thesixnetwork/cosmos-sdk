@@ -148,11 +148,6 @@ where we can get the pubkey using "%s tendermint show-validator"
 		},
 	}
 
-	cmd.Flags().AddFlagSet(FlagSetPublicKey())
-	cmd.Flags().AddFlagSet(FlagSetAmount())
-	cmd.Flags().AddFlagSet(flagSetDescriptionCreate())
-	cmd.Flags().AddFlagSet(FlagSetCommissionCreate())
-	cmd.Flags().AddFlagSet(FlagSetMinSelfDelegation())
 	cmd.Flags().AddFlagSet(FlagSetApprover())
 	cmd.Flags().AddFlagSet(FlagMinDelegationCreate())
 	cmd.Flags().AddFlagSet(FlagDelegationIncrementCreate())
@@ -164,9 +159,6 @@ where we can get the pubkey using "%s tendermint show-validator"
 	flags.AddTxFlagsToCmd(cmd)
 
 	_ = cmd.MarkFlagRequired(flags.FlagFrom)
-	_ = cmd.MarkFlagRequired(FlagAmount)
-	_ = cmd.MarkFlagRequired(FlagPubKey)
-	_ = cmd.MarkFlagRequired(FlagMoniker)
 
 	return cmd
 }
