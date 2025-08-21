@@ -48,6 +48,7 @@ func NewTxCmd(valAddrCodec, ac address.Codec) *cobra.Command {
 
 	stakingTxCmd.AddCommand(
 		NewSetValidatorApprovalCmd(),
+		NewCreateValidatorLegacyCmd(valAddrCodec),
 		NewCreateValidatorCmd(valAddrCodec),
 		NewEditValidatorCmd(valAddrCodec),
 		NewDelegateCmd(valAddrCodec, ac),
@@ -90,6 +91,120 @@ func NewSetValidatorApprovalCmd() *cobra.Command {
 	_ = cmd.MarkFlagRequired(flags.FlagFrom)
 	_ = cmd.MarkFlagRequired(FlagAddressNewApprover)
 	_ = cmd.MarkFlagRequired(FlagApprovalEnabled)
+
+	return cmd
+}
+
+func NewCreateValidatorLegacyCmd(ac address.Codec) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "create-validator-legacy",
+		Short: "create new validator initialized with a self-delegation to it (legacy version)",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			// txf, err := tx.NewFactoryCLI(clientCtx, cmd.Flags())
+			// if err != nil {
+			// 	return err
+			// }
+
+			moniker, _ := cmd.Flags().GetString(FlagEditMoniker)
+			identity, _ := cmd.Flags().GetString(FlagIdentity)
+			website, _ := cmd.Flags().GetString(FlagWebsite)
+			security, _ := cmd.Flags().GetString(FlagSecurityContact)
+			details, _ := cmd.Flags().GetString(FlagDetails)
+			// description := types.NewDescription(moniker, identity, website, security, details)
+
+			pkStr, err := cmd.Flags().GetString(FlagPubKey)
+			if err != nil {
+				return err
+			}
+
+			var pk cryptotypes.PubKey
+			if err := clientCtx.Codec.UnmarshalInterfaceJSON([]byte(pkStr), &pk); err != nil {
+				return err
+			}
+
+			fAmount, _ := cmd.Flags().GetString(FlagAmount)
+			amount, err := sdk.ParseCoinNormalized(fAmount)
+			if err != nil {
+				return err
+			}
+
+			// get the initial validator commission parameters
+			rateStr, _ := cmd.Flags().GetString(FlagCommissionRate)
+			maxRateStr, _ := cmd.Flags().GetString(FlagCommissionMaxRate)
+			maxChangeRateStr, _ := cmd.Flags().GetString(FlagCommissionMaxChangeRate)
+
+			commissionRates, err := buildCommissionRates(rateStr, maxRateStr, maxChangeRateStr)
+			if err != nil {
+				return err
+			}
+
+			var valMinSelfDelegation *math.Int
+			minSelfDelegationString, _ := cmd.Flags().GetString(FlagMinSelfDelegation)
+			if minSelfDelegationString != "" {
+				msb, ok := math.NewIntFromString(minSelfDelegationString)
+				if !ok {
+					return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "minimum self delegation must be a positive integer")
+				}
+
+				valMinSelfDelegation = &msb
+			}
+
+			validator := validator{
+				Amount:            amount,
+				PubKey:            pk,
+				Moniker:           moniker,
+				Identity:          identity,
+				Website:           website,
+				Security:          security,
+				Details:           details,
+				CommissionRates:   commissionRates,
+				MinSelfDelegation: *valMinSelfDelegation,
+			}
+
+			txf, err := tx.NewFactoryCLI(clientCtx, cmd.Flags())
+			// .WithTxConfig(clientCtx.TxConfig)
+			// .WithAccountRetriever(clientCtx.AccountRetriever)
+			if err != nil {
+				return err
+			}
+			txf, msg, err := newBuildCreateValidatorMsg(clientCtx, txf, cmd.Flags(), validator, ac)
+			if err != nil {
+				return err
+			}
+
+			return tx.GenerateOrBroadcastTxWithFactory(clientCtx, txf, msg)
+		},
+	}
+
+	// add flag
+	cmd.Flags().AddFlagSet(FlagSetPublicKey())
+	cmd.Flags().AddFlagSet(FlagSetAmount())
+	cmd.Flags().AddFlagSet(flagSetDescriptionCreate())
+	cmd.Flags().AddFlagSet(FlagSetCommissionCreate())
+	cmd.Flags().AddFlagSet(FlagSetMinSelfDelegation())
+	cmd.Flags().AddFlagSet(FlagSetApprover())
+	cmd.Flags().AddFlagSet(FlagMinDelegationCreate())
+	cmd.Flags().AddFlagSet(FlagDelegationIncrementCreate())
+	cmd.Flags().AddFlagSet(FlagValidatorModeCreate())
+	cmd.Flags().AddFlagSet(FlagEnableRedelegationCreate())
+
+	cmd.Flags().String(FlagIP, "", fmt.Sprintf("The node's public IP. It takes effect only when used in combination with --%s", flags.FlagGenerateOnly))
+	cmd.Flags().String(FlagNodeID, "", "The node's ID")
+	flags.AddTxFlagsToCmd(cmd)
+
+	// mark flag that required of this message
+	_ = cmd.MarkFlagRequired(flags.FlagFrom)
+	_ = cmd.MarkFlagRequired(FlagAmount)
+	_ = cmd.MarkFlagRequired(FlagPubKey)
+	_ = cmd.MarkFlagRequired(FlagMinDelegation)
+	_ = cmd.MarkFlagRequired(FlagDelegationIncrement)
+	_ = cmd.MarkFlagRequired(FlagMaxLicense)
+	_ = cmd.MarkFlagRequired(FlagValidatorMode)
 
 	return cmd
 }
@@ -748,7 +863,6 @@ func PrepareConfigForTxCreateValidator(flagSet *flag.FlagSet, moniker, nodeID, c
 func BuildCreateValidatorMsg(clientCtx client.Context, config TxCreateValidatorConfig, txBldr tx.Factory, generateOnly bool, valCodec address.Codec) (tx.Factory, sdk.Msg, error) {
 	amounstStr := config.Amount
 	amount, err := sdk.ParseCoinNormalized(amounstStr)
-
 	if err != nil {
 		return txBldr, nil, err
 	}
@@ -767,7 +881,6 @@ func BuildCreateValidatorMsg(clientCtx client.Context, config TxCreateValidatorC
 	maxRateStr := config.CommissionMaxRate
 	maxChangeRateStr := config.CommissionMaxChangeRate
 	commissionRates, err := buildCommissionRates(rateStr, maxRateStr, maxChangeRateStr)
-
 	if err != nil {
 		return txBldr, nil, err
 	}
