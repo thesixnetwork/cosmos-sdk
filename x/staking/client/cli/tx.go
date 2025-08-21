@@ -105,17 +105,11 @@ func NewCreateValidatorLegacyCmd(ac address.Codec) *cobra.Command {
 				return err
 			}
 
-			// txf, err := tx.NewFactoryCLI(clientCtx, cmd.Flags())
-			// if err != nil {
-			// 	return err
-			// }
-
-			moniker, _ := cmd.Flags().GetString(FlagEditMoniker)
+			moniker, _ := cmd.Flags().GetString(FlagMoniker)
 			identity, _ := cmd.Flags().GetString(FlagIdentity)
 			website, _ := cmd.Flags().GetString(FlagWebsite)
 			security, _ := cmd.Flags().GetString(FlagSecurityContact)
 			details, _ := cmd.Flags().GetString(FlagDetails)
-			// description := types.NewDescription(moniker, identity, website, security, details)
 
 			pkStr, err := cmd.Flags().GetString(FlagPubKey)
 			if err != nil {
@@ -205,6 +199,10 @@ func NewCreateValidatorLegacyCmd(ac address.Codec) *cobra.Command {
 	_ = cmd.MarkFlagRequired(FlagDelegationIncrement)
 	_ = cmd.MarkFlagRequired(FlagMaxLicense)
 	_ = cmd.MarkFlagRequired(FlagValidatorMode)
+	_ = cmd.MarkFlagRequired(FlagIdentity)
+	_ = cmd.MarkFlagRequired(FlagWebsite)
+	_ = cmd.MarkFlagRequired(FlagSecurityContact)
+	_ = cmd.MarkFlagRequired(FlagDetails)
 
 	return cmd
 }
