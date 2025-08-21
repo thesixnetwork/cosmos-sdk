@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -178,7 +177,6 @@ func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateVali
 		// Count licesene amount for validator
 		divAmount := msg.Value.Amount.Quo(validator.DelegationIncrement)
 		modAmount := msg.Value.Amount.Mod(validator.DelegationIncrement)
-		fmt.Printf("DEBUG MSG_SERVER: divAmount=%s, maxLicense=%s, amount=%s, increment=%s\n", divAmount.String(), validator.MaxLicense.String(), msg.Value.Amount.String(), validator.DelegationIncrement.String())
 		if modAmount.GT(math.ZeroInt()) {
 			return nil, types.ErrInvalidIncrementDelegation
 		}

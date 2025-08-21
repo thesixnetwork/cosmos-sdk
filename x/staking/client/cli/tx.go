@@ -687,12 +687,7 @@ func CreateValidatorMsgFlagSet(ipDefault string) (fs *flag.FlagSet, defaultsDesc
 	minimum self delegation:     %s
 	minimum delegation:          %s
 	delegation increment:        %s
-`, defaultAmount, defaultCommissionRate,
-		defaultCommissionMaxRate, defaultCommissionMaxChangeRate,
-		defaultMinSelfDelegation,
-		defaultMinDelegation,
-		defaultDelegationIncrement,
-	)
+    `, defaultAmount, defaultCommissionRate, defaultCommissionMaxRate, defaultCommissionMaxChangeRate, defaultMinSelfDelegation, defaultMinDelegation, defaultDelegationIncrement)
 
 	return fsCreateValidator, defaultsDesc
 }
