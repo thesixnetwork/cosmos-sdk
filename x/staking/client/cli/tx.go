@@ -175,16 +175,15 @@ func NewCreateValidatorLegacyCmd(ac address.Codec) *cobra.Command {
 		},
 	}
 
-	// add flag
 	cmd.Flags().AddFlagSet(FlagSetPublicKey())
 	cmd.Flags().AddFlagSet(FlagSetAmount())
 	cmd.Flags().AddFlagSet(flagSetDescriptionCreate())
 	cmd.Flags().AddFlagSet(FlagSetCommissionCreate())
 	cmd.Flags().AddFlagSet(FlagSetMinSelfDelegation())
+	cmd.Flags().AddFlagSet(FlagValidatorModeCreate())
 	cmd.Flags().AddFlagSet(FlagSetApprover())
 	cmd.Flags().AddFlagSet(FlagMinDelegationCreate())
 	cmd.Flags().AddFlagSet(FlagDelegationIncrementCreate())
-	cmd.Flags().AddFlagSet(FlagValidatorModeCreate())
 	cmd.Flags().AddFlagSet(FlagEnableRedelegationCreate())
 
 	cmd.Flags().String(FlagIP, "", fmt.Sprintf("The node's public IP. It takes effect only when used in combination with --%s", flags.FlagGenerateOnly))
@@ -195,14 +194,22 @@ func NewCreateValidatorLegacyCmd(ac address.Codec) *cobra.Command {
 	_ = cmd.MarkFlagRequired(flags.FlagFrom)
 	_ = cmd.MarkFlagRequired(FlagAmount)
 	_ = cmd.MarkFlagRequired(FlagPubKey)
-	_ = cmd.MarkFlagRequired(FlagMinDelegation)
-	_ = cmd.MarkFlagRequired(FlagDelegationIncrement)
-	_ = cmd.MarkFlagRequired(FlagMaxLicense)
-	_ = cmd.MarkFlagRequired(FlagValidatorMode)
+	_ = cmd.MarkFlagRequired(FlagMoniker)
 	_ = cmd.MarkFlagRequired(FlagIdentity)
 	_ = cmd.MarkFlagRequired(FlagWebsite)
 	_ = cmd.MarkFlagRequired(FlagSecurityContact)
 	_ = cmd.MarkFlagRequired(FlagDetails)
+	_ = cmd.MarkFlagRequired(FlagValidatorMode)
+	
+	flagMode, _ := cmd.Flags().GetString(FlagValidatorMode)
+	
+	validatorMode := convertValidatorFlag(flagMode)
+	if validatorMode == types.ValidatorMode_MODE_LICENSE {
+		// licence mode
+		_ = cmd.MarkFlagRequired(FlagDelegationIncrement)
+		_ = cmd.MarkFlagRequired(FlagMaxLicense)
+		_ = cmd.MarkFlagRequired(FlagMinDelegation)
+	}
 
 	return cmd
 }
@@ -261,6 +268,7 @@ where we can get the pubkey using "%s tendermint show-validator"
 		},
 	}
 
+
 	cmd.Flags().AddFlagSet(FlagSetApprover())
 	cmd.Flags().AddFlagSet(FlagMinDelegationCreate())
 	cmd.Flags().AddFlagSet(FlagDelegationIncrementCreate())
@@ -271,7 +279,19 @@ where we can get the pubkey using "%s tendermint show-validator"
 	cmd.Flags().String(FlagNodeID, "", "The node's ID")
 	flags.AddTxFlagsToCmd(cmd)
 
+
+
+	flagMode, _ := cmd.Flags().GetString(FlagValidatorMode)
+	validatorMode := convertValidatorFlag(flagMode)
+	if validatorMode == types.ValidatorMode_MODE_LICENSE {
+		// licence mode
+		_ = cmd.MarkFlagRequired(FlagDelegationIncrement)
+		_ = cmd.MarkFlagRequired(FlagMaxLicense)
+		_ = cmd.MarkFlagRequired(FlagMinDelegation)
+	}
+	// mark flag that required of this message
 	_ = cmd.MarkFlagRequired(flags.FlagFrom)
+	_ = cmd.MarkFlagRequired(FlagValidatorMode)
 
 	return cmd
 }
@@ -346,8 +366,18 @@ func NewEditValidatorCmd(ac address.Codec) *cobra.Command {
 	cmd.Flags().AddFlagSet(flagSetDescriptionEdit())
 	cmd.Flags().AddFlagSet(flagSetCommissionUpdate())
 	cmd.Flags().AddFlagSet(FlagSetMinSelfDelegation())
-	// cmd.Flags().AddFlagSet(FlagMaxLicenseEdit())
+	cmd.Flags().AddFlagSet(FlagMaxLicenseEdit())
 	cmd.Flags().AddFlagSet(FlagValidatorModeEdit())
+
+	flagMode, _ := cmd.Flags().GetString(FlagValidatorMode)
+	validatorMode := convertValidatorFlag(flagMode)
+	if validatorMode == types.ValidatorMode_MODE_LICENSE {
+		// licence mode
+		_ = cmd.MarkFlagRequired(FlagDelegationIncrement)
+		_ = cmd.MarkFlagRequired(FlagMaxLicense)
+		_ = cmd.MarkFlagRequired(FlagMinDelegation)
+	}
+
 	flags.AddTxFlagsToCmd(cmd)
 
 	return cmd
