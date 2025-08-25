@@ -658,13 +658,13 @@ func (k msgServer) Undelegate(ctx context.Context, msg *types.MsgUndelegate) (*t
 		}
 		undelegatedCoin = sdk.NewCoin(msg.Amount.Denom, undelegatedAmt)
 	case types.ValidatorMode_MODE_FAST:
-		completionTime, _, err = k.Keeper.UndelegateSpecial(ctx, delegatorAddress, addr, shares)
+		completionTime, undelegatedAmt, err = k.Keeper.UndelegateSpecial(ctx, delegatorAddress, addr, shares)
 		if err != nil {
 			return nil, err
 		}
 		undelegatedCoin = sdk.NewCoin(msg.Amount.Denom, undelegatedAmt)
 	default:
-		completionTime, _, err = k.Keeper.Undelegate(ctx, delegatorAddress, addr, shares)
+		completionTime, undelegatedAmt, err = k.Keeper.Undelegate(ctx, delegatorAddress, addr, shares)
 		if err != nil {
 			return nil, err
 		}
