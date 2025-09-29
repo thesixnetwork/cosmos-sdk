@@ -282,21 +282,37 @@ func (h *DefaultProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHan
 		iterator := h.mempool.Select(ctx, req.Txs)
 		selectedTxsSignersSeqs := make(map[string]uint64)
 		var selectedTxsNums int
+		txCount := 0
 		for iterator != nil {
 			memTx := iterator.Tx()
+			txCount++
 			signerData, err := h.signerExtAdapter.GetSigners(memTx)
 			if err != nil {
 				return nil, err
 			}
+
+			// Debug logging for transaction processing  
+			ctx.Logger().Debug("PrepareProposal processing tx",
+				"tx_count", txCount,
+				"signers_count", len(signerData))
 
 			// If the signers aren't in selectedTxsSignersSeqs then we haven't seen them before
 			// so we add them and continue given that we don't need to check the sequence.
 			shouldAdd := true
 			txSignersSeqs := make(map[string]uint64)
 			for _, signer := range signerData {
-				seq, ok := selectedTxsSignersSeqs[signer.Signer.String()]
+				signerAddr := signer.Signer.String()
+				seq, ok := selectedTxsSignersSeqs[signerAddr]
+				
+				// Debug logging for sequence checking
+				ctx.Logger().Debug("PrepareProposal sequence check",
+					"signer", signerAddr,
+					"tx_sequence", signer.Sequence,
+					"expected_sequence", seq+1,
+					"first_time", !ok)
+					
 				if !ok {
-					txSignersSeqs[signer.Signer.String()] = signer.Sequence
+					txSignersSeqs[signerAddr] = signer.Sequence
 					continue
 				}
 
@@ -304,12 +320,17 @@ func (h *DefaultProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHan
 				// sure that the current sequence is seq+1; otherwise is invalid
 				// and we skip it.
 				if seq+1 != signer.Sequence {
+					ctx.Logger().Debug("PrepareProposal skipping tx due to sequence mismatch",
+						"signer", signerAddr,
+						"expected", seq+1,
+						"actual", signer.Sequence)
 					shouldAdd = false
 					break
 				}
-				txSignersSeqs[signer.Signer.String()] = signer.Sequence
+				txSignersSeqs[signerAddr] = signer.Sequence
 			}
 			if !shouldAdd {
+				ctx.Logger().Debug("PrepareProposal tx skipped", "reason", "sequence_mismatch")
 				iterator = iterator.Next()
 				continue
 			}
@@ -320,6 +341,9 @@ func (h *DefaultProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHan
 			// check again.
 			txBz, err := h.txVerifier.PrepareProposalVerifyTx(memTx)
 			if err != nil {
+				ctx.Logger().Debug("PrepareProposal tx verification failed", 
+					"error", err.Error(),
+					"removing_from_mempool", true)
 				err := h.mempool.Remove(memTx)
 				if err != nil && !errors.Is(err, mempool.ErrTxNotFound) {
 					return nil, err
@@ -327,22 +351,35 @@ func (h *DefaultProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHan
 			} else {
 				stop := h.txSelector.SelectTxForProposal(ctx, uint64(req.MaxTxBytes), maxBlockGas, memTx, txBz)
 				if stop {
+					ctx.Logger().Debug("PrepareProposal stopping selection", "reason", "reached_limits")
 					break
 				}
 
 				txsLen := len(h.txSelector.SelectedTxs(ctx))
+				txAdded := txsLen != selectedTxsNums
+				
+				ctx.Logger().Debug("PrepareProposal tx processed",
+					"tx_added", txAdded,
+					"total_selected", txsLen)
+
 				for sender, seq := range txSignersSeqs {
 					// If txsLen != selectedTxsNums is true, it means that we've
 					// added a new tx to the selected txs, so we need to update
 					// the sequence of the sender.
-					if txsLen != selectedTxsNums {
+					if txAdded {
 						selectedTxsSignersSeqs[sender] = seq
+						ctx.Logger().Debug("PrepareProposal updated sequence",
+							"signer", sender,
+							"new_sequence", seq)
 					} else if _, ok := selectedTxsSignersSeqs[sender]; !ok {
 						// The transaction hasn't been added but it passed the
 						// verification, so we know that the sequence is correct.
 						// So we set this sender's sequence to seq-1, in order
 						// to avoid unnecessary calls to PrepareProposalVerifyTx.
 						selectedTxsSignersSeqs[sender] = seq - 1
+						ctx.Logger().Debug("PrepareProposal cached sequence",
+							"signer", sender,
+							"cached_sequence", seq-1)
 					}
 				}
 				selectedTxsNums = txsLen
@@ -351,7 +388,13 @@ func (h *DefaultProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHan
 			iterator = iterator.Next()
 		}
 
-		return &abci.ResponsePrepareProposal{Txs: h.txSelector.SelectedTxs(ctx)}, nil
+		finalSelectedTxs := h.txSelector.SelectedTxs(ctx)
+		ctx.Logger().Info("PrepareProposal completed",
+			"total_processed", txCount,
+			"total_selected", len(finalSelectedTxs),
+			"unique_signers", len(selectedTxsSignersSeqs))
+
+		return &abci.ResponsePrepareProposal{Txs: finalSelectedTxs}, nil
 	}
 }
 
