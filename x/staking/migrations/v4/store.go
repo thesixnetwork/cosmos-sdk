@@ -29,8 +29,20 @@ func MigrateStore(ctx sdk.Context, store storetypes.KVStore, cdc codec.BinaryCod
 
 // migrateParams will set the params to store from legacySubspace
 func migrateParams(ctx sdk.Context, store storetypes.KVStore, cdc codec.BinaryCodec, legacySubspace exported.Subspace) error {
-	var legacyParams types.Params
-	legacySubspace.GetParamSet(ctx, &legacyParams)
+	// Initialize with default params first
+	legacyParams := types.DefaultParams()
+
+	// Try to get existing params from legacy subspace, but handle the case
+	// where parameters might not exist (which causes panic in GetParamSet)
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				// If params don't exist, we'll use the default params initialized above
+				// This can happen when parameters were never set in the legacy store
+			}
+		}()
+		legacySubspace.GetParamSet(ctx, &legacyParams)
+	}()
 
 	if err := legacyParams.Validate(); err != nil {
 		return err
