@@ -63,5 +63,6 @@ var (
 	ErrDelegatorIsNotSpecial           = errors.Register(ModuleName, 58, "Cannot find delegator in whitelist")
 	ErrBadValidatorRequest             = errors.Register(ModuleName, 59, "Did not found delegator in this validator list")
 	ErrBadRedelegationNotSpecial       = errors.Register(ModuleName, 60, "redelegation validator is not special node ")
+	ErrRedelegationLicenseMode         = errors.Register(ModuleName, 61, "Redelegation is disable for validator in licence mode")
 	ErrNoWhiltelistFound               = errors.Register(ModuleName, 62, "Delegator whitelist does not exist")
 )

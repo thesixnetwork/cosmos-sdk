@@ -17,6 +17,27 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
+// GetExistingDelegation returns a specific delegation or new empty delegation if did not existed
+func (k Keeper) GetExistingDelegation(ctx context.Context,
+	delAddr sdk.AccAddress, valAddr sdk.ValAddress,
+) (delegation types.Delegation, found bool) {
+	store := k.storeService.OpenKVStore(ctx)
+	key := types.GetDelegationKey(delAddr, valAddr)
+
+	value, err := store.Get(key)
+	if err != nil {
+		return types.Delegation{}, false
+	}
+
+	if value == nil {
+		return delegation, false
+	}
+
+	delegation = types.MustUnmarshalDelegation(k.cdc, value)
+
+	return delegation, true
+}
+
 // GetDelegation returns a specific delegation.
 func (k Keeper) GetDelegation(ctx context.Context, delAddr sdk.AccAddress, valAddr sdk.ValAddress) (types.Delegation, error) {
 	store := k.storeService.OpenKVStore(ctx)
@@ -1156,6 +1177,7 @@ func (k Keeper) Undelegate(
 
 	return completionTime, returnAmount, nil
 }
+
 func (k Keeper) UndelegateSpecial(
 	ctx context.Context, delAddr sdk.AccAddress, valAddr sdk.ValAddress, sharesAmount math.LegacyDec,
 ) (time.Time, math.Int, error) {

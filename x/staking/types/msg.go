@@ -1,7 +1,6 @@
 package types
 
 import (
-	"fmt"
 
 	"cosmossdk.io/core/address"
 	errorsmod "cosmossdk.io/errors"
@@ -93,7 +92,6 @@ func (msg MsgCreateValidator) Validate(ac address.Codec) error {
 	}
 
 	if !msg.MinDelegation.IsNil() && !msg.MinDelegation.IsPositive() {
-		fmt.Printf("############ MINDELEGATION %v################ \n", msg.MinDelegation)
 		return errorsmod.Wrap(
 			sdkerrors.ErrInvalidRequest,
 			"minimum delegation must be a positive integer",

@@ -3,6 +3,7 @@ package testutil
 import (
 	"testing"
 
+	"cosmossdk.io/math"
 	"github.com/stretchr/testify/require"
 
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
@@ -13,7 +14,14 @@ import (
 // NewValidator is a testing helper method to create validators in tests
 func NewValidator(tb testing.TB, operator sdk.ValAddress, pubKey cryptotypes.PubKey) types.Validator {
 	tb.Helper()
-	v, err := types.NewValidator(operator.String(), pubKey, types.Description{})
+	v, err := types.NewValidatorNormalMode(operator.String(), pubKey, types.Description{})
+	require.NoError(tb, err)
+	return v
+}
+
+func NewValidatorLicenseMode(tb testing.TB, operator sdk.ValAddress, pubKey cryptotypes.PubKey, minDelegation, delegationIncrement, maxLicense math.Int) types.Validator {
+	tb.Helper()
+	v, err := types.NewValidatorLicenseMode(operator.String(), pubKey, types.Description{}, minDelegation, delegationIncrement, maxLicense)
 	require.NoError(tb, err)
 	return v
 }

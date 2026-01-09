@@ -63,6 +63,63 @@ func NewValidator(operator string, pubKey cryptotypes.PubKey, description Descri
 	}, nil
 }
 
+func NewValidatorNormalMode(operator string, pubKey cryptotypes.PubKey, description Description) (Validator, error) {
+	pkAny, err := codectypes.NewAnyWithValue(pubKey)
+	if err != nil {
+		return Validator{}, err
+	}
+
+	return Validator{
+		OperatorAddress:         operator,
+		ConsensusPubkey:         pkAny,
+		Jailed:                  false,
+		Status:                  Unbonded,
+		Tokens:                  math.ZeroInt(),
+		DelegatorShares:         math.LegacyZeroDec(),
+		Description:             description,
+		UnbondingHeight:         int64(0),
+		UnbondingTime:           time.Unix(0, 0).UTC(),
+		Commission:              NewCommission(math.LegacyZeroDec(), math.LegacyZeroDec(), math.LegacyZeroDec()),
+		MinSelfDelegation:       math.OneInt(),
+		UnbondingOnHoldRefCount: 0,
+		MinDelegation:           math.OneInt(),
+		DelegationIncrement:     math.OneInt(),
+		MaxLicense:              math.OneInt(),
+		LicenseCount:            math.OneInt(),
+		Mode:                    0,
+		EnableRedelegation:      true,
+	}, nil
+}
+
+func NewValidatorLicenseMode(operator string, pubKey cryptotypes.PubKey, description Description, minDelegation, delegationIncrement, maxLicense math.Int) (Validator, error) {
+	pkAny, err := codectypes.NewAnyWithValue(pubKey)
+	if err != nil {
+		return Validator{}, err
+	}
+
+	return Validator{
+		OperatorAddress:         operator,
+		ConsensusPubkey:         pkAny,
+		Jailed:                  false,
+		Status:                  Unbonded,
+		Tokens:                  math.ZeroInt(),
+		DelegatorShares:         math.LegacyZeroDec(),
+		Description:             description,
+		UnbondingHeight:         int64(0),
+		UnbondingTime:           time.Unix(0, 0).UTC(),
+		Commission:              NewCommission(math.LegacyZeroDec(), math.LegacyZeroDec(), math.LegacyZeroDec()),
+		MinSelfDelegation:       math.OneInt(),
+		UnbondingOnHoldRefCount: 0,
+		MinDelegation:           minDelegation,
+		DelegationIncrement:     delegationIncrement,
+		MaxLicense:              maxLicense,
+		LicenseCount:            math.Int{},
+		Mode:                    1,
+		EnableRedelegation:      false,
+		UnbondingIds:            []uint64{},
+	}, nil
+}
+
 // Validators is a collection of Validator
 type Validators struct {
 	Validators     []Validator
