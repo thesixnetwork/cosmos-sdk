@@ -1,28 +1,55 @@
-FROM golang:1.24-alpine AS go-builder
-RUN set -eux; apk add --no-cache ca-certificates build-base;
-RUN apk upgrade --no-cache && apk add bash git make libgcc libc-dev gcc linux-headers eudev-dev jq curl
+# Simple usage with a mounted data directory:
+# > docker build -t simapp .
+#
+# Server:
+# > docker run -it -p 26657:26657 -p 26656:26656 -v ~/.simapp:/root/.simapp simapp simd init test-chain
+# TODO: need to set validator in genesis so start runs
+# > docker run -it -p 26657:26657 -p 26656:26656 -v ~/.simapp:/root/.simapp simapp simd start
+#
+# Client: (Note the simapp binary always looks at ~/.simapp we can bind to different local storage)
+# > docker run -it -p 26657:26657 -p 26656:26656 -v ~/.simappcli:/root/.simapp simapp simd keys add foo
+# > docker run -it -p 26657:26657 -p 26656:26656 -v ~/.simappcli:/root/.simapp simapp simd keys list
+#
+# This image is pushed to the GHCR as https://ghcr.io/cosmos/simapp
 
+FROM golang:1.25-alpine AS build-env
+
+# Install minimum necessary dependencies
+ENV PACKAGES curl make git libc-dev bash gcc linux-headers eudev-dev
+RUN apk add --no-cache $PACKAGES
+
+# Set working directory for the build
 WORKDIR /go/src/github.com/cosmos/cosmos-sdk
-COPY . /go/src/github.com/cosmos/cosmos-sdk/
 
-RUN LEDGER_ENABLED=false BUILD_TAGS=muslc make build
+# optimization: if go.sum didn't change, docker will use cached image
+COPY go.mod go.sum ./
+COPY collections/go.mod collections/go.sum ./collections/
+COPY store/go.mod store/go.sum ./store/
+COPY log/go.mod log/go.sum ./log/
 
+RUN go mod download
 
-# Final image
-FROM alpine:3.22
-WORKDIR /root
-COPY --from=go-builder /go/src/github.com/cosmos/cosmos-sdk/build/simd /usr/bin/simd
-RUN apk upgrade --no-cache && apk add bash git libgcc jq curl tzdata
+# Add source files
+COPY . .
 
-# Set timezone
-ENV TZ=Asia/Bangkok
+# Dockerfile Cross-Compilation Guide
+# https://www.docker.com/blog/faster-multi-platform-builds-dockerfile-cross-compilation-guide
+ARG TARGETOS TARGETARCH
 
-# RUN mkdir -p /root/.six
-COPY docker/* /opt/
-RUN chmod +x /opt/*.sh
+# install simapp, remove packages
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build
 
-WORKDIR /opt
+# Use alpine:3 as a base image
+FROM alpine:3
 
 EXPOSE 26656 26657 1317 9090
 # Run simd by default, omit entrypoint to ease using container with simcli
 CMD ["simd"]
+STOPSIGNAL SIGTERM
+WORKDIR /root
+
+# Install minimum necessary dependencies
+RUN apk add --no-cache curl make bash jq sed
+
+# Copy over binaries from the build-env
+COPY --from=build-env /go/src/github.com/cosmos/cosmos-sdk/build/simd /usr/bin/simd

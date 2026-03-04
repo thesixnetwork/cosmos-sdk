@@ -26,9 +26,9 @@ const (
 	Query_TotalSupply_FullMethodName                = "/cosmos.bank.v1beta1.Query/TotalSupply"
 	Query_SupplyOf_FullMethodName                   = "/cosmos.bank.v1beta1.Query/SupplyOf"
 	Query_Params_FullMethodName                     = "/cosmos.bank.v1beta1.Query/Params"
+	Query_DenomsMetadata_FullMethodName             = "/cosmos.bank.v1beta1.Query/DenomsMetadata"
 	Query_DenomMetadata_FullMethodName              = "/cosmos.bank.v1beta1.Query/DenomMetadata"
 	Query_DenomMetadataByQueryString_FullMethodName = "/cosmos.bank.v1beta1.Query/DenomMetadataByQueryString"
-	Query_DenomsMetadata_FullMethodName             = "/cosmos.bank.v1beta1.Query/DenomsMetadata"
 	Query_DenomOwners_FullMethodName                = "/cosmos.bank.v1beta1.Query/DenomOwners"
 	Query_DenomOwnersByQuery_FullMethodName         = "/cosmos.bank.v1beta1.Query/DenomOwnersByQuery"
 	Query_SendEnabled_FullMethodName                = "/cosmos.bank.v1beta1.Query/SendEnabled"
@@ -50,16 +50,12 @@ type QueryClient interface {
 	//
 	// When called from another module, this query might consume a high amount of
 	// gas if the pagination field is incorrectly set.
-	//
-	// Since: cosmos-sdk 0.46
 	SpendableBalances(ctx context.Context, in *QuerySpendableBalancesRequest, opts ...grpc.CallOption) (*QuerySpendableBalancesResponse, error)
 	// SpendableBalanceByDenom queries the spendable balance of a single denom for
 	// a single account.
 	//
 	// When called from another module, this query might consume a high amount of
 	// gas if the pagination field is incorrectly set.
-	//
-	// Since: cosmos-sdk 0.47
 	SpendableBalanceByDenom(ctx context.Context, in *QuerySpendableBalanceByDenomRequest, opts ...grpc.CallOption) (*QuerySpendableBalanceByDenomResponse, error)
 	// TotalSupply queries the total supply of all coins.
 	//
@@ -73,33 +69,27 @@ type QueryClient interface {
 	SupplyOf(ctx context.Context, in *QuerySupplyOfRequest, opts ...grpc.CallOption) (*QuerySupplyOfResponse, error)
 	// Params queries the parameters of x/bank module.
 	Params(ctx context.Context, in *QueryParamsRequest, opts ...grpc.CallOption) (*QueryParamsResponse, error)
+	// DenomsMetadata queries the client metadata for all registered coin
+	// denominations.
+	DenomsMetadata(ctx context.Context, in *QueryDenomsMetadataRequest, opts ...grpc.CallOption) (*QueryDenomsMetadataResponse, error)
 	// DenomMetadata queries the client metadata of a given coin denomination.
 	DenomMetadata(ctx context.Context, in *QueryDenomMetadataRequest, opts ...grpc.CallOption) (*QueryDenomMetadataResponse, error)
 	// DenomMetadataByQueryString queries the client metadata of a given coin denomination.
 	DenomMetadataByQueryString(ctx context.Context, in *QueryDenomMetadataByQueryStringRequest, opts ...grpc.CallOption) (*QueryDenomMetadataByQueryStringResponse, error)
-	// DenomsMetadata queries the client metadata for all registered coin
-	// denominations.
-	DenomsMetadata(ctx context.Context, in *QueryDenomsMetadataRequest, opts ...grpc.CallOption) (*QueryDenomsMetadataResponse, error)
 	// DenomOwners queries for all account addresses that own a particular token
 	// denomination.
 	//
 	// When called from another module, this query might consume a high amount of
 	// gas if the pagination field is incorrectly set.
-	//
-	// Since: cosmos-sdk 0.46
 	DenomOwners(ctx context.Context, in *QueryDenomOwnersRequest, opts ...grpc.CallOption) (*QueryDenomOwnersResponse, error)
 	// DenomOwnersByQuery queries for all account addresses that own a particular token
 	// denomination.
-	//
-	// Since: cosmos-sdk 0.50.3
 	DenomOwnersByQuery(ctx context.Context, in *QueryDenomOwnersByQueryRequest, opts ...grpc.CallOption) (*QueryDenomOwnersByQueryResponse, error)
 	// SendEnabled queries for SendEnabled entries.
 	//
 	// This query only returns denominations that have specific SendEnabled settings.
 	// Any denomination that does not have a specific setting will use the default
 	// params.default_send_enabled, and will not be returned by this query.
-	//
-	// Since: cosmos-sdk 0.47
 	SendEnabled(ctx context.Context, in *QuerySendEnabledRequest, opts ...grpc.CallOption) (*QuerySendEnabledResponse, error)
 }
 
@@ -174,6 +164,15 @@ func (c *queryClient) Params(ctx context.Context, in *QueryParamsRequest, opts .
 	return out, nil
 }
 
+func (c *queryClient) DenomsMetadata(ctx context.Context, in *QueryDenomsMetadataRequest, opts ...grpc.CallOption) (*QueryDenomsMetadataResponse, error) {
+	out := new(QueryDenomsMetadataResponse)
+	err := c.cc.Invoke(ctx, Query_DenomsMetadata_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *queryClient) DenomMetadata(ctx context.Context, in *QueryDenomMetadataRequest, opts ...grpc.CallOption) (*QueryDenomMetadataResponse, error) {
 	out := new(QueryDenomMetadataResponse)
 	err := c.cc.Invoke(ctx, Query_DenomMetadata_FullMethodName, in, out, opts...)
@@ -186,15 +185,6 @@ func (c *queryClient) DenomMetadata(ctx context.Context, in *QueryDenomMetadataR
 func (c *queryClient) DenomMetadataByQueryString(ctx context.Context, in *QueryDenomMetadataByQueryStringRequest, opts ...grpc.CallOption) (*QueryDenomMetadataByQueryStringResponse, error) {
 	out := new(QueryDenomMetadataByQueryStringResponse)
 	err := c.cc.Invoke(ctx, Query_DenomMetadataByQueryString_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *queryClient) DenomsMetadata(ctx context.Context, in *QueryDenomsMetadataRequest, opts ...grpc.CallOption) (*QueryDenomsMetadataResponse, error) {
-	out := new(QueryDenomsMetadataResponse)
-	err := c.cc.Invoke(ctx, Query_DenomsMetadata_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -244,16 +234,12 @@ type QueryServer interface {
 	//
 	// When called from another module, this query might consume a high amount of
 	// gas if the pagination field is incorrectly set.
-	//
-	// Since: cosmos-sdk 0.46
 	SpendableBalances(context.Context, *QuerySpendableBalancesRequest) (*QuerySpendableBalancesResponse, error)
 	// SpendableBalanceByDenom queries the spendable balance of a single denom for
 	// a single account.
 	//
 	// When called from another module, this query might consume a high amount of
 	// gas if the pagination field is incorrectly set.
-	//
-	// Since: cosmos-sdk 0.47
 	SpendableBalanceByDenom(context.Context, *QuerySpendableBalanceByDenomRequest) (*QuerySpendableBalanceByDenomResponse, error)
 	// TotalSupply queries the total supply of all coins.
 	//
@@ -267,33 +253,27 @@ type QueryServer interface {
 	SupplyOf(context.Context, *QuerySupplyOfRequest) (*QuerySupplyOfResponse, error)
 	// Params queries the parameters of x/bank module.
 	Params(context.Context, *QueryParamsRequest) (*QueryParamsResponse, error)
+	// DenomsMetadata queries the client metadata for all registered coin
+	// denominations.
+	DenomsMetadata(context.Context, *QueryDenomsMetadataRequest) (*QueryDenomsMetadataResponse, error)
 	// DenomMetadata queries the client metadata of a given coin denomination.
 	DenomMetadata(context.Context, *QueryDenomMetadataRequest) (*QueryDenomMetadataResponse, error)
 	// DenomMetadataByQueryString queries the client metadata of a given coin denomination.
 	DenomMetadataByQueryString(context.Context, *QueryDenomMetadataByQueryStringRequest) (*QueryDenomMetadataByQueryStringResponse, error)
-	// DenomsMetadata queries the client metadata for all registered coin
-	// denominations.
-	DenomsMetadata(context.Context, *QueryDenomsMetadataRequest) (*QueryDenomsMetadataResponse, error)
 	// DenomOwners queries for all account addresses that own a particular token
 	// denomination.
 	//
 	// When called from another module, this query might consume a high amount of
 	// gas if the pagination field is incorrectly set.
-	//
-	// Since: cosmos-sdk 0.46
 	DenomOwners(context.Context, *QueryDenomOwnersRequest) (*QueryDenomOwnersResponse, error)
 	// DenomOwnersByQuery queries for all account addresses that own a particular token
 	// denomination.
-	//
-	// Since: cosmos-sdk 0.50.3
 	DenomOwnersByQuery(context.Context, *QueryDenomOwnersByQueryRequest) (*QueryDenomOwnersByQueryResponse, error)
 	// SendEnabled queries for SendEnabled entries.
 	//
 	// This query only returns denominations that have specific SendEnabled settings.
 	// Any denomination that does not have a specific setting will use the default
 	// params.default_send_enabled, and will not be returned by this query.
-	//
-	// Since: cosmos-sdk 0.47
 	SendEnabled(context.Context, *QuerySendEnabledRequest) (*QuerySendEnabledResponse, error)
 	mustEmbedUnimplementedQueryServer()
 }
@@ -323,14 +303,14 @@ func (UnimplementedQueryServer) SupplyOf(context.Context, *QuerySupplyOfRequest)
 func (UnimplementedQueryServer) Params(context.Context, *QueryParamsRequest) (*QueryParamsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Params not implemented")
 }
+func (UnimplementedQueryServer) DenomsMetadata(context.Context, *QueryDenomsMetadataRequest) (*QueryDenomsMetadataResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DenomsMetadata not implemented")
+}
 func (UnimplementedQueryServer) DenomMetadata(context.Context, *QueryDenomMetadataRequest) (*QueryDenomMetadataResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DenomMetadata not implemented")
 }
 func (UnimplementedQueryServer) DenomMetadataByQueryString(context.Context, *QueryDenomMetadataByQueryStringRequest) (*QueryDenomMetadataByQueryStringResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DenomMetadataByQueryString not implemented")
-}
-func (UnimplementedQueryServer) DenomsMetadata(context.Context, *QueryDenomsMetadataRequest) (*QueryDenomsMetadataResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DenomsMetadata not implemented")
 }
 func (UnimplementedQueryServer) DenomOwners(context.Context, *QueryDenomOwnersRequest) (*QueryDenomOwnersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DenomOwners not implemented")
@@ -480,6 +460,24 @@ func _Query_Params_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Query_DenomsMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryDenomsMetadataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).DenomsMetadata(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Query_DenomsMetadata_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).DenomsMetadata(ctx, req.(*QueryDenomsMetadataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Query_DenomMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(QueryDenomMetadataRequest)
 	if err := dec(in); err != nil {
@@ -512,24 +510,6 @@ func _Query_DenomMetadataByQueryString_Handler(srv interface{}, ctx context.Cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(QueryServer).DenomMetadataByQueryString(ctx, req.(*QueryDenomMetadataByQueryStringRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Query_DenomsMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(QueryDenomsMetadataRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(QueryServer).DenomsMetadata(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Query_DenomsMetadata_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(QueryServer).DenomsMetadata(ctx, req.(*QueryDenomsMetadataRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -624,16 +604,16 @@ var Query_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Query_Params_Handler,
 		},
 		{
+			MethodName: "DenomsMetadata",
+			Handler:    _Query_DenomsMetadata_Handler,
+		},
+		{
 			MethodName: "DenomMetadata",
 			Handler:    _Query_DenomMetadata_Handler,
 		},
 		{
 			MethodName: "DenomMetadataByQueryString",
 			Handler:    _Query_DenomMetadataByQueryString_Handler,
-		},
-		{
-			MethodName: "DenomsMetadata",
-			Handler:    _Query_DenomsMetadata_Handler,
 		},
 		{
 			MethodName: "DenomOwners",
