@@ -708,6 +708,7 @@ func CreateValidatorMsgFlagSet(ipDefault string) (fs *flag.FlagSet, defaultsDesc
 	fsCreateValidator.AddFlagSet(FlagDelegationIncrementCreate())
 	fsCreateValidator.AddFlagSet(FlagValidatorModeCreate())
 	fsCreateValidator.AddFlagSet(FlagEnableRedelegationCreate())
+	fsCreateValidator.AddFlagSet(FlagSetApprover())
 
 	defaultsDesc = fmt.Sprintf(`
 	delegation amount:           %s
@@ -735,6 +736,7 @@ type TxCreateValidatorConfig struct {
 	MinSelfDelegation       string
 	MinDelegation           string
 	DelegationIncrement     string
+	ApproverAddress         string
 
 	ValidatorMode      types.ValidatorMode
 	MaxLicense         string
@@ -879,6 +881,11 @@ func PrepareConfigForTxCreateValidator(flagSet *flag.FlagSet, moniker, nodeID, c
 		return c, err
 	}
 
+	c.ApproverAddress, err = flagSet.GetString(FlagAddressApprover)
+	if err != nil {
+		return c, err
+	}
+
 	return c, nil
 }
 
@@ -923,7 +930,7 @@ func BuildCreateValidatorMsg(clientCtx client.Context, config TxCreateValidatorC
 
 	msg, err := types.NewMsgCreateValidator(
 		valStr,
-		"",
+		config.ApproverAddress,
 		config.PubKey,
 		amount,
 		description,
