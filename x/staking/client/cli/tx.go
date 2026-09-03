@@ -319,7 +319,7 @@ func NewEditValidatorCmd(ac address.Codec) *cobra.Command {
 			if commissionRate != "" {
 				rate, err := math.LegacyNewDecFromStr(commissionRate)
 				if err != nil {
-					return fmt.Errorf("invalid new commission rate: %v", err)
+					return fmt.Errorf("invalid new commission rate: %w", err)
 				}
 
 				newRate = &rate

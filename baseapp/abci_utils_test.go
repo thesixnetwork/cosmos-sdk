@@ -13,9 +13,9 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	protoio "github.com/cosmos/gogoproto/io"
 	"github.com/cosmos/gogoproto/proto"
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/mock/gomock"
 
 	"cosmossdk.io/log"
 
@@ -350,6 +350,9 @@ func (s *ABCIUtilsTestSuite) TestDefaultProposalHandler_NoOpMempoolTxSelection()
 	s.Require().NoError(err)
 	s.Require().Len(txBz, 152)
 
+	txDataSize := int(cmttypes.ComputeProtoSizeForTxs([]cmttypes.Tx{txBz}))
+	s.Require().Equal(txDataSize, 155)
+
 	testCases := map[string]struct {
 		ctx         sdk.Context
 		req         *abci.RequestPrepareProposal
@@ -371,7 +374,7 @@ func (s *ABCIUtilsTestSuite) TestDefaultProposalHandler_NoOpMempoolTxSelection()
 			}),
 			req: &abci.RequestPrepareProposal{
 				Txs:        [][]byte{txBz, txBz, txBz, txBz, txBz},
-				MaxTxBytes: 456,
+				MaxTxBytes: 465,
 			},
 			expectedTxs: 0,
 		},
@@ -379,9 +382,17 @@ func (s *ABCIUtilsTestSuite) TestDefaultProposalHandler_NoOpMempoolTxSelection()
 			ctx: s.ctx,
 			req: &abci.RequestPrepareProposal{
 				Txs:        [][]byte{txBz, txBz, txBz, txBz, txBz},
-				MaxTxBytes: 456,
+				MaxTxBytes: 465,
 			},
 			expectedTxs: 3,
+		},
+		"large max tx bytes len calculation": {
+			ctx: s.ctx,
+			req: &abci.RequestPrepareProposal{
+				Txs:        [][]byte{txBz, txBz, txBz, txBz, txBz},
+				MaxTxBytes: 456,
+			},
+			expectedTxs: 2,
 		},
 		"max gas and tx bytes": {
 			ctx: s.ctx.WithConsensusParams(cmtproto.ConsensusParams{
@@ -391,7 +402,7 @@ func (s *ABCIUtilsTestSuite) TestDefaultProposalHandler_NoOpMempoolTxSelection()
 			}),
 			req: &abci.RequestPrepareProposal{
 				Txs:        [][]byte{txBz, txBz, txBz, txBz, txBz},
-				MaxTxBytes: 456,
+				MaxTxBytes: 465,
 			},
 			expectedTxs: 2,
 		},
@@ -400,7 +411,7 @@ func (s *ABCIUtilsTestSuite) TestDefaultProposalHandler_NoOpMempoolTxSelection()
 	for name, tc := range testCases {
 		s.Run(name, func() {
 			// iterate multiple times to ensure the tx selector is cleared each time
-			for i := 0; i < 5; i++ {
+			for range 6 {
 				resp, err := handler(tc.ctx, tc.req)
 				s.Require().NoError(err)
 				s.Require().Len(resp.Txs, tc.expectedTxs)
