@@ -118,13 +118,6 @@ func (msg MsgCreateValidator) Validate(ac address.Codec) error {
 				"max license must be a positive integer",
 			)
 		}
-
-		if msg.EnableRedelegation {
-			return errorsmod.Wrap(
-				sdkerrors.ErrInvalidRequest,
-				"When license mode is used, redelegation must be disabled",
-			)
-		}
 	}
 
 	if msg.Value.Amount.LT(msg.MinSelfDelegation) {

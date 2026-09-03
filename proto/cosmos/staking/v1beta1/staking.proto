@@ -89,6 +89,19 @@ enum ValidatorMode {
   MODE_FAST = 2;
 }
 
+// RedelegationUpdate is an optional tri-state change of a validator's
+// enable_redelegation flag used by MsgEditValidator. The zero value means
+// "leave the flag unchanged" so that edit transactions which do not care
+// about redelegation cannot accidentally flip it.
+enum RedelegationUpdate {
+  // leave enable_redelegation unchanged.
+  REDELEGATION_UPDATE_UNSPECIFIED = 0;
+  // set enable_redelegation to true (rejected for license mode validators).
+  REDELEGATION_UPDATE_ENABLE = 1;
+  // set enable_redelegation to false.
+  REDELEGATION_UPDATE_DISABLE = 2;
+}
+
 // Validator defines a validator, together with the total amount of the
 // Validator's bond shares and their exchange rate to coins. Slashing results in
 // a decrease in the exchange rate, allowing correct calculation of future

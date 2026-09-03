@@ -23,6 +23,14 @@ func (k msgServer) CreateWhitelistdelegator(goCtx context.Context, msg *types.Ms
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid delegator address (%s)", err)
 	}
 
+	creator, err := sdk.AccAddressFromBech32(msg.Creator)
+	if err != nil {
+		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid creator address (%s)", err)
+	}
+	if !creator.Equals(sdk.AccAddress(valAddr)) {
+		return nil, errorsmod.Wrapf(sdkerrors.ErrUnauthorized, "only the validator operator can modify its delegator whitelist")
+	}
+
 	whitelist, err := k.GetWhitelistDelegator(ctx, valAddr)
 	if errors.Is(err, types.ErrNoWhiltelistFound) {
 		whitelist = types.WhitelistDelegator{
@@ -79,6 +87,14 @@ func (k msgServer) DeleteWhitelistdelegator(goCtx context.Context, msg *types.Ms
 	_, err = sdk.AccAddressFromBech32(msg.DelegatorAddress)
 	if err != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid delegator address (%s)", err)
+	}
+
+	creator, err := sdk.AccAddressFromBech32(msg.Creator)
+	if err != nil {
+		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid creator address (%s)", err)
+	}
+	if !creator.Equals(sdk.AccAddress(validatorAddr)) {
+		return nil, errorsmod.Wrapf(sdkerrors.ErrUnauthorized, "only the validator operator can modify its delegator whitelist")
 	}
 
 	whitelist, err := k.DelDelegatorFromWhitelist(ctx, validatorAddr, msg.DelegatorAddress)

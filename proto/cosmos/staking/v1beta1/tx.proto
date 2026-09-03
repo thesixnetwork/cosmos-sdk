@@ -137,6 +137,9 @@ message MsgEditValidator {
       [(cosmos_proto.scalar) = "cosmos.Int", (gogoproto.customtype) = "cosmossdk.io/math.Int"];
   string max_license = 5 [(cosmos_proto.scalar) = "cosmos.Int", (gogoproto.customtype) = "cosmossdk.io/math.Int"];
   ValidatorMode mode = 6;
+  // enable_redelegation optionally updates the validator's enable_redelegation
+  // flag. When unspecified the stored flag is kept as-is.
+  RedelegationUpdate enable_redelegation = 7;
 }
 
 // MsgEditValidatorResponse defines the Msg/EditValidator response type.

@@ -113,7 +113,7 @@ func NewValidatorLicenseMode(operator string, pubKey cryptotypes.PubKey, descrip
 		MinDelegation:           minDelegation,
 		DelegationIncrement:     delegationIncrement,
 		MaxLicense:              maxLicense,
-		LicenseCount:            math.Int{},
+		LicenseCount:            math.ZeroInt(),
 		Mode:                    1,
 		EnableRedelegation:      false,
 		UnbondingIds:            []uint64{},

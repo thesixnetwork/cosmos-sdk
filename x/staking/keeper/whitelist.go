@@ -46,7 +46,7 @@ func (k Keeper) GetWhitelistDelegator(
 }
 
 // RemoveWhitelistDelegator removes a whitelistDelegator from the store
-func (k Keeper) _(ctx sdk.Context, validator sdk.ValAddress) {
+func (k Keeper) RemoveWhitelistDelegator(ctx sdk.Context, validator sdk.ValAddress) {
 	store := k.storeService.OpenKVStore(ctx)
 	store.Delete(types.WhitelistDelegatorKey(
 		validator,

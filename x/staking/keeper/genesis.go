@@ -42,6 +42,10 @@ func (k Keeper) InitGenesis(ctx context.Context, data *types.GenesisState) (res 
 		panic(err)
 	}
 
+	for _, whitelistDelegator := range data.WhitelistDelegators {
+		k.SetWhitelistDelegator(sdkCtx, whitelistDelegator)
+	}
+
 
 	for _, validator := range data.Validators {
 		if err := k.SetValidator(ctx, validator); err != nil {
@@ -271,14 +275,28 @@ func (k Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
 		panic(err)
 	}
 
+	// the approval state may be absent on chains that never initialized it;
+	// export the zero value (approval disabled) in that case
+	validatorApproval, err := k.GetValidatorApproval(ctx)
+	if err != nil {
+		validatorApproval = types.ValidatorApproval{}
+	}
+
+	whitelistDelegators, err := k.GetAllWhitelistDelegator(ctx)
+	if err != nil {
+		panic(err)
+	}
+
 	return &types.GenesisState{
 		Params:               params,
 		LastTotalPower:       totalPower,
 		LastValidatorPowers:  lastValidatorPowers,
+		ValidatorApproval:    validatorApproval,
 		Validators:           allValidators,
 		Delegations:          allDelegations,
 		UnbondingDelegations: unbondingDelegations,
 		Redelegations:        redelegations,
 		Exported:             true,
+		WhitelistDelegators:  whitelistDelegators,
 	}
 }

@@ -647,14 +647,27 @@ func (s *KeeperTestSuite) TestMsgDelegateLicenseMode() {
 			expErrMsg: "invalid coin denomination",
 		},
 		{
+			// a delegator without an existing delegation must meet MinDelegation
 			name: "invalid minimun increment amount msg",
+			input: &stakingtypes.MsgDelegate{
+				DelegatorAddress: sdk.AccAddress([]byte("fresh_delegator")).String(),
+				ValidatorAddress: ValAddr.String(),
+				Amount:           sdk.Coin{Denom: sdk.DefaultBondDenom, Amount: keeper.TokensFromConsensusPower(s.ctx, int64(101))},
+			},
+			expErr:    true,
+			expErrMsg: "delegation amount less than minimum",
+		},
+		{
+			// Addr already holds the self-delegation, so the minimum is skipped
+			// and the amount must be a multiple of DelegationIncrement
+			name: "invalid increment for existing delegation",
 			input: &stakingtypes.MsgDelegate{
 				DelegatorAddress: Addr.String(),
 				ValidatorAddress: ValAddr.String(),
 				Amount:           sdk.Coin{Denom: sdk.DefaultBondDenom, Amount: keeper.TokensFromConsensusPower(s.ctx, int64(101))},
 			},
 			expErr:    true,
-			expErrMsg: "delegation amount less than minimum",
+			expErrMsg: "delegation amount must meet increment condition",
 		},
 		{
 			name: "valid msg - small delegation",
@@ -883,6 +896,173 @@ func (s *KeeperTestSuite) TestMsgBeginRedelegate() {
 			}
 		})
 	}
+}
+
+func (s *KeeperTestSuite) TestMsgBeginRedelegateLicenseMode() {
+	ctx, keeper, msgServer := s.ctx, s.stakingKeeper, s.msgServer
+	require := s.Require()
+	s.execExpectCalls()
+
+	srcIncrement := math.NewInt(10000000000)
+	dstIncrement := math.NewInt(20000000000)
+
+	srcValAddr := ValAddr
+	dstAccAddr := sdk.AccAddress(PKS[1].Address())
+	dstValAddr := sdk.ValAddress(dstAccAddr)
+	fastAccAddr := sdk.AccAddress(PKS[2].Address())
+	fastValAddr := sdk.ValAddress(fastAccAddr)
+
+	srcPk := ed25519.GenPrivKey().PubKey()
+	dstPk := ed25519.GenPrivKey().PubKey()
+	fastPk := ed25519.GenPrivKey().PubKey()
+
+	keeper.SetNewValidatorApprovalState(ctx, stakingtypes.ValidatorApproval{ApproverAddress: srcPk.Address().String(), Enabled: false})
+	s.bankKeeper.EXPECT().DelegateCoinsFromAccountToModule(gomock.Any(), dstAccAddr, stakingtypes.NotBondedPoolName, gomock.Any()).AnyTimes()
+	s.bankKeeper.EXPECT().DelegateCoinsFromAccountToModule(gomock.Any(), fastAccAddr, stakingtypes.NotBondedPoolName, gomock.Any()).AnyTimes()
+
+	comm := stakingtypes.NewCommissionRates(math.LegacyNewDec(0), math.LegacyNewDec(0), math.LegacyNewDec(0))
+	selfBond := sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(500000000000))
+
+	// source: license validator, self-bond of 50 increments = 50 licenses,
+	// created with redelegation disabled so the edit path is exercised below
+	msg, err := stakingtypes.NewMsgCreateValidator(srcValAddr.String(), srcPk.Address().String(), srcPk, selfBond, stakingtypes.Description{Moniker: "SrcVal"}, comm, srcIncrement)
+	require.NoError(err)
+	msg.Mode = stakingtypes.ValidatorMode_MODE_LICENSE
+	msg.EnableRedelegation = false
+	msg.DelegationIncrement = srcIncrement
+	msg.MinDelegation = srcIncrement
+	msg.MaxLicense = math.NewInt(150)
+	_, err = msgServer.CreateValidator(ctx, msg)
+	require.NoError(err)
+
+	// destination: license validator with a bigger increment, self-bond of
+	// 25 increments = 25 licenses, MaxLicense 26 leaves room for exactly one more
+	msg, err = stakingtypes.NewMsgCreateValidator(dstValAddr.String(), dstPk.Address().String(), dstPk, selfBond, stakingtypes.Description{Moniker: "DstVal"}, comm, dstIncrement)
+	require.NoError(err)
+	msg.Mode = stakingtypes.ValidatorMode_MODE_LICENSE
+	msg.EnableRedelegation = true
+	msg.DelegationIncrement = dstIncrement
+	msg.MinDelegation = dstIncrement
+	msg.MaxLicense = math.NewInt(26)
+	_, err = msgServer.CreateValidator(ctx, msg)
+	require.NoError(err)
+
+	// fast validator destination, only whitelisted delegators may enter
+	msg, err = stakingtypes.NewMsgCreateValidator(fastValAddr.String(), fastPk.Address().String(), fastPk, selfBond, stakingtypes.Description{Moniker: "FastVal"}, comm, math.OneInt())
+	require.NoError(err)
+	msg.Mode = stakingtypes.ValidatorMode_MODE_FAST
+	msg.EnableRedelegation = true
+	_, err = msgServer.CreateValidator(ctx, msg)
+	require.NoError(err)
+
+	// enable redelegation on the license validator via edit-validator
+	_, err = msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
+		ValidatorAddress:   srcValAddr.String(),
+		Description:        stakingtypes.Description{Moniker: "SrcVal"},
+		EnableRedelegation: stakingtypes.RedelegationUpdate_REDELEGATION_UPDATE_ENABLE,
+	})
+	require.NoError(err)
+	srcVal, err := keeper.GetValidator(ctx, srcValAddr)
+	require.NoError(err)
+	require.True(srcVal.EnableRedelegation)
+	require.Equal(math.NewInt(50), srcVal.LicenseCount)
+
+	testCases := []struct {
+		name      string
+		input     *stakingtypes.MsgBeginRedelegate
+		expErr    bool
+		expErrMsg string
+	}{
+		{
+			name: "amount not a multiple of source increment",
+			input: &stakingtypes.MsgBeginRedelegate{
+				DelegatorAddress:    Addr.String(),
+				ValidatorSrcAddress: srcValAddr.String(),
+				ValidatorDstAddress: dstValAddr.String(),
+				Amount:              sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(15000000000)),
+			},
+			expErr:    true,
+			expErrMsg: "delegation amount must meet increment condition",
+		},
+		{
+			name: "below destination minimum for new delegation",
+			input: &stakingtypes.MsgBeginRedelegate{
+				DelegatorAddress:    Addr.String(),
+				ValidatorSrcAddress: srcValAddr.String(),
+				ValidatorDstAddress: dstValAddr.String(),
+				Amount:              sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(10000000000)),
+			},
+			expErr:    true,
+			expErrMsg: "delegation amount less than minimum",
+		},
+		{
+			name: "valid license to license redelegation",
+			input: &stakingtypes.MsgBeginRedelegate{
+				DelegatorAddress:    Addr.String(),
+				ValidatorSrcAddress: srcValAddr.String(),
+				ValidatorDstAddress: dstValAddr.String(),
+				Amount:              sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(20000000000)),
+			},
+			expErr: false,
+		},
+		{
+			name: "destination reached max license",
+			input: &stakingtypes.MsgBeginRedelegate{
+				DelegatorAddress:    Addr.String(),
+				ValidatorSrcAddress: srcValAddr.String(),
+				ValidatorDstAddress: dstValAddr.String(),
+				Amount:              sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(20000000000)),
+			},
+			expErr:    true,
+			expErrMsg: "license limit has reached",
+		},
+		{
+			name: "fast destination rejects non-whitelisted delegator",
+			input: &stakingtypes.MsgBeginRedelegate{
+				DelegatorAddress:    Addr.String(),
+				ValidatorSrcAddress: srcValAddr.String(),
+				ValidatorDstAddress: fastValAddr.String(),
+				Amount:              sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(10000000000)),
+			},
+			expErr:    true,
+			expErrMsg: "Cannot find delegator in whitelist",
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		s.T().Run(tc.name, func(t *testing.T) {
+			_, err := msgServer.BeginRedelegate(ctx, tc.input)
+			if tc.expErr {
+				require.Error(err)
+				require.Contains(err.Error(), tc.expErrMsg)
+			} else {
+				require.NoError(err)
+			}
+		})
+	}
+
+	// whitelisting the delegator makes the fast-mode redelegation pass
+	keeper.SetWhitelistDelegator(ctx, stakingtypes.WhitelistDelegator{
+		ValidatorAddress: fastValAddr.String(),
+		DelegatorAddress: []string{Addr.String()},
+	})
+	_, err = msgServer.BeginRedelegate(ctx, &stakingtypes.MsgBeginRedelegate{
+		DelegatorAddress:    Addr.String(),
+		ValidatorSrcAddress: srcValAddr.String(),
+		ValidatorDstAddress: fastValAddr.String(),
+		Amount:              sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(10000000000)),
+	})
+	require.NoError(err)
+
+	// license counts moved with the stake: source released 2 + 1 increments,
+	// destination claimed 1 (20000000000 / dstIncrement)
+	srcVal, err = keeper.GetValidator(ctx, srcValAddr)
+	require.NoError(err)
+	require.Equal(math.NewInt(47), srcVal.LicenseCount)
+	dstVal, err := keeper.GetValidator(ctx, dstValAddr)
+	require.NoError(err)
+	require.Equal(math.NewInt(26), dstVal.LicenseCount)
 }
 
 func (s *KeeperTestSuite) TestMsgUndelegate() {
@@ -1315,4 +1495,594 @@ func (s *KeeperTestSuite) TestMsgUpdateParams() {
 			}
 		})
 	}
+}
+
+func (s *KeeperTestSuite) TestMsgSetValidatorApproval() {
+	ctx, keeper, msgServer := s.ctx, s.stakingKeeper, s.msgServer
+	require := s.Require()
+
+	approver := Addr
+	newApprover := sdk.AccAddress(PKS[1].Address())
+
+	// the approval state is only written by InitGenesis; before it exists the
+	// message must fail instead of silently creating one
+	_, err := keeper.GetValidatorApproval(ctx)
+	require.ErrorIs(err, stakingtypes.ErrNoValidatorFound)
+	_, err = msgServer.SetValidatorApproval(ctx, &stakingtypes.MsgSetValidatorApproval{
+		ApproverAddress:    approver.String(),
+		NewApproverAddress: newApprover.String(),
+		Enabled:            true,
+	})
+	require.Error(err)
+	require.Contains(err.Error(), "Validator approval is somehow does not existed")
+
+	require.NoError(keeper.SetNewValidatorApprovalState(ctx, stakingtypes.ValidatorApproval{
+		ApproverAddress: approver.String(),
+		Enabled:         true,
+	}))
+
+	testCases := []struct {
+		name      string
+		input     *stakingtypes.MsgSetValidatorApproval
+		expErr    bool
+		expErrMsg string
+	}{
+		{
+			name: "sender is not the current approver",
+			input: &stakingtypes.MsgSetValidatorApproval{
+				ApproverAddress:    newApprover.String(),
+				NewApproverAddress: newApprover.String(),
+				Enabled:            true,
+			},
+			expErr:    true,
+			expErrMsg: "Msg sender is not current approver",
+		},
+		{
+			name: "invalid new approver address",
+			input: &stakingtypes.MsgSetValidatorApproval{
+				ApproverAddress:    approver.String(),
+				NewApproverAddress: "invalid",
+				Enabled:            true,
+			},
+			expErr:    true,
+			expErrMsg: "Invalid new approver address",
+		},
+		{
+			name: "valid handover to new approver",
+			input: &stakingtypes.MsgSetValidatorApproval{
+				ApproverAddress:    approver.String(),
+				NewApproverAddress: newApprover.String(),
+				Enabled:            false,
+			},
+			expErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		s.T().Run(tc.name, func(t *testing.T) {
+			_, err := msgServer.SetValidatorApproval(ctx, tc.input)
+			if tc.expErr {
+				require.Error(err)
+				require.Contains(err.Error(), tc.expErrMsg)
+			} else {
+				require.NoError(err)
+			}
+		})
+	}
+
+	approval, err := keeper.GetValidatorApproval(ctx)
+	require.NoError(err)
+	require.Equal(newApprover.String(), approval.ApproverAddress)
+	require.False(approval.Enabled)
+
+	// the previous approver lost control with the handover
+	_, err = msgServer.SetValidatorApproval(ctx, &stakingtypes.MsgSetValidatorApproval{
+		ApproverAddress:    approver.String(),
+		NewApproverAddress: approver.String(),
+		Enabled:            true,
+	})
+	require.Error(err)
+	require.Contains(err.Error(), "Msg sender is not current approver")
+}
+
+func (s *KeeperTestSuite) TestMsgCreateValidatorApproval() {
+	ctx, keeper, msgServer := s.ctx, s.stakingKeeper, s.msgServer
+	require := s.Require()
+	s.execExpectCalls()
+
+	approver := sdk.AccAddress(PKS[1].Address())
+	comm := stakingtypes.NewCommissionRates(math.LegacyNewDec(0), math.LegacyNewDec(0), math.LegacyNewDec(0))
+	selfBond := sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(10000))
+
+	require.NoError(keeper.SetNewValidatorApprovalState(ctx, stakingtypes.ValidatorApproval{
+		ApproverAddress: approver.String(),
+		Enabled:         true,
+	}))
+
+	// while approval is enabled, a message naming the wrong approver is rejected
+	pk := ed25519.GenPrivKey().PubKey()
+	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), Addr.String(), pk, selfBond, stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt())
+	require.NoError(err)
+	_, err = msgServer.CreateValidator(ctx, msg)
+	require.Error(err)
+	require.Contains(err.Error(), "Wrong approver for create validator")
+
+	// the configured approver address passes the gate
+	msg, err = stakingtypes.NewMsgCreateValidator(ValAddr.String(), approver.String(), pk, selfBond, stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt())
+	require.NoError(err)
+	_, err = msgServer.CreateValidator(ctx, msg)
+	require.NoError(err)
+
+	// with approval disabled the approver field is not checked at all
+	require.NoError(keeper.SetNewValidatorApprovalState(ctx, stakingtypes.ValidatorApproval{
+		ApproverAddress: approver.String(),
+		Enabled:         false,
+	}))
+	otherAddr := sdk.AccAddress(PKS[2].Address())
+	s.bankKeeper.EXPECT().DelegateCoinsFromAccountToModule(gomock.Any(), otherAddr, stakingtypes.NotBondedPoolName, gomock.Any()).AnyTimes()
+	otherPk := ed25519.GenPrivKey().PubKey()
+	msg, err = stakingtypes.NewMsgCreateValidator(sdk.ValAddress(otherAddr).String(), Addr.String(), otherPk, selfBond, stakingtypes.Description{Moniker: "OtherVal"}, comm, math.OneInt())
+	require.NoError(err)
+	_, err = msgServer.CreateValidator(ctx, msg)
+	require.NoError(err)
+}
+
+func (s *KeeperTestSuite) TestMsgCreateValidatorLicenseMode() {
+	ctx, keeper, msgServer := s.ctx, s.stakingKeeper, s.msgServer
+	require := s.Require()
+	s.execExpectCalls()
+
+	increment := math.NewInt(10000000000)
+	pk := ed25519.GenPrivKey().PubKey()
+	comm := stakingtypes.NewCommissionRates(math.LegacyNewDec(0), math.LegacyNewDec(0), math.LegacyNewDec(0))
+	require.NoError(keeper.SetNewValidatorApprovalState(ctx, stakingtypes.ValidatorApproval{ApproverAddress: pk.Address().String(), Enabled: false}))
+
+	// baseline license-mode msg; each case mutates a copy of it
+	newLicenseMsg := func() *stakingtypes.MsgCreateValidator {
+		msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), pk.Address().String(), pk, sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(500000000000)), stakingtypes.Description{Moniker: "LicenseVal"}, comm, math.OneInt())
+		require.NoError(err)
+		msg.Mode = stakingtypes.ValidatorMode_MODE_LICENSE
+		msg.DelegationIncrement = increment
+		msg.MinDelegation = increment
+		msg.MaxLicense = math.NewInt(150)
+		msg.EnableRedelegation = true
+		return msg
+	}
+
+	testCases := []struct {
+		name      string
+		mutate    func(*stakingtypes.MsgCreateValidator)
+		expErr    bool
+		expErrMsg string
+	}{
+		{
+			name:      "missing max license",
+			mutate:    func(msg *stakingtypes.MsgCreateValidator) { msg.MaxLicense = math.Int{} },
+			expErr:    true,
+			expErrMsg: "max license is required when license mode is used",
+		},
+		{
+			name:      "non-positive max license",
+			mutate:    func(msg *stakingtypes.MsgCreateValidator) { msg.MaxLicense = math.NewInt(0) },
+			expErr:    true,
+			expErrMsg: "max license must be a positive integer",
+		},
+		{
+			name: "missing delegation increment",
+			mutate: func(msg *stakingtypes.MsgCreateValidator) {
+				msg.DelegationIncrement = math.Int{}
+				msg.MinDelegation = math.Int{}
+			},
+			expErr:    true,
+			expErrMsg: "Min Delegation and DelegationIncrement must be defined and the same",
+		},
+		{
+			name: "min delegation differs from increment",
+			mutate: func(msg *stakingtypes.MsgCreateValidator) {
+				msg.MinDelegation = math.NewInt(20000000000)
+			},
+			expErr:    true,
+			expErrMsg: "Min Delegation and DelegationIncrement must be defined and the same",
+		},
+		{
+			name: "self bond not a multiple of increment",
+			mutate: func(msg *stakingtypes.MsgCreateValidator) {
+				msg.Value = sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(500000000005))
+			},
+			expErr:    true,
+			expErrMsg: "delegation amount must meet increment condition",
+		},
+		{
+			name: "self bond exceeds max license",
+			mutate: func(msg *stakingtypes.MsgCreateValidator) {
+				msg.Value = sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(1510000000000))
+			},
+			expErr:    true,
+			expErrMsg: "There is no license enough for the delegation",
+		},
+		{
+			name:   "valid license validator",
+			mutate: func(msg *stakingtypes.MsgCreateValidator) {},
+			expErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		s.T().Run(tc.name, func(t *testing.T) {
+			msg := newLicenseMsg()
+			tc.mutate(msg)
+			_, err := msgServer.CreateValidator(ctx, msg)
+			if tc.expErr {
+				require.Error(err)
+				require.Contains(err.Error(), tc.expErrMsg)
+			} else {
+				require.NoError(err)
+			}
+		})
+	}
+
+	// the created validator carries the license bookkeeping from the msg
+	validator, err := keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(stakingtypes.ValidatorMode_MODE_LICENSE, validator.Mode)
+	require.Equal(math.NewInt(50), validator.LicenseCount)
+	require.Equal(math.NewInt(150), validator.MaxLicense)
+	require.Equal(increment, validator.MinDelegation)
+	require.Equal(increment, validator.DelegationIncrement)
+	require.True(validator.EnableRedelegation)
+
+	// MinDelegation left empty defaults to DelegationIncrement
+	otherAddr := sdk.AccAddress(PKS[1].Address())
+	s.bankKeeper.EXPECT().DelegateCoinsFromAccountToModule(gomock.Any(), otherAddr, stakingtypes.NotBondedPoolName, gomock.Any()).AnyTimes()
+	otherPk := ed25519.GenPrivKey().PubKey()
+	msg, err := stakingtypes.NewMsgCreateValidator(sdk.ValAddress(otherAddr).String(), pk.Address().String(), otherPk, sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(500000000000)), stakingtypes.Description{Moniker: "LicenseVal2"}, comm, math.OneInt())
+	require.NoError(err)
+	msg.Mode = stakingtypes.ValidatorMode_MODE_LICENSE
+	msg.DelegationIncrement = increment
+	msg.MaxLicense = math.NewInt(150)
+	_, err = msgServer.CreateValidator(ctx, msg)
+	require.NoError(err)
+	validator, err = keeper.GetValidator(ctx, sdk.ValAddress(otherAddr))
+	require.NoError(err)
+	require.Equal(increment, validator.MinDelegation)
+}
+
+func (s *KeeperTestSuite) TestMsgEditValidatorLicenseMode() {
+	ctx, keeper, msgServer := s.ctx, s.stakingKeeper, s.msgServer
+	require := s.Require()
+	s.execExpectCalls()
+
+	increment := math.NewInt(10000000000)
+	pk := ed25519.GenPrivKey().PubKey()
+	comm := stakingtypes.NewCommissionRates(math.LegacyNewDec(0), math.LegacyNewDec(0), math.LegacyNewDec(0))
+	require.NoError(keeper.SetNewValidatorApprovalState(ctx, stakingtypes.ValidatorApproval{ApproverAddress: pk.Address().String(), Enabled: false}))
+
+	// license validator with 50 licenses in use, cap 150
+	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), pk.Address().String(), pk, sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(500000000000)), stakingtypes.Description{Moniker: "LicenseVal"}, comm, math.OneInt())
+	require.NoError(err)
+	msg.Mode = stakingtypes.ValidatorMode_MODE_LICENSE
+	msg.DelegationIncrement = increment
+	msg.MinDelegation = increment
+	msg.MaxLicense = math.NewInt(150)
+	_, err = msgServer.CreateValidator(ctx, msg)
+	require.NoError(err)
+
+	// plain normal-mode validator without a delegation increment
+	normalAccAddr := sdk.AccAddress(PKS[1].Address())
+	normalValAddr := sdk.ValAddress(normalAccAddr)
+	s.bankKeeper.EXPECT().DelegateCoinsFromAccountToModule(gomock.Any(), normalAccAddr, stakingtypes.NotBondedPoolName, gomock.Any()).AnyTimes()
+	normalPk := ed25519.GenPrivKey().PubKey()
+	msg, err = stakingtypes.NewMsgCreateValidator(normalValAddr.String(), pk.Address().String(), normalPk, sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(10000)), stakingtypes.Description{Moniker: "NormalVal"}, comm, math.OneInt())
+	require.NoError(err)
+	_, err = msgServer.CreateValidator(ctx, msg)
+	require.NoError(err)
+
+	desc := stakingtypes.Description{Moniker: "LicenseVal"}
+	lowerMax := math.NewInt(100)
+	higherMax := math.NewInt(200)
+
+	// the owner cannot shrink MaxLicense below the current one
+	_, err = msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
+		ValidatorAddress: ValAddr.String(),
+		Description:      desc,
+		Mode:             stakingtypes.ValidatorMode_MODE_LICENSE,
+		MaxLicense:       &lowerMax,
+	})
+	require.Error(err)
+	require.Contains(err.Error(), "max license must be greater than or equal to the existing one")
+
+	// raising MaxLicense is allowed and license usage is recomputed
+	_, err = msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
+		ValidatorAddress: ValAddr.String(),
+		Description:      desc,
+		Mode:             stakingtypes.ValidatorMode_MODE_LICENSE,
+		MaxLicense:       &higherMax,
+	})
+	require.NoError(err)
+	validator, err := keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(higherMax, validator.MaxLicense)
+	require.Equal(math.NewInt(50), validator.LicenseCount)
+
+	// an edit that omits mode (proto zero = MODE_NORMAL) must not downgrade the validator
+	_, err = msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
+		ValidatorAddress: ValAddr.String(),
+		Description:      desc,
+	})
+	require.NoError(err)
+	validator, err = keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(stakingtypes.ValidatorMode_MODE_LICENSE, validator.Mode)
+	require.Equal(higherMax, validator.MaxLicense)
+
+	// fast mode can only be chosen at create-validator
+	_, err = msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
+		ValidatorAddress: ValAddr.String(),
+		Description:      desc,
+		Mode:             stakingtypes.ValidatorMode_MODE_FAST,
+	})
+	require.Error(err)
+	require.Contains(err.Error(), "cannot switch an existing validator into fast mode")
+
+	// tri-state redelegation flag: enable, preserve on unspecified, disable
+	_, err = msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
+		ValidatorAddress:   ValAddr.String(),
+		Description:        desc,
+		EnableRedelegation: stakingtypes.RedelegationUpdate_REDELEGATION_UPDATE_ENABLE,
+	})
+	require.NoError(err)
+	validator, err = keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.True(validator.EnableRedelegation)
+
+	_, err = msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
+		ValidatorAddress: ValAddr.String(),
+		Description:      desc,
+	})
+	require.NoError(err)
+	validator, err = keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.True(validator.EnableRedelegation)
+
+	_, err = msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
+		ValidatorAddress:   ValAddr.String(),
+		Description:        desc,
+		EnableRedelegation: stakingtypes.RedelegationUpdate_REDELEGATION_UPDATE_DISABLE,
+	})
+	require.NoError(err)
+	validator, err = keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.False(validator.EnableRedelegation)
+
+	// a validator created without an increment cannot switch into license mode
+	_, err = msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
+		ValidatorAddress: normalValAddr.String(),
+		Description:      stakingtypes.Description{Moniker: "NormalVal"},
+		Mode:             stakingtypes.ValidatorMode_MODE_LICENSE,
+		MaxLicense:       &higherMax,
+	})
+	require.Error(err)
+	require.Contains(err.Error(), "Min Delegation and DelegationIncrement must be defined and the same")
+}
+
+func (s *KeeperTestSuite) TestMsgDelegateFastMode() {
+	ctx, keeper, msgServer := s.ctx, s.stakingKeeper, s.msgServer
+	require := s.Require()
+	s.execExpectCalls()
+
+	pk := ed25519.GenPrivKey().PubKey()
+	comm := stakingtypes.NewCommissionRates(math.LegacyNewDec(0), math.LegacyNewDec(0), math.LegacyNewDec(0))
+	require.NoError(keeper.SetNewValidatorApprovalState(ctx, stakingtypes.ValidatorApproval{ApproverAddress: pk.Address().String(), Enabled: false}))
+
+	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), pk.Address().String(), pk, sdk.NewCoin(sdk.DefaultBondDenom, keeper.TokensFromConsensusPower(ctx, 100)), stakingtypes.Description{Moniker: "FastVal"}, comm, math.OneInt())
+	require.NoError(err)
+	msg.Mode = stakingtypes.ValidatorMode_MODE_FAST
+	_, err = msgServer.CreateValidator(ctx, msg)
+	require.NoError(err)
+
+	delegator := sdk.AccAddress(PKS[1].Address())
+	amount := sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(1000000))
+
+	// a delegator outside the whitelist cannot enter a fast validator
+	_, err = msgServer.Delegate(ctx, &stakingtypes.MsgDelegate{
+		DelegatorAddress: delegator.String(),
+		ValidatorAddress: ValAddr.String(),
+		Amount:           amount,
+	})
+	require.Error(err)
+	require.Contains(err.Error(), "Cannot find delegator in whitelist")
+
+	// the operator itself is always allowed
+	_, err = msgServer.Delegate(ctx, &stakingtypes.MsgDelegate{
+		DelegatorAddress: Addr.String(),
+		ValidatorAddress: ValAddr.String(),
+		Amount:           amount,
+	})
+	require.NoError(err)
+
+	// whitelisting through the msg server opens the gate
+	_, err = msgServer.CreateWhitelistdelegator(ctx, &stakingtypes.MsgCreateWhitelistDelegator{
+		Creator:          Addr.String(),
+		ValidatorAddress: ValAddr.String(),
+		DelegatorAddress: delegator.String(),
+	})
+	require.NoError(err)
+
+	s.bankKeeper.EXPECT().DelegateCoinsFromAccountToModule(gomock.Any(), delegator, stakingtypes.NotBondedPoolName, gomock.Any()).AnyTimes()
+	_, err = msgServer.Delegate(ctx, &stakingtypes.MsgDelegate{
+		DelegatorAddress: delegator.String(),
+		ValidatorAddress: ValAddr.String(),
+		Amount:           amount,
+	})
+	require.NoError(err)
+}
+
+func (s *KeeperTestSuite) TestMsgUndelegateLicenseMode() {
+	ctx, keeper, msgServer := s.ctx, s.stakingKeeper, s.msgServer
+	require := s.Require()
+	s.execExpectCalls()
+
+	increment := math.NewInt(10000000000)
+	pk := ed25519.GenPrivKey().PubKey()
+	comm := stakingtypes.NewCommissionRates(math.LegacyNewDec(0), math.LegacyNewDec(0), math.LegacyNewDec(0))
+	require.NoError(keeper.SetNewValidatorApprovalState(ctx, stakingtypes.ValidatorApproval{ApproverAddress: pk.Address().String(), Enabled: false}))
+
+	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), pk.Address().String(), pk, sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(500000000000)), stakingtypes.Description{Moniker: "LicenseVal"}, comm, math.OneInt())
+	require.NoError(err)
+	msg.Mode = stakingtypes.ValidatorMode_MODE_LICENSE
+	msg.DelegationIncrement = increment
+	msg.MinDelegation = increment
+	msg.MaxLicense = math.NewInt(150)
+	_, err = msgServer.CreateValidator(ctx, msg)
+	require.NoError(err)
+
+	// withdrawals must respect the increment so remaining stake stays a
+	// whole number of licenses
+	_, err = msgServer.Undelegate(ctx, &stakingtypes.MsgUndelegate{
+		DelegatorAddress: Addr.String(),
+		ValidatorAddress: ValAddr.String(),
+		Amount:           sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(15000000000)),
+	})
+	require.Error(err)
+	require.Contains(err.Error(), "delegation amount must meet increment condition")
+
+	// undelegating two increments releases two licenses
+	res, err := msgServer.Undelegate(ctx, &stakingtypes.MsgUndelegate{
+		DelegatorAddress: Addr.String(),
+		ValidatorAddress: ValAddr.String(),
+		Amount:           sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(20000000000)),
+	})
+	require.NoError(err)
+	require.Equal(math.NewInt(20000000000), res.Amount.Amount)
+
+	validator, err := keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(math.NewInt(48), validator.LicenseCount)
+}
+
+func (s *KeeperTestSuite) TestMsgUndelegateFastMode() {
+	ctx, keeper, msgServer := s.ctx, s.stakingKeeper, s.msgServer
+	require := s.Require()
+	s.execExpectCalls()
+
+	pk := ed25519.GenPrivKey().PubKey()
+	comm := stakingtypes.NewCommissionRates(math.LegacyNewDec(0), math.LegacyNewDec(0), math.LegacyNewDec(0))
+	require.NoError(keeper.SetNewValidatorApprovalState(ctx, stakingtypes.ValidatorApproval{ApproverAddress: pk.Address().String(), Enabled: false}))
+
+	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), pk.Address().String(), pk, sdk.NewCoin(sdk.DefaultBondDenom, keeper.TokensFromConsensusPower(ctx, 100)), stakingtypes.Description{Moniker: "FastVal"}, comm, math.OneInt())
+	require.NoError(err)
+	msg.Mode = stakingtypes.ValidatorMode_MODE_FAST
+	_, err = msgServer.CreateValidator(ctx, msg)
+	require.NoError(err)
+
+	unbondingTime, err := keeper.UnbondingTime(ctx)
+	require.NoError(err)
+
+	// fast-mode undelegation completes next block instead of waiting the
+	// full unbonding period
+	res, err := msgServer.Undelegate(ctx, &stakingtypes.MsgUndelegate{
+		DelegatorAddress: Addr.String(),
+		ValidatorAddress: ValAddr.String(),
+		Amount:           sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(1000000)),
+	})
+	require.NoError(err)
+	require.True(res.CompletionTime.Before(ctx.BlockTime().Add(unbondingTime)))
+	require.True(res.CompletionTime.Equal(ctx.BlockTime()))
+
+	// the whitelist gates entry only; a non-whitelisted delegator can still exit
+	delegator := sdk.AccAddress(PKS[1].Address())
+	del := stakingtypes.NewDelegation(delegator.String(), ValAddr.String(), math.LegacyNewDec(100))
+	require.NoError(keeper.SetDelegation(ctx, del))
+	res, err = msgServer.Undelegate(ctx, &stakingtypes.MsgUndelegate{
+		DelegatorAddress: delegator.String(),
+		ValidatorAddress: ValAddr.String(),
+		Amount:           sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(100)),
+	})
+	require.NoError(err)
+	require.True(res.CompletionTime.Equal(ctx.BlockTime()))
+}
+
+func (s *KeeperTestSuite) TestMsgCancelUnbondingDelegationLicenseMode() {
+	keeper, msgServer := s.stakingKeeper, s.msgServer
+	require := s.Require()
+	s.execExpectCalls()
+
+	// cancel-unbonding requires a positive creation height
+	ctx := s.ctx.WithBlockHeight(5)
+
+	increment := math.NewInt(10000000000)
+	pk := ed25519.GenPrivKey().PubKey()
+	comm := stakingtypes.NewCommissionRates(math.LegacyNewDec(0), math.LegacyNewDec(0), math.LegacyNewDec(0))
+	require.NoError(keeper.SetNewValidatorApprovalState(ctx, stakingtypes.ValidatorApproval{ApproverAddress: pk.Address().String(), Enabled: false}))
+
+	// the cap is exactly the self-bond, so every license is in use
+	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), pk.Address().String(), pk, sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(500000000000)), stakingtypes.Description{Moniker: "LicenseVal"}, comm, math.OneInt())
+	require.NoError(err)
+	msg.Mode = stakingtypes.ValidatorMode_MODE_LICENSE
+	msg.DelegationIncrement = increment
+	msg.MinDelegation = increment
+	msg.MaxLicense = math.NewInt(50)
+	_, err = msgServer.CreateValidator(ctx, msg)
+	require.NoError(err)
+
+	// release two licenses into an unbonding entry
+	_, err = msgServer.Undelegate(ctx, &stakingtypes.MsgUndelegate{
+		DelegatorAddress: Addr.String(),
+		ValidatorAddress: ValAddr.String(),
+		Amount:           sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(20000000000)),
+	})
+	require.NoError(err)
+	validator, err := keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(math.NewInt(48), validator.LicenseCount)
+
+	// cancelling must also respect the increment
+	_, err = msgServer.CancelUnbondingDelegation(ctx, &stakingtypes.MsgCancelUnbondingDelegation{
+		DelegatorAddress: Addr.String(),
+		ValidatorAddress: ValAddr.String(),
+		Amount:           sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(5000000000)),
+		CreationHeight:   5,
+	})
+	require.Error(err)
+	require.Contains(err.Error(), "delegation amount must meet increment condition")
+
+	// cancelling one increment claims its license back
+	_, err = msgServer.CancelUnbondingDelegation(ctx, &stakingtypes.MsgCancelUnbondingDelegation{
+		DelegatorAddress: Addr.String(),
+		ValidatorAddress: ValAddr.String(),
+		Amount:           sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(10000000000)),
+		CreationHeight:   5,
+	})
+	require.NoError(err)
+	validator, err = keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(math.NewInt(49), validator.LicenseCount)
+
+	// refill the freed license with a fresh delegation...
+	_, err = msgServer.Delegate(ctx, &stakingtypes.MsgDelegate{
+		DelegatorAddress: Addr.String(),
+		ValidatorAddress: ValAddr.String(),
+		Amount:           sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(10000000000)),
+	})
+	require.NoError(err)
+	validator, err = keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(math.NewInt(50), validator.LicenseCount)
+
+	// ...so cancelling the remaining entry would exceed MaxLicense and must fail
+	// BEFORE any tokens are re-bonded
+	_, err = msgServer.CancelUnbondingDelegation(ctx, &stakingtypes.MsgCancelUnbondingDelegation{
+		DelegatorAddress: Addr.String(),
+		ValidatorAddress: ValAddr.String(),
+		Amount:           sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(10000000000)),
+		CreationHeight:   5,
+	})
+	require.Error(err)
+	require.Contains(err.Error(), "There is no license enough for the delegation")
+
+	validator, err = keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(math.NewInt(50), validator.LicenseCount)
 }

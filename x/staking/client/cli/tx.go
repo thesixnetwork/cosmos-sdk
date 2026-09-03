@@ -200,9 +200,9 @@ func NewCreateValidatorLegacyCmd(ac address.Codec) *cobra.Command {
 	_ = cmd.MarkFlagRequired(FlagSecurityContact)
 	_ = cmd.MarkFlagRequired(FlagDetails)
 	_ = cmd.MarkFlagRequired(FlagValidatorMode)
-	
+
 	flagMode, _ := cmd.Flags().GetString(FlagValidatorMode)
-	
+
 	validatorMode := convertValidatorFlag(flagMode)
 	if validatorMode == types.ValidatorMode_MODE_LICENSE {
 		// licence mode
@@ -268,7 +268,6 @@ where we can get the pubkey using "%s tendermint show-validator"
 		},
 	}
 
-
 	cmd.Flags().AddFlagSet(FlagSetApprover())
 	cmd.Flags().AddFlagSet(FlagMinDelegationCreate())
 	cmd.Flags().AddFlagSet(FlagDelegationIncrementCreate())
@@ -278,8 +277,6 @@ where we can get the pubkey using "%s tendermint show-validator"
 	cmd.Flags().String(FlagIP, "", fmt.Sprintf("The node's public IP. It takes effect only when used in combination with --%s", flags.FlagGenerateOnly))
 	cmd.Flags().String(FlagNodeID, "", "The node's ID")
 	flags.AddTxFlagsToCmd(cmd)
-
-
 
 	flagMode, _ := cmd.Flags().GetString(FlagValidatorMode)
 	validatorMode := convertValidatorFlag(flagMode)
@@ -359,6 +356,17 @@ func NewEditValidatorCmd(ac address.Codec) *cobra.Command {
 
 			msg := types.NewMsgEditValidator(valAddr, description, newRate, newMinSelfDelegation, mode, newMaxLicense)
 
+			// only touch enable_redelegation when the flag was explicitly set,
+			// so plain edits leave the stored flag unchanged
+			if cmd.Flags().Changed(FlagEnableRedelegation) {
+				enableRedelegation, _ := cmd.Flags().GetBool(FlagEnableRedelegation)
+				if enableRedelegation {
+					msg.EnableRedelegation = types.RedelegationUpdate_REDELEGATION_UPDATE_ENABLE
+				} else {
+					msg.EnableRedelegation = types.RedelegationUpdate_REDELEGATION_UPDATE_DISABLE
+				}
+			}
+
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
@@ -368,6 +376,7 @@ func NewEditValidatorCmd(ac address.Codec) *cobra.Command {
 	cmd.Flags().AddFlagSet(FlagSetMinSelfDelegation())
 	cmd.Flags().AddFlagSet(FlagMaxLicenseEdit())
 	cmd.Flags().AddFlagSet(FlagValidatorModeEdit())
+	cmd.Flags().AddFlagSet(FlagEnableRedelegationEdit())
 
 	flagMode, _ := cmd.Flags().GetString(FlagValidatorMode)
 	validatorMode := convertValidatorFlag(flagMode)

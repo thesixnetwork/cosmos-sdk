@@ -64,7 +64,13 @@ func (k msgServer) SetValidatorApproval(ctx context.Context, msg *types.MsgSetVa
 func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateValidator) (*types.MsgCreateValidatorResponse, error) {
 	approval, err := k.GetValidatorApproval(ctx)
 	if err != nil {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrNotFound, "Validator approval is somehow does not existed")
+		if !errorsmod.IsOf(err, types.ErrNoValidatorFound) {
+			return nil, err
+		}
+		// the approval state is only written by InitGenesis, so a chain that
+		// upgraded in-place may not have it; treat that as approval disabled
+		// instead of blocking validator creation forever
+		approval = types.ValidatorApproval{}
 	}
 
 	if approval.Enabled && msg.ApproverAddress != approval.ApproverAddress {
@@ -183,8 +189,7 @@ func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateVali
 			return nil, types.ErrNotEnoughLicense
 		}
 		validator.LicenseCount = divAmount
-		// Force disable redelegation when
-		validator.EnableRedelegation = false
+		validator.EnableRedelegation = msg.EnableRedelegation
 	case types.ValidatorMode_MODE_FAST:
 		validator.Mode = types.ValidatorMode_MODE_FAST
 		validator.EnableRedelegation = msg.EnableRedelegation
@@ -280,14 +285,21 @@ func (k msgServer) EditValidator(ctx context.Context, msg *types.MsgEditValidato
 
 	switch msg.Mode {
 	case types.ValidatorMode_MODE_LICENSE:
-		validator.Mode = types.ValidatorMode_MODE_LICENSE
-		// validate max license
-		if !msg.MaxLicense.IsNil() && msg.MaxLicense.LT(validator.MaxLicense) {
-			return nil, types.ErrMaxLicenseMustBeGeater
+		// license accounting divides by DelegationIncrement; a validator
+		// created in another mode may have it nil or zero
+		if validator.DelegationIncrement.IsNil() || !validator.DelegationIncrement.IsPositive() {
+			return nil, types.ErrLicenseIncrement
 		}
 
-		if !msg.MaxLicense.IsNil() {
+		// validate max license
+		if msg.MaxLicense != nil && !msg.MaxLicense.IsNil() {
+			if !validator.MaxLicense.IsNil() && msg.MaxLicense.LT(validator.MaxLicense) {
+				return nil, types.ErrMaxLicenseMustBeGeater
+			}
 			validator.MaxLicense = *msg.MaxLicense
+		}
+		if validator.MaxLicense.IsNil() {
+			return nil, types.ErrMaxLicenseMustBeDefined
 		}
 
 		amount := validator.GetDelegatorShares().Ceil().TruncateInt()
@@ -300,12 +312,25 @@ func (k msgServer) EditValidator(ctx context.Context, msg *types.MsgEditValidato
 			return nil, types.ErrNotEnoughLicense
 		}
 
+		validator.Mode = types.ValidatorMode_MODE_LICENSE
 		validator.LicenseCount = divAmount
-		validator.EnableRedelegation = false
 	case types.ValidatorMode_MODE_FAST:
-		validator.Mode = types.ValidatorMode_MODE_FAST
+		// fast mode grants near-instant unbonding, so it can only be chosen at
+		// create-validator (which is gated by the approver); switching an
+		// existing validator into fast mode would bypass the unbonding period
+		if validator.Mode != types.ValidatorMode_MODE_FAST {
+			return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "cannot switch an existing validator into fast mode")
+		}
 	default:
-		validator.Mode = types.ValidatorMode_MODE_NORMAL
+		// MODE_NORMAL is the proto zero value, so an edit that omits mode must
+		// keep the stored mode instead of silently downgrading the validator
+	}
+
+	switch msg.EnableRedelegation {
+	case types.RedelegationUpdate_REDELEGATION_UPDATE_ENABLE:
+		validator.EnableRedelegation = true
+	case types.RedelegationUpdate_REDELEGATION_UPDATE_DISABLE:
+		validator.EnableRedelegation = false
 	}
 
 	if msg.CommissionRate != nil {
@@ -391,7 +416,13 @@ func (k msgServer) Delegate(ctx context.Context, msg *types.MsgDelegate) (*types
 
 	switch validator.Mode {
 	case types.ValidatorMode_MODE_LICENSE:
-		delegateLicenseCount, err := k.calculateDelegateLicenseCount(ctx, msg.Amount, validator, sdk.AccAddress(msg.DelegatorAddress))
+		if validator.MaxLicense.IsNil() {
+			return nil, types.ErrMaxLicenseMustBeDefined
+		}
+		if validator.LicenseCount.IsNil() {
+			validator.LicenseCount = math.ZeroInt()
+		}
+		delegateLicenseCount, err := k.calculateDelegateLicenseCount(ctx, msg.Amount, validator, delegatorAddress)
 		if err != nil {
 			return nil, err
 		}
@@ -489,11 +520,11 @@ func (k msgServer) BeginRedelegate(ctx context.Context, msg *types.MsgBeginRedel
 
 	// Validate source validator
 	// Get Validator
-	sourceVal, err := k.GetValidator(ctx, valSrcAddr) // TODO: to check
+	sourceVal, err := k.GetValidator(ctx, valSrcAddr)
 	if err != nil {
 		return nil, err
 	}
-	destVal, err := k.GetValidator(ctx, valDstAddr) // TODO: to check
+	destVal, err := k.GetValidator(ctx, valDstAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -506,71 +537,61 @@ func (k msgServer) BeginRedelegate(ctx context.Context, msg *types.MsgBeginRedel
 		return nil, types.ErrRedelegationDisable
 	}
 
-	if sourceVal.Mode == types.ValidatorMode_MODE_LICENSE || destVal.Mode == types.ValidatorMode_MODE_LICENSE {
-		return nil, types.ErrRedelegationLicenseMode
+	// fast-mode validators only accept whitelisted (special) delegators, and fast
+	// undelegation completes almost immediately — without this check redelegation
+	// would let anyone hop into a fast validator and skip the unbonding period
+	if destVal.Mode == types.ValidatorMode_MODE_FAST {
+		if !k.IsSpecialDelegator(ctx, valDstAddr, delegatorAddress) {
+			return nil, types.ErrDelegatorIsNotSpecial
+		}
+	}
 
-		// TODO: Must implement redelgation for licesene mode
+	// License accounting: redelegating out of a license validator releases
+	// licenses, redelegating into one claims them (same rules as Delegate).
+	// Both sides are validated before either validator is written.
+	if sourceVal.Mode == types.ValidatorMode_MODE_LICENSE {
+		// calculateDelegateLicenseCount enforces the increment-multiple rule, and
+		// since license mode requires MinDelegation == DelegationIncrement the
+		// remaining delegation is always either zero or >= MinDelegation
+		releasedLicenseCount, err := k.calculateDelegateLicenseCount(ctx, msg.Amount, sourceVal, delegatorAddress)
+		if err != nil {
+			return nil, err
+		}
+		licenseCount := math.ZeroInt()
+		if !sourceVal.LicenseCount.IsNil() {
+			licenseCount = sourceVal.LicenseCount
+		}
+		sourceVal.LicenseCount = licenseCount.Sub(releasedLicenseCount)
+		if sourceVal.LicenseCount.IsNegative() {
+			sourceVal.LicenseCount = math.ZeroInt()
+		}
+	}
 
-		/*
-			// Get Current Delegation
-			currentSourceDelegation, err := k.GetDelegation(ctx, delegatorAddress, valSrcAddr)
-			if err != nil {
-				return nil, err
-			}
-			// Validate minimum amount , currentDelegation - unbond >= min delegation
-			if !currentSourceDelegation.Shares.Equal(shares) {
-				// NOT remove entire shares , only unbond some of it.
-				if !sourceVal.MinDelegation.IsNil() && currentSourceDelegation.Shares.Sub(shares).LT(sourceVal.MinDelegation.ToLegacyDec()) {
-					return nil, types.ErrDelegationBelowMinimum
-				}
-			}
-			// Deduct minimum from value to validate increment
-			amountToValidateIncrement := math.NewIntFromBigInt(msg.Amount.Amount.BigInt())
-			if !sourceVal.MinDelegation.IsNil() {
-				amountToValidateIncrement = amountToValidateIncrement.Sub(sourceVal.MinDelegation)
-			}
+	if destVal.Mode == types.ValidatorMode_MODE_LICENSE {
+		if destVal.MaxLicense.IsNil() {
+			return nil, types.ErrMaxLicenseMustBeDefined
+		}
+		if destVal.LicenseCount.IsNil() {
+			destVal.LicenseCount = math.ZeroInt()
+		}
+		delegateLicenseCount, err := k.calculateDelegateLicenseCount(ctx, msg.Amount, destVal, delegatorAddress)
+		if err != nil {
+			return nil, err
+		}
+		if destVal.LicenseCount.GTE(destVal.MaxLicense) {
+			return nil, types.ErrLicenseLimit
+		}
+		if delegateLicenseCount.Add(destVal.LicenseCount).GT(destVal.MaxLicense) {
+			return nil, types.ErrNotEnoughLicense
+		}
+		destVal.LicenseCount = delegateLicenseCount.Add(destVal.LicenseCount)
+	}
 
-			increment := math.OneInt()
-			if !sourceVal.DelegationIncrement.IsNil() {
-				increment = sourceVal.DelegationIncrement
-			}
-			// Validate DelegationIncrement
-			if amountToValidateIncrement.GT(math.ZeroInt()) {
-				// not remove
-				modAmount := amountToValidateIncrement.Mod(increment)
-				if modAmount.GT(math.ZeroInt()) {
-					return nil, types.ErrInvalidIncrementDelegation
-				}
-			}
-
-			// Validate destination
-			// New Delegation or Update
-			_, err = k.GetDelegation(ctx, delegatorAddress, valDstAddr)
-			if err != nil {
-				return nil, err
-			}
-			// Validate Minimum and Increment
-			if !destVal.MinDelegation.IsNil() && msg.Amount.Amount.LT(destVal.MinDelegation) {
-				return nil, types.ErrDelegationBelowMinimum
-			}
-			// Deduct minimum from value to validate increment
-			amountToValidateIncrement = math.NewIntFromBigInt(msg.Amount.Amount.BigInt())
-			if !destVal.MinDelegation.IsNil() {
-				amountToValidateIncrement = amountToValidateIncrement.Sub(destVal.MinDelegation)
-			}
-			// Validate DelegationIncrement
-			increment = math.OneInt()
-			if !destVal.DelegationIncrement.IsNil() {
-				increment = destVal.DelegationIncrement
-			}
-			if amountToValidateIncrement.GT(math.ZeroInt()) {
-				modAmount := amountToValidateIncrement.Mod(increment)
-				if modAmount.GT(math.ZeroInt()) {
-					return nil, types.ErrInvalidIncrementDelegation
-				}
-			}
-
-		*/
+	if sourceVal.Mode == types.ValidatorMode_MODE_LICENSE {
+		k.SetValidator(ctx, sourceVal)
+	}
+	if destVal.Mode == types.ValidatorMode_MODE_LICENSE {
+		k.SetValidator(ctx, destVal)
 	}
 
 	completionTime, err := k.BeginRedelegation(
@@ -661,7 +682,14 @@ func (k msgServer) Undelegate(ctx context.Context, msg *types.MsgUndelegate) (*t
 		}
 		// Validate License
 		// decrease license count in validator
-		validator.LicenseCount = validator.LicenseCount.Sub(delegateLicenseCount)
+		licenseCount := math.ZeroInt()
+		if !validator.LicenseCount.IsNil() {
+			licenseCount = validator.LicenseCount
+		}
+		validator.LicenseCount = licenseCount.Sub(delegateLicenseCount)
+		if validator.LicenseCount.IsNegative() {
+			validator.LicenseCount = math.ZeroInt()
+		}
 		// Update Validator
 		k.SetValidator(ctx, validator)
 
@@ -800,6 +828,31 @@ func (k msgServer) CancelUnbondingDelegation(ctx context.Context, msg *types.Msg
 		return nil, sdkerrors.ErrInvalidRequest.Wrap("unbonding delegation is already processed")
 	}
 
+	// restore license usage for license mode validators: Undelegate released
+	// licenses, so re-bonding the amount must claim them back, otherwise a
+	// delegate -> undelegate -> cancel cycle lets the validator exceed MaxLicense
+	if validator.Mode == types.ValidatorMode_MODE_LICENSE {
+		increment := math.OneInt()
+		if !validator.DelegationIncrement.IsNil() && validator.DelegationIncrement.IsPositive() {
+			increment = validator.DelegationIncrement
+		}
+		if msg.Amount.Amount.Mod(increment).GT(math.ZeroInt()) {
+			return nil, types.ErrInvalidIncrementDelegation
+		}
+		relicensed := msg.Amount.Amount.Quo(increment)
+		licenseCount := math.ZeroInt()
+		if !validator.LicenseCount.IsNil() {
+			licenseCount = validator.LicenseCount
+		}
+		if !validator.MaxLicense.IsNil() && licenseCount.Add(relicensed).GT(validator.MaxLicense) {
+			return nil, types.ErrNotEnoughLicense
+		}
+		validator.LicenseCount = licenseCount.Add(relicensed)
+		if err := k.SetValidator(ctx, validator); err != nil {
+			return nil, err
+		}
+	}
+
 	// delegate back the unbonding delegation amount to the validator
 	_, err = k.Keeper.Delegate(ctx, delegatorAddress, msg.Amount.Amount, types.Unbonding, validator, false)
 	if err != nil {
@@ -859,7 +912,11 @@ func (k msgServer) UpdateParams(ctx context.Context, msg *types.MsgUpdateParams)
 }
 
 func (k msgServer) calculateDelegateLicenseCount(ctx context.Context, amount sdk.Coin, validator types.Validator, delegatorAddress sdk.AccAddress) (math.Int, error) {
-	_, existed := k.GetExistingDelegation(ctx, delegatorAddress, sdk.ValAddress(validator.GetOperator()))
+	valAddr, err := k.validatorAddressCodec.StringToBytes(validator.GetOperator())
+	if err != nil {
+		return math.Int{}, sdkerrors.ErrInvalidAddress.Wrapf("invalid validator address: %s", err)
+	}
+	_, existed := k.GetExistingDelegation(ctx, delegatorAddress, valAddr)
 
 	// Validate Minimum for NEW delegations only
 	if !validator.MinDelegation.IsNil() && !existed && amount.Amount.LT(validator.MinDelegation) {

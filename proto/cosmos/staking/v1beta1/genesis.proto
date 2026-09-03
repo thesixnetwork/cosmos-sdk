@@ -5,6 +5,7 @@ option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types";
 
 import "gogoproto/gogo.proto";
 import "cosmos/staking/v1beta1/staking.proto";
+import "cosmos/staking/v1beta1/whitelist.proto";
 import "cosmos_proto/cosmos.proto";
 import "amino/amino.proto";
 
@@ -43,6 +44,9 @@ message GenesisState {
 
   // exported defines a bool to identify whether the chain dealing with exported or initialized genesis.
   bool exported = 9;
+
+  // whitelist_delegators defines the special delegator whitelists (fast mode validators) at genesis.
+  repeated WhitelistDelegator whitelist_delegators = 10 [(gogoproto.nullable) = false, (amino.dont_omitempty) = true];
 }
 
 // LastValidatorPower required for validator set update logic.
