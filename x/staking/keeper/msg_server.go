@@ -312,7 +312,7 @@ func (k msgServer) EditValidator(ctx context.Context, msg *types.MsgEditValidato
 
 		// validate max license
 		if msg.MaxLicense != nil && !msg.MaxLicense.IsNil() {
-			if !validator.MaxLicense.IsNil() && msg.MaxLicense.LT(validator.MaxLicense) {
+			if !validator.LicenseCount.IsNil() && msg.MaxLicense.LT(validator.LicenseCount) {
 				return nil, types.ErrMaxLicenseMustBeGeater
 			}
 			validator.MaxLicense = *msg.MaxLicense

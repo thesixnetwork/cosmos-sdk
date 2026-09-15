@@ -52,7 +52,7 @@ var (
 	ErrEmptyNewApproverAddr            = errors.Register(ModuleName, 47, "empty new validator approver public key")
 	ErrNoValidatorApprovalFound        = errors.Register(ModuleName, 48, "validator approval does not exist")
 	ErrMaxLicenseMustBeDefined         = errors.Register(ModuleName, 49, "when on license mode, max_license must be defined")
-	ErrMaxLicenseMustBeGeater          = errors.Register(ModuleName, 50, "max license must be greater than or equal to the existing one")
+	ErrMaxLicenseMustBeGeater          = errors.Register(ModuleName, 50, "max license must be greater than or equal to the current license count")
 	ErrLicenseIncrement                = errors.Register(ModuleName, 51, "In license mode, Min Delegation and DelegationIncrement must be defined and the same")
 	ErrDelegationBelowMinimum          = errors.Register(ModuleName, 52, "delegation amount less than minimum")
 	ErrInvalidIncrementDelegation      = errors.Register(ModuleName, 53, "delegation amount must meet increment condition, 100,200,300,..")
