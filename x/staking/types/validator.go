@@ -87,7 +87,7 @@ func NewValidatorNormalMode(operator string, pubKey cryptotypes.PubKey, descript
 		MaxLicense:              math.OneInt(),
 		LicenseCount:            math.OneInt(),
 		Mode:                    0,
-		EnableRedelegation:      true,
+		EnableRedelegation:      false,
 	}, nil
 }
 

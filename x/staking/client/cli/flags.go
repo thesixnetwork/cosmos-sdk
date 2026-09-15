@@ -130,21 +130,6 @@ func FlagMaxLicenseEdit() *flag.FlagSet {
 	return fs
 }
 
-// FlagEnableRedelegation  = "enable-redelegation"
-func FlagEnableRedelegationCreate() *flag.FlagSet {
-	fs := flag.NewFlagSet("", flag.ContinueOnError)
-	fs.Bool(FlagEnableRedelegation, true, "To enable redelegation for this validator (default true)")
-
-	return fs
-}
-
-func FlagEnableRedelegationEdit() *flag.FlagSet {
-	fs := flag.NewFlagSet("", flag.ContinueOnError)
-	fs.Bool(FlagEnableRedelegation, false, "Set to true/false to update the validator's enable_redelegation flag; when omitted the flag is left unchanged")
-
-	return fs
-}
-
 // FlagSetCommissionCreate Returns the FlagSet used for commission create.
 func FlagSetCommissionCreate() *flag.FlagSet {
 	fs := flag.NewFlagSet("", flag.ContinueOnError)

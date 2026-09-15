@@ -167,6 +167,12 @@ func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateVali
 		validator.MinDelegation = validator.DelegationIncrement
 	}
 
+	// Redelegation is force-disabled on six-network: the wire field is kept
+	// for compatibility but can no longer be turned on
+	if msg.EnableRedelegation {
+		return nil, types.ErrRedelegationDisable
+	}
+
 	switch msg.Mode {
 	case types.ValidatorMode_MODE_LICENSE:
 		validator.Mode = types.ValidatorMode_MODE_LICENSE
@@ -176,14 +182,12 @@ func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateVali
 			return nil, err
 		}
 		validator.LicenseCount = licenseCount
-		validator.EnableRedelegation = msg.EnableRedelegation
 	case types.ValidatorMode_MODE_FAST:
 		validator.Mode = types.ValidatorMode_MODE_FAST
-		validator.EnableRedelegation = msg.EnableRedelegation
 	default:
 		validator.Mode = types.ValidatorMode_MODE_NORMAL
-		validator.EnableRedelegation = msg.EnableRedelegation
 	}
+	validator.EnableRedelegation = false
 	err = k.SetValidator(ctx, validator)
 	if err != nil {
 		return nil, err
@@ -315,7 +319,9 @@ func (k msgServer) EditValidator(ctx context.Context, msg *types.MsgEditValidato
 
 	switch msg.EnableRedelegation {
 	case types.RedelegationUpdate_REDELEGATION_UPDATE_ENABLE:
-		validator.EnableRedelegation = true
+		// redelegation is force-disabled on six-network and can no longer be
+		// turned on by validator owners
+		return nil, types.ErrRedelegationDisable
 	case types.RedelegationUpdate_REDELEGATION_UPDATE_DISABLE:
 		validator.EnableRedelegation = false
 	}
@@ -520,65 +526,10 @@ func (k msgServer) BeginRedelegate(ctx context.Context, msg *types.MsgBeginRedel
 		return nil, types.ErrSelfRedelegation
 	}
 
+	// Redelegation is force-disabled on six-network: EnableRedelegation can no
+	// longer be set on create or edit, so every validator fails this check
 	if !sourceVal.EnableRedelegation || !destVal.EnableRedelegation {
 		return nil, types.ErrRedelegationDisable
-	}
-
-	// fast-mode validators only accept whitelisted (special) delegators, and fast
-	// undelegation completes almost immediately — without this check redelegation
-	// would let anyone hop into a fast validator and skip the unbonding period
-	if destVal.Mode == types.ValidatorMode_MODE_FAST {
-		if !k.IsSpecialDelegator(ctx, valDstAddr, delegatorAddress) {
-			return nil, types.ErrDelegatorIsNotSpecial
-		}
-	}
-
-	// License accounting: redelegating out of a license validator releases
-	// licenses, redelegating into one claims them (same rules as Delegate).
-	// Both sides are validated before either validator is written.
-	if sourceVal.Mode == types.ValidatorMode_MODE_LICENSE {
-		// calculateDelegateLicenseCount enforces the increment-multiple rule, and
-		// since license mode requires MinDelegation == DelegationIncrement the
-		// remaining delegation is always either zero or >= MinDelegation
-		releasedLicenseCount, err := k.calculateDelegateLicenseCount(ctx, msg.Amount, sourceVal, delegatorAddress)
-		if err != nil {
-			return nil, err
-		}
-		licenseCount := math.ZeroInt()
-		if !sourceVal.LicenseCount.IsNil() {
-			licenseCount = sourceVal.LicenseCount
-		}
-		sourceVal.LicenseCount = licenseCount.Sub(releasedLicenseCount)
-		if sourceVal.LicenseCount.IsNegative() {
-			sourceVal.LicenseCount = math.ZeroInt()
-		}
-	}
-
-	if destVal.Mode == types.ValidatorMode_MODE_LICENSE {
-		if destVal.MaxLicense.IsNil() {
-			return nil, types.ErrMaxLicenseMustBeDefined
-		}
-		if destVal.LicenseCount.IsNil() {
-			destVal.LicenseCount = math.ZeroInt()
-		}
-		delegateLicenseCount, err := k.calculateDelegateLicenseCount(ctx, msg.Amount, destVal, delegatorAddress)
-		if err != nil {
-			return nil, err
-		}
-		if destVal.LicenseCount.GTE(destVal.MaxLicense) {
-			return nil, types.ErrLicenseLimit
-		}
-		if delegateLicenseCount.Add(destVal.LicenseCount).GT(destVal.MaxLicense) {
-			return nil, types.ErrNotEnoughLicense
-		}
-		destVal.LicenseCount = delegateLicenseCount.Add(destVal.LicenseCount)
-	}
-
-	if sourceVal.Mode == types.ValidatorMode_MODE_LICENSE {
-		k.SetValidator(ctx, sourceVal)
-	}
-	if destVal.Mode == types.ValidatorMode_MODE_LICENSE {
-		k.SetValidator(ctx, destVal)
 	}
 
 	completionTime, err := k.BeginRedelegation(
