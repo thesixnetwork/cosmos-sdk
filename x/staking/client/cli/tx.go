@@ -203,7 +203,7 @@ func NewCreateValidatorLegacyCmd(ac address.Codec) *cobra.Command {
 
 	flagMode, _ := cmd.Flags().GetString(FlagValidatorMode)
 
-	validatorMode := convertValidatorFlag(flagMode)
+	validatorMode := convertValidatorCreationFlag(flagMode)
 	if validatorMode == types.ValidatorMode_MODE_LICENSE {
 		// licence mode
 		_ = cmd.MarkFlagRequired(FlagDelegationIncrement)
@@ -279,7 +279,7 @@ where we can get the pubkey using "%s tendermint show-validator"
 	flags.AddTxFlagsToCmd(cmd)
 
 	flagMode, _ := cmd.Flags().GetString(FlagValidatorMode)
-	validatorMode := convertValidatorFlag(flagMode)
+	validatorMode := convertValidatorCreationFlag(flagMode)
 	if validatorMode == types.ValidatorMode_MODE_LICENSE {
 		// licence mode
 		_ = cmd.MarkFlagRequired(FlagDelegationIncrement)
@@ -352,7 +352,11 @@ func NewEditValidatorCmd(ac address.Codec) *cobra.Command {
 				return err
 			}
 
-			mode := convertValidatorFlag(validatorMode)
+			if err := validatorModeInputCheck(validatorMode); err != nil {
+    			return err
+			}
+
+			mode := convertValidatorCreationFlag(validatorMode)
 
 			msg := types.NewMsgEditValidator(valAddr, description, newRate, newMinSelfDelegation, mode, newMaxLicense)
 
@@ -376,15 +380,18 @@ func NewEditValidatorCmd(ac address.Codec) *cobra.Command {
 	cmd.Flags().AddFlagSet(FlagSetMinSelfDelegation())
 	cmd.Flags().AddFlagSet(FlagMaxLicenseEdit())
 	cmd.Flags().AddFlagSet(FlagValidatorModeEdit())
+	cmd.Flags().AddFlagSet(FlagDelegationIncrementEdit())
 	cmd.Flags().AddFlagSet(FlagEnableRedelegationEdit())
 
 	flagMode, _ := cmd.Flags().GetString(FlagValidatorMode)
-	validatorMode := convertValidatorFlag(flagMode)
-	if validatorMode == types.ValidatorMode_MODE_LICENSE {
-		// licence mode
-		_ = cmd.MarkFlagRequired(FlagDelegationIncrement)
-		_ = cmd.MarkFlagRequired(FlagMaxLicense)
-		_ = cmd.MarkFlagRequired(FlagMinDelegation)
+	if flagMode != "" {
+		validatorMode := convertValidatorCreationFlag(flagMode)
+		if validatorMode == types.ValidatorMode_MODE_LICENSE {
+			// licence mode
+			_ = cmd.MarkFlagRequired(FlagDelegationIncrement)
+			_ = cmd.MarkFlagRequired(FlagMaxLicense)
+			_ = cmd.MarkFlagRequired(FlagMinDelegation)
+		}
 	}
 
 	flags.AddTxFlagsToCmd(cmd)
@@ -591,7 +598,7 @@ func newBuildCreateValidatorMsg(clientCtx client.Context, txf tx.Factory, fs *fl
 		return txf, nil, err
 	}
 
-	validatorMode := convertValidatorFlag(flagMode)
+	validatorMode := convertValidatorCreationFlag(flagMode)
 
 	switch validatorMode {
 	case types.ValidatorMode_MODE_LICENSE:
@@ -878,7 +885,7 @@ func PrepareConfigForTxCreateValidator(flagSet *flag.FlagSet, moniker, nodeID, c
 		return c, err
 	}
 
-	c.ValidatorMode = convertValidatorFlag(validatorMode)
+	c.ValidatorMode = convertValidatorCreationFlag(validatorMode)
 
 	c.EnableRedelegation, err = flagSet.GetBool(FlagEnableRedelegation)
 	if err != nil {

@@ -3,8 +3,10 @@ package cli
 import (
 	"strings"
 
+	errorsmod "cosmossdk.io/errors"
 	flag "github.com/spf13/pflag"
 
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
@@ -94,12 +96,20 @@ func FlagDelegationIncrementCreate() *flag.FlagSet {
 	return fs
 }
 
+// FlagDelegationIncrement = "delegation-increment"
+func FlagDelegationIncrementEdit() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.String(FlagDelegationIncrement, "", "The delegation imcrement")
+	return fs
+}
+
 // FlagLicenseMode         = "license-mode"
 // FlagMaxLicense          = "max-license"
 func FlagValidatorModeCreate() *flag.FlagSet {
 	fs := flag.NewFlagSet("", flag.ContinueOnError)
 	fs.String(FlagValidatorMode, "", "Validator mode normal=0, license=1, fast=2")
 	fs.String(FlagMaxLicense, "", "The maximum license when license mode is on")
+	fs.String(FlagDelegationIncrement, "", "The delegation imcrement")
 
 	return fs
 }
@@ -108,6 +118,7 @@ func FlagValidatorModeEdit() *flag.FlagSet {
 	fs := flag.NewFlagSet("", flag.ContinueOnError)
 	fs.String(FlagValidatorMode, "", "Validator mode normal=0, license=1, fast=2")
 	fs.String(FlagMaxLicense, "", "The maximum license when license mode is on")
+	fs.String(FlagDelegationIncrement, "", "The delegation imcrement")
 
 	return fs
 }
@@ -198,7 +209,7 @@ func flagSetDescriptionCreate() *flag.FlagSet {
 	return fs
 }
 
-func convertValidatorFlag(flag string) types.ValidatorMode {
+func convertValidatorCreationFlag(flag string) types.ValidatorMode {
 	switch strings.ToLower(flag) {
 	case "0", "normal", "mode_normal":
 		return types.ValidatorMode_MODE_NORMAL
@@ -208,5 +219,18 @@ func convertValidatorFlag(flag string) types.ValidatorMode {
 		return types.ValidatorMode_MODE_FAST
 	default:
 		return defaultValidatorMode
+	}
+}
+
+func validatorModeInputCheck(flag string) error {
+	switch strings.ToLower(flag) {
+	case "0", "normal", "mode_normal":
+		return nil
+	case "1", "license", "mode_license":
+		return nil
+	case "2", "fast", "mode_fast":
+		return nil
+	default:
+		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "Invalid validator mode input")
 	}
 }
