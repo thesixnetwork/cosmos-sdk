@@ -1614,6 +1614,12 @@ func (s *KeeperTestSuite) TestMsgCreateValidatorLicenseMode() {
 			expErrMsg: "There is no license enough for the delegation",
 		},
 		{
+			name:      "unknown mode enum value",
+			mutate:    func(msg *stakingtypes.MsgCreateValidator) { msg.Mode = stakingtypes.ValidatorMode(99) },
+			expErr:    true,
+			expErrMsg: "Invalid validator mode",
+		},
+		{
 			name:   "valid license validator",
 			mutate: func(msg *stakingtypes.MsgCreateValidator) {},
 			expErr: false,
@@ -1702,7 +1708,7 @@ func (s *KeeperTestSuite) TestMsgEditValidatorLicenseMode() {
 	_, err = msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
 		ValidatorAddress: ValAddr.String(),
 		Description:      desc,
-		Mode:             stakingtypes.ValidatorMode_MODE_LICENSE,
+		Mode:             "license",
 		MaxLicense:       &lowerMax,
 	})
 	require.Error(err)
@@ -1712,7 +1718,7 @@ func (s *KeeperTestSuite) TestMsgEditValidatorLicenseMode() {
 	_, err = msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
 		ValidatorAddress: ValAddr.String(),
 		Description:      desc,
-		Mode:             stakingtypes.ValidatorMode_MODE_LICENSE,
+		Mode:             "license",
 		MaxLicense:       &higherMax,
 	})
 	require.NoError(err)
@@ -1736,7 +1742,7 @@ func (s *KeeperTestSuite) TestMsgEditValidatorLicenseMode() {
 	_, err = msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
 		ValidatorAddress: ValAddr.String(),
 		Description:      desc,
-		Mode:             stakingtypes.ValidatorMode_MODE_FAST,
+		Mode:             "fast",
 	})
 	require.Error(err)
 	require.Contains(err.Error(), "cannot switch an existing validator into fast mode")
@@ -1776,11 +1782,56 @@ func (s *KeeperTestSuite) TestMsgEditValidatorLicenseMode() {
 	_, err = msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
 		ValidatorAddress: normalValAddr.String(),
 		Description:      stakingtypes.Description{Moniker: "NormalVal"},
-		Mode:             stakingtypes.ValidatorMode_MODE_LICENSE,
+		Mode:             "license",
 		MaxLicense:       &higherMax,
 	})
 	require.Error(err)
 	require.Contains(err.Error(), "Min Delegation and DelegationIncrement must be defined and the same")
+
+	// an unrecognized mode string is rejected instead of being coerced
+	_, err = msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
+		ValidatorAddress: ValAddr.String(),
+		Description:      desc,
+		Mode:             "turbo",
+	})
+	require.Error(err)
+	require.Contains(err.Error(), "Invalid validator mode input")
+
+	// the legacy enum field (pre-upgrade txs) is still honored when the
+	// string field is empty
+	_, err = msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
+		ValidatorAddress: ValAddr.String(),
+		Description:      desc,
+		LegacyMode:       stakingtypes.ValidatorMode_MODE_LICENSE,
+	})
+	require.NoError(err)
+	validator, err = keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(stakingtypes.ValidatorMode_MODE_LICENSE, validator.Mode)
+
+	// an explicit "normal" is unambiguous now and converts the validator
+	_, err = msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
+		ValidatorAddress: ValAddr.String(),
+		Description:      desc,
+		Mode:             "normal",
+	})
+	require.NoError(err)
+	validator, err = keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(stakingtypes.ValidatorMode_MODE_NORMAL, validator.Mode)
+
+	// old tx bytes (enum mode on field 6) still unmarshal under the new schema
+	oldTx := &stakingtypes.MsgEditValidator{
+		ValidatorAddress: ValAddr.String(),
+		Description:      desc,
+		LegacyMode:       stakingtypes.ValidatorMode_MODE_FAST,
+	}
+	bz, err := oldTx.Marshal()
+	require.NoError(err)
+	var decoded stakingtypes.MsgEditValidator
+	require.NoError(decoded.Unmarshal(bz))
+	require.Equal(stakingtypes.ValidatorMode_MODE_FAST, decoded.LegacyMode)
+	require.Empty(decoded.Mode)
 }
 
 func (s *KeeperTestSuite) TestMsgEditValidatorDelegationIncrement() {
@@ -1817,7 +1868,7 @@ func (s *KeeperTestSuite) TestMsgEditValidatorDelegationIncrement() {
 		return msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
 			ValidatorAddress:    ValAddr.String(),
 			Description:         desc,
-			Mode:                stakingtypes.ValidatorMode_MODE_LICENSE,
+			Mode:                "license",
 			DelegationIncrement: &newIncrement,
 		})
 	}

@@ -360,18 +360,18 @@ func NewEditValidatorCmd(ac address.Codec) *cobra.Command {
 				return err
 			}
 
-			// MODE_NORMAL is the proto zero value, which the msg server
-			// treats as "keep the stored mode" — so an omitted flag is safe,
-			// but a provided one must be a recognized mode
-			mode := types.ValidatorMode_MODE_NORMAL
+			// an omitted flag sends an empty mode, which the msg server
+			// treats as "keep the stored mode"; a provided flag must be a
+			// recognized mode
+			modeInput := ""
 			if cmd.Flags().Changed(FlagValidatorMode) {
-				if err := validatorModeInputCheck(validatorMode); err != nil {
+				if _, err := types.ParseValidatorMode(validatorMode); err != nil {
 					return err
 				}
-				mode = convertValidatorCreationFlag(validatorMode)
+				modeInput = validatorMode
 			}
 
-			msg := types.NewMsgEditValidator(valAddr, description, newRate, newMinSelfDelegation, mode, newMaxLicense, newDelegationIncrement)
+			msg := types.NewMsgEditValidator(valAddr, description, newRate, newMinSelfDelegation, modeInput, newMaxLicense, newDelegationIncrement)
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},

@@ -136,7 +136,10 @@ message MsgEditValidator {
   string min_self_delegation = 4
       [(cosmos_proto.scalar) = "cosmos.Int", (gogoproto.customtype) = "cosmossdk.io/math.Int"];
   string max_license = 5 [(cosmos_proto.scalar) = "cosmos.Int", (gogoproto.customtype) = "cosmossdk.io/math.Int"];
-  ValidatorMode mode = 6;
+  // legacy_mode is the pre-upgrade enum form of mode. It stays on field 6 with
+  // its original varint wire type so historical MsgEditValidator txs keep
+  // unmarshaling in tx queries; new clients must use mode (field 9) instead.
+  ValidatorMode legacy_mode = 6 [deprecated = true];
   // enable_redelegation optionally updates the validator's enable_redelegation
   // flag. When unspecified the stored flag is kept as-is.
   RedelegationUpdate enable_redelegation = 7;
@@ -146,6 +149,11 @@ message MsgEditValidator {
   // exceed max_license, otherwise the edit is rejected.
   string delegation_increment = 8
       [(cosmos_proto.scalar) = "cosmos.Int", (gogoproto.customtype) = "cosmossdk.io/math.Int"];
+  // mode optionally changes the validator mode ("normal", "license", "fast"
+  // or their numeric forms). An empty string keeps the stored mode, so an
+  // omitted CLI flag can never silently downgrade a validator; a non-empty
+  // value must be a recognized mode.
+  string mode = 9;
 }
 
 // MsgEditValidatorResponse defines the Msg/EditValidator response type.

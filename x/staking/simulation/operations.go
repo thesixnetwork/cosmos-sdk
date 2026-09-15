@@ -246,7 +246,7 @@ func SimulateMsgEditValidator(
 			simtypes.RandStringOfLength(r, 10),
 		)
 
-		msg := types.NewMsgEditValidator(address, description, &newCommissionRate, nil, types.ValidatorMode_MODE_NORMAL, &math.Int{}, nil)
+		msg := types.NewMsgEditValidator(address, description, &newCommissionRate, nil, "", &math.Int{}, nil)
 
 		txCtx := simulation.OperationInput{
 			R:               r,

@@ -178,8 +178,12 @@ func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateVali
 		validator.LicenseCount = licenseCount
 	case types.ValidatorMode_MODE_FAST:
 		validator.Mode = types.ValidatorMode_MODE_FAST
-	default:
+	case types.ValidatorMode_MODE_NORMAL:
 		validator.Mode = types.ValidatorMode_MODE_NORMAL
+	default:
+		// the enum comes straight off the wire, so an unknown value must be
+		// rejected instead of silently creating a normal validator
+		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "Invalid validator mode")
 	}
 	// redelegation is force-disabled on six-network: the wire field is kept
 	// for compatibility but is ignored — every validator is stored disabled
@@ -270,7 +274,23 @@ func (k msgServer) EditValidator(ctx context.Context, msg *types.MsgEditValidato
 
 	validator.Description = description
 
-	switch msg.Mode {
+	// resolve the requested mode: the string field is authoritative and an
+	// empty value keeps the stored mode, so an edit that omits the mode can
+	// never silently downgrade the validator. legacy_mode covers txs signed
+	// against the pre-upgrade enum field.
+	modeInput := msg.Mode
+	if modeInput == "" && msg.LegacyMode != types.ValidatorMode_MODE_NORMAL { //nolint:staticcheck // legacy field kept for historical txs
+		modeInput = msg.LegacyMode.String() //nolint:staticcheck // legacy field kept for historical txs
+	}
+	requestedMode := validator.Mode
+	if modeInput != "" {
+		requestedMode, err = types.ParseValidatorMode(modeInput)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	switch requestedMode {
 	case types.ValidatorMode_MODE_LICENSE:
 		// an increment update is applied before the license recount below, so
 		// the edit only goes through when the new increment "makes sense" for
@@ -329,9 +349,12 @@ func (k msgServer) EditValidator(ctx context.Context, msg *types.MsgEditValidato
 		if validator.Mode != types.ValidatorMode_MODE_FAST {
 			return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "cannot switch an existing validator into fast mode")
 		}
+	case types.ValidatorMode_MODE_NORMAL:
+		// reached on an explicit "normal" request (an owner decision) or when
+		// the mode was omitted and the validator already is normal
+		validator.Mode = types.ValidatorMode_MODE_NORMAL
 	default:
-		// MODE_NORMAL is the proto zero value, so an edit that omits mode must
-		// keep the stored mode instead of silently downgrading the validator
+		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "Invalid validator mode")
 	}
 
 	// redelegation is force-disabled on six-network: the enable_redelegation

@@ -3,10 +3,8 @@ package cli
 import (
 	"strings"
 
-	errorsmod "cosmossdk.io/errors"
 	flag "github.com/spf13/pflag"
 
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
@@ -204,18 +202,5 @@ func convertValidatorCreationFlag(flag string) types.ValidatorMode {
 		return types.ValidatorMode_MODE_FAST
 	default:
 		return defaultValidatorMode
-	}
-}
-
-func validatorModeInputCheck(flag string) error {
-	switch strings.ToLower(flag) {
-	case "0", "normal", "mode_normal":
-		return nil
-	case "1", "license", "mode_license":
-		return nil
-	case "2", "fast", "mode_fast":
-		return nil
-	default:
-		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "Invalid validator mode input")
 	}
 }

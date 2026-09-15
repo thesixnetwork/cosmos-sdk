@@ -121,7 +121,7 @@ func NewValidatorLicenseMode(operator string, pubKey cryptotypes.PubKey, descrip
 }
 
 // LicenseCountCreationCalculate validates the license-mode inputs of a
-// create-validator message and returns the initial license count. 
+// create-validator message and returns the initial license count.
 // The pointer receiver matters: it stores maxLicense on the validator being created.
 func (v *Validator) LicenseCountCreationCalculate(delegationIncrement math.Int, minDelegation math.Int, maxLicense math.Int, value sdk.Coin) (math.Int, error) {
 	if delegationIncrement.IsNil() || !v.MinDelegation.Equal(v.DelegationIncrement) {
@@ -142,6 +142,21 @@ func (v *Validator) LicenseCountCreationCalculate(delegationIncrement math.Int, 
 	}
 
 	return divAmount, nil
+}
+
+// ParseValidatorMode converts a textual validator-mode input ("normal",
+// "license", "fast", their MODE_* forms or numeric values) into the enum.
+func ParseValidatorMode(input string) (ValidatorMode, error) {
+	switch strings.ToLower(input) {
+	case "0", "normal", "mode_normal":
+		return ValidatorMode_MODE_NORMAL, nil
+	case "1", "license", "mode_license":
+		return ValidatorMode_MODE_LICENSE, nil
+	case "2", "fast", "mode_fast":
+		return ValidatorMode_MODE_FAST, nil
+	default:
+		return ValidatorMode_MODE_NORMAL, errors.Wrap(sdkerrors.ErrInvalidRequest, "Invalid validator mode input")
+	}
 }
 
 // Validators is a collection of Validator
