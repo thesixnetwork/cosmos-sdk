@@ -352,11 +352,16 @@ func NewEditValidatorCmd(ac address.Codec) *cobra.Command {
 				return err
 			}
 
-			if err := validatorModeInputCheck(validatorMode); err != nil {
-    			return err
+			// MODE_NORMAL is the proto zero value, which the msg server
+			// treats as "keep the stored mode" — so an omitted flag is safe,
+			// but a provided one must be a recognized mode
+			mode := types.ValidatorMode_MODE_NORMAL
+			if cmd.Flags().Changed(FlagValidatorMode) {
+				if err := validatorModeInputCheck(validatorMode); err != nil {
+					return err
+				}
+				mode = convertValidatorCreationFlag(validatorMode)
 			}
-
-			mode := convertValidatorCreationFlag(validatorMode)
 
 			msg := types.NewMsgEditValidator(valAddr, description, newRate, newMinSelfDelegation, mode, newMaxLicense)
 

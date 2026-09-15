@@ -120,28 +120,29 @@ func NewValidatorLicenseMode(operator string, pubKey cryptotypes.PubKey, descrip
 	}, nil
 }
 
-
-func (v Validator) LicenseCountCreationCalculate(delegationIncrement math.Int, minDelegation math.Int, maxLicense math.Int, value sdk.Coin)(math.Int, error) {
+// LicenseCountCreationCalculate validates the license-mode inputs of a
+// create-validator message and returns the initial license count. The pointer
+// receiver matters: it stores maxLicense on the validator being created.
+func (v *Validator) LicenseCountCreationCalculate(delegationIncrement math.Int, minDelegation math.Int, maxLicense math.Int, value sdk.Coin) (math.Int, error) {
 	if delegationIncrement.IsNil() || !v.MinDelegation.Equal(v.DelegationIncrement) {
 		return math.Int{}, ErrLicenseIncrement
 	}
 
 	if v.MaxLicense = maxLicense; maxLicense.IsNil() {
-			return math.Int{}, ErrMaxLicenseMustBeDefined
+		return math.Int{}, ErrMaxLicenseMustBeDefined
 	}
 
 	divAmount := value.Amount.Quo(v.DelegationIncrement)
 	modAmount := value.Amount.Mod(v.DelegationIncrement)
 	if modAmount.GT(math.ZeroInt()) {
-			return math.Int{}, ErrInvalidIncrementDelegation
+		return math.Int{}, ErrInvalidIncrementDelegation
 	}
 	if divAmount.GT(v.MaxLicense) {
-			return math.Int{}, ErrNotEnoughLicense
+		return math.Int{}, ErrNotEnoughLicense
 	}
 
 	return divAmount, nil
 }
-
 
 // Validators is a collection of Validator
 type Validators struct {
