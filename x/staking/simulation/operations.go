@@ -1,7 +1,6 @@
 package simulation
 
 import (
-	"bytes"
 	"fmt"
 	"math/rand"
 
@@ -247,7 +246,7 @@ func SimulateMsgEditValidator(
 			simtypes.RandStringOfLength(r, 10),
 		)
 
-		msg := types.NewMsgEditValidator(address, description, &newCommissionRate, nil, types.ValidatorMode_MODE_NORMAL, &math.Int{})
+		msg := types.NewMsgEditValidator(address, description, &newCommissionRate, nil, types.ValidatorMode_MODE_NORMAL, &math.Int{}, nil)
 
 		txCtx := simulation.OperationInput{
 			R:               r,
@@ -572,136 +571,8 @@ func SimulateMsgBeginRedelegate(
 	) (simtypes.OperationMsg, []simtypes.FutureOperation, error) {
 		msgType := sdk.MsgTypeURL(&types.MsgBeginRedelegate{})
 
-		allVals, err := k.GetAllValidators(ctx)
-		if err != nil {
-			return simtypes.NoOpMsg(types.ModuleName, msgType, "unable to get validators"), nil, err
-		}
-
-		if len(allVals) == 0 {
-			return simtypes.NoOpMsg(types.ModuleName, msgType, "number of validators equal zero"), nil, nil
-		}
-
-		srcVal, ok := testutil.RandSliceElem(r, allVals)
-		if !ok {
-			return simtypes.NoOpMsg(types.ModuleName, msgType, "unable to pick validator"), nil, nil
-		}
-
-		srcAddr, err := k.ValidatorAddressCodec().StringToBytes(srcVal.GetOperator())
-		if err != nil {
-			return simtypes.NoOpMsg(types.ModuleName, msgType, "error getting validator address bytes"), nil, err
-		}
-		delegations, err := k.GetValidatorDelegations(ctx, srcAddr)
-		if err != nil {
-			return simtypes.NoOpMsg(types.ModuleName, msgType, "error getting validator delegations"), nil, nil
-		}
-
-		if delegations == nil {
-			return simtypes.NoOpMsg(types.ModuleName, msgType, "keeper does have any delegation entries"), nil, nil
-		}
-
-		// get random delegator from src validator
-		delegation := delegations[r.Intn(len(delegations))]
-		delAddr := delegation.GetDelegatorAddr()
-
-		delAddrBz, err := ak.AddressCodec().StringToBytes(delAddr)
-		if err != nil {
-			return simtypes.NoOpMsg(types.ModuleName, msgType, "error getting delegator address bytes"), nil, err
-		}
-
-		hasRecRedel, err := k.HasReceivingRedelegation(ctx, delAddrBz, srcAddr)
-		if err != nil {
-			return simtypes.NoOpMsg(types.ModuleName, msgType, "error getting receiving redelegation"), nil, err
-		}
-
-		if hasRecRedel {
-			return simtypes.NoOpMsg(types.ModuleName, msgType, "receveing redelegation is not allowed"), nil, nil // skip
-		}
-
-		// get random destination validator
-		destVal, ok := testutil.RandSliceElem(r, allVals)
-		if !ok {
-			return simtypes.NoOpMsg(types.ModuleName, msgType, "unable to pick validator"), nil, nil
-		}
-
-		destAddr, err := k.ValidatorAddressCodec().StringToBytes(destVal.GetOperator())
-		if err != nil {
-			return simtypes.NoOpMsg(types.ModuleName, msgType, "error getting validator address bytes"), nil, err
-		}
-		hasMaxRedel, err := k.HasMaxRedelegationEntries(ctx, delAddrBz, srcAddr, destAddr)
-		if err != nil {
-			return simtypes.NoOpMsg(types.ModuleName, msgType, "error getting max redelegation entries"), nil, err
-		}
-
-		if bytes.Equal(srcAddr, destAddr) || destVal.InvalidExRate() || hasMaxRedel {
-			return simtypes.NoOpMsg(types.ModuleName, msgType, "checks failed"), nil, nil
-		}
-
-		totalBond := srcVal.TokensFromShares(delegation.GetShares()).TruncateInt()
-		if !totalBond.IsPositive() {
-			return simtypes.NoOpMsg(types.ModuleName, msgType, "total bond is negative"), nil, nil
-		}
-
-		redAmt, err := simtypes.RandPositiveInt(r, totalBond)
-		if err != nil {
-			return simtypes.NoOpMsg(types.ModuleName, msgType, "unable to generate positive amount"), nil, err
-		}
-
-		if redAmt.IsZero() {
-			return simtypes.NoOpMsg(types.ModuleName, msgType, "amount is zero"), nil, nil
-		}
-
-		// check if the shares truncate to zero
-		shares, err := srcVal.SharesFromTokens(redAmt)
-		if err != nil {
-			return simtypes.NoOpMsg(types.ModuleName, msgType, "invalid shares"), nil, err
-		}
-
-		if srcVal.TokensFromShares(shares).TruncateInt().IsZero() {
-			return simtypes.NoOpMsg(types.ModuleName, msgType, "shares truncate to zero"), nil, nil // skip
-		}
-
-		// need to retrieve the simulation account associated with delegation to retrieve PrivKey
-		var simAccount simtypes.Account
-
-		for _, simAcc := range accs {
-			if simAcc.Address.Equals(sdk.AccAddress(delAddrBz)) {
-				simAccount = simAcc
-				break
-			}
-		}
-
-		// if simaccount.PrivKey == nil, delegation address does not exist in accs. However, since smart contracts and module accounts can stake, we can ignore the error
-		if simAccount.PrivKey == nil {
-			return simtypes.NoOpMsg(types.ModuleName, msgType, "account private key is nil"), nil, nil
-		}
-
-		account := ak.GetAccount(ctx, delAddrBz)
-		spendable := bk.SpendableCoins(ctx, account.GetAddress())
-
-		bondDenom, err := k.BondDenom(ctx)
-		if err != nil {
-			return simtypes.NoOpMsg(types.ModuleName, msgType, "bond denom not found"), nil, err
-		}
-
-		msg := types.NewMsgBeginRedelegate(
-			delAddr, srcVal.GetOperator(), destVal.GetOperator(),
-			sdk.NewCoin(bondDenom, redAmt),
-		)
-
-		txCtx := simulation.OperationInput{
-			R:               r,
-			App:             app,
-			TxGen:           txGen,
-			Cdc:             nil,
-			Msg:             msg,
-			Context:         ctx,
-			SimAccount:      simAccount,
-			AccountKeeper:   ak,
-			Bankkeeper:      bk,
-			ModuleName:      types.ModuleName,
-			CoinsSpentInMsg: spendable,
-		}
-
-		return simulation.GenAndDeliverTxWithRandFees(txCtx)
+		// redelegation is force-disabled on six-network: the msg server
+		// rejects every MsgBeginRedelegate, so there is nothing to simulate
+		return simtypes.NoOpMsg(types.ModuleName, msgType, "redelegation is force-disabled"), nil, nil
 	}
 }

@@ -1,7 +1,6 @@
 package types
 
 import (
-
 	"cosmossdk.io/core/address"
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/math"
@@ -134,14 +133,15 @@ func (msg MsgCreateValidator) UnpackInterfaces(unpacker codectypes.AnyUnpacker) 
 }
 
 // NewMsgEditValidator creates a new MsgEditValidator instance
-func NewMsgEditValidator(valAddr string, description Description, newRate *math.LegacyDec, newMinSelfDelegation *math.Int, validatorMode ValidatorMode, maxLicence *math.Int) *MsgEditValidator {
+func NewMsgEditValidator(valAddr string, description Description, newRate *math.LegacyDec, newMinSelfDelegation *math.Int, validatorMode ValidatorMode, maxLicence, delegationIncrement *math.Int) *MsgEditValidator {
 	return &MsgEditValidator{
-		Description:       description,
-		CommissionRate:    newRate,
-		ValidatorAddress:  valAddr,
-		MinSelfDelegation: newMinSelfDelegation,
-		Mode:              validatorMode,
-		MaxLicense:        maxLicence,
+		Description:         description,
+		CommissionRate:      newRate,
+		ValidatorAddress:    valAddr,
+		MinSelfDelegation:   newMinSelfDelegation,
+		Mode:                validatorMode,
+		MaxLicense:          maxLicence,
+		DelegationIncrement: delegationIncrement,
 	}
 }
 

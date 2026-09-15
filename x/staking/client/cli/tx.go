@@ -345,6 +345,16 @@ func NewEditValidatorCmd(ac address.Codec) *cobra.Command {
 				newMaxLicense = &msb
 			}
 
+			var newDelegationIncrement *math.Int
+			delegationIncrementStr, _ := cmd.Flags().GetString(FlagDelegationIncrement)
+			if delegationIncrementStr != "" {
+				di, ok := math.NewIntFromString(delegationIncrementStr)
+				if !ok {
+					return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "delegation increment must be a positive integer")
+				}
+				newDelegationIncrement = &di
+			}
+
 			valAddr, err := ac.BytesToString(clientCtx.GetFromAddress())
 			if err != nil {
 				return err
@@ -361,7 +371,7 @@ func NewEditValidatorCmd(ac address.Codec) *cobra.Command {
 				mode = convertValidatorCreationFlag(validatorMode)
 			}
 
-			msg := types.NewMsgEditValidator(valAddr, description, newRate, newMinSelfDelegation, mode, newMaxLicense)
+			msg := types.NewMsgEditValidator(valAddr, description, newRate, newMinSelfDelegation, mode, newMaxLicense, newDelegationIncrement)
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},

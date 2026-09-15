@@ -140,6 +140,12 @@ message MsgEditValidator {
   // enable_redelegation optionally updates the validator's enable_redelegation
   // flag. When unspecified the stored flag is kept as-is.
   RedelegationUpdate enable_redelegation = 7;
+  // delegation_increment optionally replaces the validator's delegation
+  // increment (license mode only). Every existing delegation must be an exact
+  // multiple of the new increment and the recomputed license usage must not
+  // exceed max_license, otherwise the edit is rejected.
+  string delegation_increment = 8
+      [(cosmos_proto.scalar) = "cosmos.Int", (gogoproto.customtype) = "cosmossdk.io/math.Int"];
 }
 
 // MsgEditValidatorResponse defines the Msg/EditValidator response type.

@@ -276,6 +276,18 @@ func (k msgServer) EditValidator(ctx context.Context, msg *types.MsgEditValidato
 
 	switch msg.Mode {
 	case types.ValidatorMode_MODE_LICENSE:
+		// an increment update is applied before the license recount below, so
+		// the edit only goes through when the new increment "makes sense" for
+		// every delegation that already exists
+		if msg.DelegationIncrement != nil && !msg.DelegationIncrement.IsNil() {
+			if !msg.DelegationIncrement.IsPositive() {
+				return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "delegation increment must be a positive integer")
+			}
+			validator.DelegationIncrement = *msg.DelegationIncrement
+			// license mode keeps MinDelegation locked to the increment
+			validator.MinDelegation = *msg.DelegationIncrement
+		}
+
 		// license accounting divides by DelegationIncrement; a validator
 		// created in another mode may have it nil or zero
 		if validator.DelegationIncrement.IsNil() || !validator.DelegationIncrement.IsPositive() {
@@ -293,18 +305,27 @@ func (k msgServer) EditValidator(ctx context.Context, msg *types.MsgEditValidato
 			return nil, types.ErrMaxLicenseMustBeDefined
 		}
 
-		amount := validator.GetDelegatorShares().Ceil().TruncateInt()
-		divAmount := amount.Quo(validator.DelegationIncrement)
-		modAmount := amount.Mod(validator.DelegationIncrement)
-		if modAmount.GT(math.ZeroInt()) {
-			return nil, types.ErrInvalidIncrementDelegation
+		// redistribute license usage across the current delegations: every
+		// delegation must be an exact multiple of the (possibly new)
+		// increment, and the recomputed total has to fit under the cap
+		delegations, err := k.GetValidatorDelegations(ctx, sdk.ValAddress(valAddr))
+		if err != nil {
+			return nil, err
 		}
-		if divAmount.GT(validator.MaxLicense) {
+		totalLicenses := math.ZeroInt()
+		for _, delegation := range delegations {
+			tokens := validator.TokensFromShares(delegation.Shares).TruncateInt()
+			if tokens.Mod(validator.DelegationIncrement).GT(math.ZeroInt()) {
+				return nil, types.ErrInvalidIncrementDelegation
+			}
+			totalLicenses = totalLicenses.Add(tokens.Quo(validator.DelegationIncrement))
+		}
+		if totalLicenses.GT(validator.MaxLicense) {
 			return nil, types.ErrNotEnoughLicense
 		}
 
 		validator.Mode = types.ValidatorMode_MODE_LICENSE
-		validator.LicenseCount = divAmount
+		validator.LicenseCount = totalLicenses
 	case types.ValidatorMode_MODE_FAST:
 		// fast mode grants near-instant unbonding, so it can only be chosen at
 		// create-validator (which is gated by the approver); switching an

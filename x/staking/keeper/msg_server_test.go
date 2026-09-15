@@ -1788,6 +1788,90 @@ func (s *KeeperTestSuite) TestMsgEditValidatorLicenseMode() {
 	require.Contains(err.Error(), "Min Delegation and DelegationIncrement must be defined and the same")
 }
 
+func (s *KeeperTestSuite) TestMsgEditValidatorDelegationIncrement() {
+	ctx, keeper, msgServer := s.ctx, s.stakingKeeper, s.msgServer
+	require := s.Require()
+	s.execExpectCalls()
+
+	increment := math.NewInt(10000000000)
+	pk := ed25519.GenPrivKey().PubKey()
+	comm := stakingtypes.NewCommissionRates(math.LegacyNewDec(0), math.LegacyNewDec(0), math.LegacyNewDec(0))
+	require.NoError(keeper.SetNewValidatorApprovalState(ctx, stakingtypes.ValidatorApproval{ApproverAddress: pk.Address().String(), Enabled: false}))
+
+	// license validator: self-bond 50 increments = 50 licenses, cap 150
+	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), pk.Address().String(), pk, sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(500000000000)), stakingtypes.Description{Moniker: "LicenseVal"}, comm, math.OneInt())
+	require.NoError(err)
+	msg.Mode = stakingtypes.ValidatorMode_MODE_LICENSE
+	msg.DelegationIncrement = increment
+	msg.MinDelegation = increment
+	msg.MaxLicense = math.NewInt(150)
+	_, err = msgServer.CreateValidator(ctx, msg)
+	require.NoError(err)
+
+	// second delegation of 3 increments -> 53 licenses in use
+	delegator := sdk.AccAddress(PKS[1].Address())
+	s.bankKeeper.EXPECT().DelegateCoinsFromAccountToModule(gomock.Any(), delegator, stakingtypes.NotBondedPoolName, gomock.Any()).AnyTimes()
+	_, err = msgServer.Delegate(ctx, stakingtypes.NewMsgDelegate(delegator.String(), ValAddr.String(), sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(30000000000))))
+	require.NoError(err)
+	validator, err := keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(math.NewInt(53), validator.LicenseCount)
+
+	desc := stakingtypes.Description{Moniker: "LicenseVal"}
+	editWithIncrement := func(newIncrement math.Int) (*stakingtypes.MsgEditValidatorResponse, error) {
+		return msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
+			ValidatorAddress:    ValAddr.String(),
+			Description:         desc,
+			Mode:                stakingtypes.ValidatorMode_MODE_LICENSE,
+			DelegationIncrement: &newIncrement,
+		})
+	}
+
+	// non-positive increment is rejected up front
+	_, err = editWithIncrement(math.NewInt(0))
+	require.Error(err)
+	require.Contains(err.Error(), "delegation increment must be a positive integer")
+
+	// 15G does not divide the 500G self-bond
+	_, err = editWithIncrement(math.NewInt(15000000000))
+	require.Error(err)
+	require.Contains(err.Error(), "delegation amount must meet increment condition")
+
+	// 53G divides the 530G total but not each delegation: the check is
+	// per-delegation, so the redistribution cannot silently split a stake
+	_, err = editWithIncrement(math.NewInt(53000000000))
+	require.Error(err)
+	require.Contains(err.Error(), "delegation amount must meet increment condition")
+
+	// 2G divides everything but needs 265 licenses > cap 150
+	_, err = editWithIncrement(math.NewInt(2000000000))
+	require.Error(err)
+	require.Contains(err.Error(), "There is no license enough for the delegation")
+
+	// rejected edits leave the stored increment and count untouched
+	validator, err = keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(increment, validator.DelegationIncrement)
+	require.Equal(math.NewInt(53), validator.LicenseCount)
+
+	// 5G divides both delegations: 100 + 6 = 106 licenses under the cap
+	newIncrement := math.NewInt(5000000000)
+	_, err = editWithIncrement(newIncrement)
+	require.NoError(err)
+	validator, err = keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(newIncrement, validator.DelegationIncrement)
+	require.Equal(newIncrement, validator.MinDelegation)
+	require.Equal(math.NewInt(106), validator.LicenseCount)
+
+	// follow-up delegations must respect the new, finer increment
+	_, err = msgServer.Delegate(ctx, stakingtypes.NewMsgDelegate(delegator.String(), ValAddr.String(), sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(5000000000))))
+	require.NoError(err)
+	validator, err = keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(math.NewInt(107), validator.LicenseCount)
+}
+
 func (s *KeeperTestSuite) TestMsgDelegateFastMode() {
 	ctx, keeper, msgServer := s.ctx, s.stakingKeeper, s.msgServer
 	require := s.Require()

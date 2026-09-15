@@ -351,21 +351,14 @@ func (s *SimTestSuite) TestSimulateMsgBeginRedelegate() {
 	_, err = s.app.FinalizeBlock(&abci.RequestFinalizeBlock{Height: s.app.LastBlockHeight() + 1, Hash: s.app.LastCommitID().Hash, Time: blockTime})
 	require.NoError(err)
 
-	// execute operation
+	// redelegation is force-disabled on six-network: the operation must be a
+	// no-op so simulations never emit doomed MsgBeginRedelegate txs
 	op := simulation.SimulateMsgBeginRedelegate(s.txConfig, s.accountKeeper, s.bankKeeper, s.stakingKeeper)
 	operationMsg, futureOperations, err := op(s.r, s.app.BaseApp, ctx, s.accounts, "")
 	s.T().Logf("operation message: %v", operationMsg)
 	require.NoError(err)
-
-	var msg types.MsgBeginRedelegate
-	err = proto.Unmarshal(operationMsg.Msg, &msg)
-	require.NoError(err)
-	require.True(operationMsg.OK)
-	require.Equal("cosmos1ua0fwyws7vzjrry3pqkklvf8mny93l9s9zg0h4", msg.DelegatorAddress)
-	require.Equal("stake", msg.Amount.Denom)
-	require.Equal(sdk.MsgTypeURL(&types.MsgBeginRedelegate{}), sdk.MsgTypeURL(&msg))
-	require.Equal("cosmosvaloper1ghekyjucln7y67ntx7cf27m9dpuxxemnsvnaes", msg.ValidatorDstAddress)
-	require.Equal("cosmosvaloper1p8wcgrjr4pjju90xg6u9cgq55dxwq8j7epjs3u", msg.ValidatorSrcAddress)
+	require.False(operationMsg.OK)
+	require.Contains(operationMsg.Comment, "redelegation is force-disabled")
 	require.Len(futureOperations, 0)
 }
 
