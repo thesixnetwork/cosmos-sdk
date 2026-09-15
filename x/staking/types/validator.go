@@ -121,8 +121,8 @@ func NewValidatorLicenseMode(operator string, pubKey cryptotypes.PubKey, descrip
 }
 
 // LicenseCountCreationCalculate validates the license-mode inputs of a
-// create-validator message and returns the initial license count. The pointer
-// receiver matters: it stores maxLicense on the validator being created.
+// create-validator message and returns the initial license count. 
+// The pointer receiver matters: it stores maxLicense on the validator being created.
 func (v *Validator) LicenseCountCreationCalculate(delegationIncrement math.Int, minDelegation math.Int, maxLicense math.Int, value sdk.Coin) (math.Int, error) {
 	if delegationIncrement.IsNil() || !v.MinDelegation.Equal(v.DelegationIncrement) {
 		return math.Int{}, ErrLicenseIncrement

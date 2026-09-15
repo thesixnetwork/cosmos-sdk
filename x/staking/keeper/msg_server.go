@@ -167,12 +167,6 @@ func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateVali
 		validator.MinDelegation = validator.DelegationIncrement
 	}
 
-	// Redelegation is force-disabled on six-network: the wire field is kept
-	// for compatibility but can no longer be turned on
-	if msg.EnableRedelegation {
-		return nil, types.ErrRedelegationDisable
-	}
-
 	switch msg.Mode {
 	case types.ValidatorMode_MODE_LICENSE:
 		validator.Mode = types.ValidatorMode_MODE_LICENSE
@@ -187,6 +181,8 @@ func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateVali
 	default:
 		validator.Mode = types.ValidatorMode_MODE_NORMAL
 	}
+	// redelegation is force-disabled on six-network: the wire field is kept
+	// for compatibility but is ignored — every validator is stored disabled
 	validator.EnableRedelegation = false
 	err = k.SetValidator(ctx, validator)
 	if err != nil {
@@ -338,14 +334,10 @@ func (k msgServer) EditValidator(ctx context.Context, msg *types.MsgEditValidato
 		// keep the stored mode instead of silently downgrading the validator
 	}
 
-	switch msg.EnableRedelegation {
-	case types.RedelegationUpdate_REDELEGATION_UPDATE_ENABLE:
-		// redelegation is force-disabled on six-network and can no longer be
-		// turned on by validator owners
-		return nil, types.ErrRedelegationDisable
-	case types.RedelegationUpdate_REDELEGATION_UPDATE_DISABLE:
-		validator.EnableRedelegation = false
-	}
+	// redelegation is force-disabled on six-network: the enable_redelegation
+	// field is ignored and every edit re-asserts the disabled state, so even a
+	// validator that somehow carries a stale true is cleaned up here
+	validator.EnableRedelegation = false
 
 	if msg.CommissionRate != nil {
 		commission, err := k.UpdateValidatorCommission(ctx, validator, *msg.CommissionRate)
