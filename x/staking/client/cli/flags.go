@@ -101,6 +101,13 @@ func FlagDelegationIncrementEdit() *flag.FlagSet {
 	return fs
 }
 
+// FlagMinDelegation       = "min-delegation"
+func FlagMinDelegationEdit() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.String(FlagMinDelegation, "", "The minimum delegation")
+	return fs
+}
+
 // FlagLicenseMode         = "license-mode"
 // FlagMaxLicense          = "max-license"
 func FlagValidatorModeCreate() *flag.FlagSet {

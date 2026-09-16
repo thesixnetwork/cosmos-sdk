@@ -154,6 +154,11 @@ message MsgEditValidator {
   // omitted CLI flag can never silently downgrade a validator; a non-empty
   // value must be a recognized mode.
   string mode = 9;
+  // min_delegation optionally replaces the validator's entry threshold
+  // (license mode only). Every existing delegation must already meet the new
+  // minimum, otherwise the edit is rejected.
+  string min_delegation = 10
+      [(cosmos_proto.scalar) = "cosmos.Int", (gogoproto.customtype) = "cosmossdk.io/math.Int"];
 }
 
 // MsgEditValidatorResponse defines the Msg/EditValidator response type.

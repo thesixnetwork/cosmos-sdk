@@ -2502,6 +2502,7 @@ var (
 	fd_MsgEditValidator_enable_redelegation  protoreflect.FieldDescriptor
 	fd_MsgEditValidator_delegation_increment protoreflect.FieldDescriptor
 	fd_MsgEditValidator_mode                 protoreflect.FieldDescriptor
+	fd_MsgEditValidator_min_delegation       protoreflect.FieldDescriptor
 )
 
 func init() {
@@ -2516,6 +2517,7 @@ func init() {
 	fd_MsgEditValidator_enable_redelegation = md_MsgEditValidator.Fields().ByName("enable_redelegation")
 	fd_MsgEditValidator_delegation_increment = md_MsgEditValidator.Fields().ByName("delegation_increment")
 	fd_MsgEditValidator_mode = md_MsgEditValidator.Fields().ByName("mode")
+	fd_MsgEditValidator_min_delegation = md_MsgEditValidator.Fields().ByName("min_delegation")
 }
 
 var _ protoreflect.Message = (*fastReflection_MsgEditValidator)(nil)
@@ -2637,6 +2639,12 @@ func (x *fastReflection_MsgEditValidator) Range(f func(protoreflect.FieldDescrip
 			return
 		}
 	}
+	if x.MinDelegation != "" {
+		value := protoreflect.ValueOfString(x.MinDelegation)
+		if !f(fd_MsgEditValidator_min_delegation, value) {
+			return
+		}
+	}
 }
 
 // Has reports whether a field is populated.
@@ -2670,6 +2678,8 @@ func (x *fastReflection_MsgEditValidator) Has(fd protoreflect.FieldDescriptor) b
 		return x.DelegationIncrement != ""
 	case "cosmos.staking.v1beta1.MsgEditValidator.mode":
 		return x.Mode != ""
+	case "cosmos.staking.v1beta1.MsgEditValidator.min_delegation":
+		return x.MinDelegation != ""
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: cosmos.staking.v1beta1.MsgEditValidator"))
@@ -2704,6 +2714,8 @@ func (x *fastReflection_MsgEditValidator) Clear(fd protoreflect.FieldDescriptor)
 		x.DelegationIncrement = ""
 	case "cosmos.staking.v1beta1.MsgEditValidator.mode":
 		x.Mode = ""
+	case "cosmos.staking.v1beta1.MsgEditValidator.min_delegation":
+		x.MinDelegation = ""
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: cosmos.staking.v1beta1.MsgEditValidator"))
@@ -2747,6 +2759,9 @@ func (x *fastReflection_MsgEditValidator) Get(descriptor protoreflect.FieldDescr
 	case "cosmos.staking.v1beta1.MsgEditValidator.mode":
 		value := x.Mode
 		return protoreflect.ValueOfString(value)
+	case "cosmos.staking.v1beta1.MsgEditValidator.min_delegation":
+		value := x.MinDelegation
+		return protoreflect.ValueOfString(value)
 	default:
 		if descriptor.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: cosmos.staking.v1beta1.MsgEditValidator"))
@@ -2785,6 +2800,8 @@ func (x *fastReflection_MsgEditValidator) Set(fd protoreflect.FieldDescriptor, v
 		x.DelegationIncrement = value.Interface().(string)
 	case "cosmos.staking.v1beta1.MsgEditValidator.mode":
 		x.Mode = value.Interface().(string)
+	case "cosmos.staking.v1beta1.MsgEditValidator.min_delegation":
+		x.MinDelegation = value.Interface().(string)
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: cosmos.staking.v1beta1.MsgEditValidator"))
@@ -2826,6 +2843,8 @@ func (x *fastReflection_MsgEditValidator) Mutable(fd protoreflect.FieldDescripto
 		panic(fmt.Errorf("field delegation_increment of message cosmos.staking.v1beta1.MsgEditValidator is not mutable"))
 	case "cosmos.staking.v1beta1.MsgEditValidator.mode":
 		panic(fmt.Errorf("field mode of message cosmos.staking.v1beta1.MsgEditValidator is not mutable"))
+	case "cosmos.staking.v1beta1.MsgEditValidator.min_delegation":
+		panic(fmt.Errorf("field min_delegation of message cosmos.staking.v1beta1.MsgEditValidator is not mutable"))
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: cosmos.staking.v1beta1.MsgEditValidator"))
@@ -2857,6 +2876,8 @@ func (x *fastReflection_MsgEditValidator) NewField(fd protoreflect.FieldDescript
 	case "cosmos.staking.v1beta1.MsgEditValidator.delegation_increment":
 		return protoreflect.ValueOfString("")
 	case "cosmos.staking.v1beta1.MsgEditValidator.mode":
+		return protoreflect.ValueOfString("")
+	case "cosmos.staking.v1beta1.MsgEditValidator.min_delegation":
 		return protoreflect.ValueOfString("")
 	default:
 		if fd.IsExtension() {
@@ -2961,6 +2982,10 @@ func (x *fastReflection_MsgEditValidator) ProtoMethods() *protoiface.Methods {
 		if l > 0 {
 			n += 1 + l + runtime.Sov(uint64(l))
 		}
+		l = len(x.MinDelegation)
+		if l > 0 {
+			n += 1 + l + runtime.Sov(uint64(l))
+		}
 		if x.unknownFields != nil {
 			n += len(x.unknownFields)
 		}
@@ -2989,6 +3014,13 @@ func (x *fastReflection_MsgEditValidator) ProtoMethods() *protoiface.Methods {
 		if x.unknownFields != nil {
 			i -= len(x.unknownFields)
 			copy(dAtA[i:], x.unknownFields)
+		}
+		if len(x.MinDelegation) > 0 {
+			i -= len(x.MinDelegation)
+			copy(dAtA[i:], x.MinDelegation)
+			i = runtime.EncodeVarint(dAtA, i, uint64(len(x.MinDelegation)))
+			i--
+			dAtA[i] = 0x52
 		}
 		if len(x.Mode) > 0 {
 			i -= len(x.Mode)
@@ -3370,6 +3402,38 @@ func (x *fastReflection_MsgEditValidator) ProtoMethods() *protoiface.Methods {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
 				}
 				x.Mode = string(dAtA[iNdEx:postIndex])
+				iNdEx = postIndex
+			case 10:
+				if wireType != 2 {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field MinDelegation", wireType)
+				}
+				var stringLen uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrIntOverflow
+					}
+					if iNdEx >= l {
+						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					stringLen |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				intStringLen := int(stringLen)
+				if intStringLen < 0 {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
+				}
+				postIndex := iNdEx + intStringLen
+				if postIndex < 0 {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
+				}
+				if postIndex > l {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
+				}
+				x.MinDelegation = string(dAtA[iNdEx:postIndex])
 				iNdEx = postIndex
 			default:
 				iNdEx = preIndex
@@ -10899,6 +10963,10 @@ type MsgEditValidator struct {
 	// omitted CLI flag can never silently downgrade a validator; a non-empty
 	// value must be a recognized mode.
 	Mode string `protobuf:"bytes,9,opt,name=mode,proto3" json:"mode,omitempty"`
+	// min_delegation optionally replaces the validator's entry threshold
+	// (license mode only). Every existing delegation must already meet the new
+	// minimum, otherwise the edit is rejected.
+	MinDelegation string `protobuf:"bytes,10,opt,name=min_delegation,json=minDelegation,proto3" json:"min_delegation,omitempty"`
 }
 
 func (x *MsgEditValidator) Reset() {
@@ -10981,6 +11049,13 @@ func (x *MsgEditValidator) GetDelegationIncrement() string {
 func (x *MsgEditValidator) GetMode() string {
 	if x != nil {
 		return x.Mode
+	}
+	return ""
+}
+
+func (x *MsgEditValidator) GetMinDelegation() string {
+	if x != nil {
+		return x.MinDelegation
 	}
 	return ""
 }
@@ -11746,7 +11821,7 @@ var file_cosmos_staking_v1beta1_tx_proto_rawDesc = []byte{
 	0x6b, 0x2f, 0x4d, 0x73, 0x67, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x56, 0x61, 0x6c, 0x69, 0x64,
 	0x61, 0x74, 0x6f, 0x72, 0x22, 0x1c, 0x0a, 0x1a, 0x4d, 0x73, 0x67, 0x43, 0x72, 0x65, 0x61, 0x74,
 	0x65, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x6f, 0x72, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
-	0x73, 0x65, 0x22, 0x88, 0x06, 0x0a, 0x10, 0x4d, 0x73, 0x67, 0x45, 0x64, 0x69, 0x74, 0x56, 0x61,
+	0x73, 0x65, 0x22, 0xd8, 0x06, 0x0a, 0x10, 0x4d, 0x73, 0x67, 0x45, 0x64, 0x69, 0x74, 0x56, 0x61,
 	0x6c, 0x69, 0x64, 0x61, 0x74, 0x6f, 0x72, 0x12, 0x50, 0x0a, 0x0b, 0x64, 0x65, 0x73, 0x63, 0x72,
 	0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x23, 0x2e, 0x63,
 	0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x2e, 0x73, 0x74, 0x61, 0x6b, 0x69, 0x6e, 0x67, 0x2e, 0x76, 0x31,
@@ -11790,7 +11865,12 @@ var file_cosmos_staking_v1beta1_tx_proto_rawDesc = []byte{
 	0x74, 0x68, 0x2e, 0x49, 0x6e, 0x74, 0xd2, 0xb4, 0x2d, 0x0a, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73,
 	0x2e, 0x49, 0x6e, 0x74, 0x52, 0x13, 0x64, 0x65, 0x6c, 0x65, 0x67, 0x61, 0x74, 0x69, 0x6f, 0x6e,
 	0x49, 0x6e, 0x63, 0x72, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x6d, 0x6f, 0x64,
-	0x65, 0x18, 0x09, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6d, 0x6f, 0x64, 0x65, 0x3a, 0x3e, 0x88,
+	0x65, 0x18, 0x09, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6d, 0x6f, 0x64, 0x65, 0x12, 0x4e, 0x0a,
+	0x0e, 0x6d, 0x69, 0x6e, 0x5f, 0x64, 0x65, 0x6c, 0x65, 0x67, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x18,
+	0x0a, 0x20, 0x01, 0x28, 0x09, 0x42, 0x27, 0xda, 0xde, 0x1f, 0x15, 0x63, 0x6f, 0x73, 0x6d, 0x6f,
+	0x73, 0x73, 0x64, 0x6b, 0x2e, 0x69, 0x6f, 0x2f, 0x6d, 0x61, 0x74, 0x68, 0x2e, 0x49, 0x6e, 0x74,
+	0xd2, 0xb4, 0x2d, 0x0a, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x2e, 0x49, 0x6e, 0x74, 0x52, 0x0d,
+	0x6d, 0x69, 0x6e, 0x44, 0x65, 0x6c, 0x65, 0x67, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x3a, 0x3e, 0x88,
 	0xa0, 0x1f, 0x00, 0xe8, 0xa0, 0x1f, 0x00, 0x82, 0xe7, 0xb0, 0x2a, 0x11, 0x76, 0x61, 0x6c, 0x69,
 	0x64, 0x61, 0x74, 0x6f, 0x72, 0x5f, 0x61, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x8a, 0xe7, 0xb0,
 	0x2a, 0x1b, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x2d, 0x73, 0x64, 0x6b, 0x2f, 0x4d, 0x73, 0x67,

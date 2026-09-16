@@ -135,7 +135,7 @@ func (msg MsgCreateValidator) UnpackInterfaces(unpacker codectypes.AnyUnpacker) 
 // NewMsgEditValidator creates a new MsgEditValidator instance
 // NewMsgEditValidator creates a new MsgEditValidator instance. mode is the
 // textual validator mode; an empty string keeps the validator's stored mode.
-func NewMsgEditValidator(valAddr string, description Description, newRate *math.LegacyDec, newMinSelfDelegation *math.Int, mode string, maxLicence, delegationIncrement *math.Int) *MsgEditValidator {
+func NewMsgEditValidator(valAddr string, description Description, newRate *math.LegacyDec, newMinSelfDelegation *math.Int, mode string, maxLicence, delegationIncrement, minDelegation *math.Int) *MsgEditValidator {
 	return &MsgEditValidator{
 		Description:         description,
 		CommissionRate:      newRate,
@@ -144,6 +144,7 @@ func NewMsgEditValidator(valAddr string, description Description, newRate *math.
 		Mode:                mode,
 		MaxLicense:          maxLicence,
 		DelegationIncrement: delegationIncrement,
+		MinDelegation:       minDelegation,
 	}
 }
 

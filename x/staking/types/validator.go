@@ -121,10 +121,15 @@ func NewValidatorLicenseMode(operator string, pubKey cryptotypes.PubKey, descrip
 }
 
 // LicenseCountCreationCalculate validates the license-mode inputs of a
-// create-validator message and returns the initial license count.
+// create-validator message and returns the initial license count for the
+// self-bond. DelegationIncrement is the license unit — a delegation of amount
+// A holds A / DelegationIncrement licenses — while MinDelegation is only the
+// entry threshold a delegator's first delegation must reach (e.g. min 1M with
+// increment 10K means entering costs at least 1M and is worth 100 licenses).
 // The pointer receiver matters: it stores maxLicense on the validator being created.
 func (v *Validator) LicenseCountCreationCalculate(delegationIncrement math.Int, minDelegation math.Int, maxLicense math.Int, value sdk.Coin) (math.Int, error) {
-	if delegationIncrement.IsNil() || !v.MinDelegation.Equal(v.DelegationIncrement) {
+	if delegationIncrement.IsNil() || !v.DelegationIncrement.IsPositive() ||
+		v.MinDelegation.IsNil() || !v.MinDelegation.IsPositive() {
 		return math.Int{}, ErrLicenseIncrement
 	}
 
@@ -132,16 +137,19 @@ func (v *Validator) LicenseCountCreationCalculate(delegationIncrement math.Int, 
 		return math.Int{}, ErrMaxLicenseMustBeDefined
 	}
 
-	divAmount := value.Amount.Quo(v.DelegationIncrement)
-	modAmount := value.Amount.Mod(v.DelegationIncrement)
-	if modAmount.GT(math.ZeroInt()) {
+	if value.Amount.LT(v.MinDelegation) {
+		return math.Int{}, ErrDelegationBelowMinimum
+	}
+
+	if value.Amount.Mod(v.DelegationIncrement).GT(math.ZeroInt()) {
 		return math.Int{}, ErrInvalidIncrementDelegation
 	}
-	if divAmount.GT(v.MaxLicense) {
+	licenseCount := value.Amount.Quo(v.DelegationIncrement)
+	if licenseCount.GT(v.MaxLicense) {
 		return math.Int{}, ErrNotEnoughLicense
 	}
 
-	return divAmount, nil
+	return licenseCount, nil
 }
 
 // ParseValidatorMode converts a textual validator-mode input ("normal",

@@ -274,17 +274,9 @@ func (k msgServer) EditValidator(ctx context.Context, msg *types.MsgEditValidato
 
 	validator.Description = description
 
-	// resolve the requested mode: the string field is authoritative and an
-	// empty value keeps the stored mode, so an edit that omits the mode can
-	// never silently downgrade the validator. legacy_mode covers txs signed
-	// against the pre-upgrade enum field.
-	modeInput := msg.Mode
-	if modeInput == "" && msg.LegacyMode != types.ValidatorMode_MODE_NORMAL { //nolint:staticcheck // legacy field kept for historical txs
-		modeInput = msg.LegacyMode.String() //nolint:staticcheck // legacy field kept for historical txs
-	}
 	requestedMode := validator.Mode
-	if modeInput != "" {
-		requestedMode, err = types.ParseValidatorMode(modeInput)
+	if msg.Mode != "" {
+		requestedMode, err = types.ParseValidatorMode(msg.Mode)
 		if err != nil {
 			return nil, err
 		}
@@ -292,21 +284,41 @@ func (k msgServer) EditValidator(ctx context.Context, msg *types.MsgEditValidato
 
 	switch requestedMode {
 	case types.ValidatorMode_MODE_LICENSE:
-		// an increment update is applied before the license recount below, so
-		// the edit only goes through when the new increment "makes sense" for
-		// every delegation that already exists
+		// increment and min-delegation updates are applied before the license
+		// recount below, so the edit only goes through when the new values
+		// "make sense" for every delegation that already exists
 		if msg.DelegationIncrement != nil && !msg.DelegationIncrement.IsNil() {
 			if !msg.DelegationIncrement.IsPositive() {
 				return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "delegation increment must be a positive integer")
 			}
 			validator.DelegationIncrement = *msg.DelegationIncrement
-			// license mode keeps MinDelegation locked to the increment
-			validator.MinDelegation = *msg.DelegationIncrement
 		}
 
-		// license accounting divides by DelegationIncrement; a validator
-		// created in another mode may have it nil or zero
-		if validator.DelegationIncrement.IsNil() || !validator.DelegationIncrement.IsPositive() {
+		if msg.MinDelegation != nil && !msg.MinDelegation.IsNil() {
+			if !msg.MinDelegation.IsPositive() {
+				return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "minimum delegation must be a positive integer")
+			}
+
+			delegations, err := k.GetValidatorDelegations(ctx, valAddr)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, delegation := range delegations {
+				tokens := validator.TokensFromShares(delegation.Shares).TruncateInt()
+				if tokens.LT(*msg.MinDelegation) {
+					return nil, types.ErrNewMinimumDelegationInvalid
+				}
+			}
+
+			validator.MinDelegation = *msg.MinDelegation
+		}
+
+		// license accounting needs both knobs: MinDelegation is the entry
+		// threshold, DelegationIncrement is the license unit; a validator
+		// created in another mode may have them nil or zero
+		if validator.DelegationIncrement.IsNil() || !validator.DelegationIncrement.IsPositive() ||
+			validator.MinDelegation.IsNil() || !validator.MinDelegation.IsPositive() {
 			return nil, types.ErrLicenseIncrement
 		}
 
@@ -317,25 +329,18 @@ func (k msgServer) EditValidator(ctx context.Context, msg *types.MsgEditValidato
 			}
 			validator.MaxLicense = *msg.MaxLicense
 		}
+
 		if validator.MaxLicense.IsNil() {
 			return nil, types.ErrMaxLicenseMustBeDefined
 		}
 
-		// redistribute license usage across the current delegations: every
-		// delegation must be an exact multiple of the (possibly new)
-		// increment, and the recomputed total has to fit under the cap
-		delegations, err := k.GetValidatorDelegations(ctx, sdk.ValAddress(valAddr))
+		// redistribute license usage across the current state and re-check it
+		// against the (possibly new) cap
+		totalLicenses, err := k.calculateEditLicenseCount(ctx, sdk.ValAddress(valAddr), validator)
 		if err != nil {
 			return nil, err
 		}
-		totalLicenses := math.ZeroInt()
-		for _, delegation := range delegations {
-			tokens := validator.TokensFromShares(delegation.Shares).TruncateInt()
-			if tokens.Mod(validator.DelegationIncrement).GT(math.ZeroInt()) {
-				return nil, types.ErrInvalidIncrementDelegation
-			}
-			totalLicenses = totalLicenses.Add(tokens.Quo(validator.DelegationIncrement))
-		}
+
 		if totalLicenses.GT(validator.MaxLicense) {
 			return nil, types.ErrNotEnoughLicense
 		}
@@ -650,22 +655,13 @@ func (k msgServer) Undelegate(ctx context.Context, msg *types.MsgUndelegate) (*t
 
 	switch validator.Mode {
 	case types.ValidatorMode_MODE_LICENSE:
-		delegateLicenseCount, err := k.calculateDelegateLicenseCount(ctx, msg.Amount, validator, delegatorAddress)
-		if err != nil {
+		// validate the undelegation shape (whole increments, entry minimum,
+		// full exit) but do NOT release the licenses yet: they stay occupied
+		// until the unbonding period completes (see CompleteUnbonding), so a
+		// freed slot cannot be taken while a cancel-unbonding is still possible
+		if _, err := k.calculateUndelegateLicenseCount(ctx, msg.Amount, validator, delegatorAddress); err != nil {
 			return nil, err
 		}
-		// Validate License
-		// decrease license count in validator
-		licenseCount := math.ZeroInt()
-		if !validator.LicenseCount.IsNil() {
-			licenseCount = validator.LicenseCount
-		}
-		validator.LicenseCount = licenseCount.Sub(delegateLicenseCount)
-		if validator.LicenseCount.IsNegative() {
-			validator.LicenseCount = math.ZeroInt()
-		}
-		// Update Validator
-		k.SetValidator(ctx, validator)
 
 		completionTime, undelegatedAmt, err = k.Keeper.Undelegate(ctx, delegatorAddress, addr, shares)
 		if err != nil {
@@ -802,27 +798,14 @@ func (k msgServer) CancelUnbondingDelegation(ctx context.Context, msg *types.Msg
 		return nil, sdkerrors.ErrInvalidRequest.Wrap("unbonding delegation is already processed")
 	}
 
-	// restore license usage for license mode validators: Undelegate released
-	// licenses, so re-bonding the amount must claim them back, otherwise a
-	// delegate -> undelegate -> cancel cycle lets the validator exceed MaxLicense
+	// licenses stay occupied during the whole unbonding period (they are only
+	// released by CompleteUnbonding), so canceling is license-neutral: the
+	// count is untouched and the cap cannot be exceeded by a
+	// delegate -> undelegate -> cancel cycle. Only the delegation shape is
+	// re-validated: whole increments into a live delegation, or the entry
+	// minimum when the cancel re-creates a fully-exited delegation
 	if validator.Mode == types.ValidatorMode_MODE_LICENSE {
-		increment := math.OneInt()
-		if !validator.DelegationIncrement.IsNil() && validator.DelegationIncrement.IsPositive() {
-			increment = validator.DelegationIncrement
-		}
-		if msg.Amount.Amount.Mod(increment).GT(math.ZeroInt()) {
-			return nil, types.ErrInvalidIncrementDelegation
-		}
-		relicensed := msg.Amount.Amount.Quo(increment)
-		licenseCount := math.ZeroInt()
-		if !validator.LicenseCount.IsNil() {
-			licenseCount = validator.LicenseCount
-		}
-		if !validator.MaxLicense.IsNil() && licenseCount.Add(relicensed).GT(validator.MaxLicense) {
-			return nil, types.ErrNotEnoughLicense
-		}
-		validator.LicenseCount = licenseCount.Add(relicensed)
-		if err := k.SetValidator(ctx, validator); err != nil {
+		if _, err := k.calculateDelegateLicenseCount(ctx, msg.Amount, validator, delegatorAddress); err != nil {
 			return nil, err
 		}
 	}
@@ -892,32 +875,94 @@ func (k msgServer) calculateDelegateLicenseCount(ctx context.Context, amount sdk
 	}
 	_, existed := k.GetExistingDelegation(ctx, delegatorAddress, valAddr)
 
-	// Validate Minimum for NEW delegations only
+	// MinDelegation is the entry threshold: it applies to NEW delegations
+	// only, while every delegation (entry or top-up) must be a whole number
+	// of DelegationIncrement, the license unit
 	if !validator.MinDelegation.IsNil() && !existed && amount.Amount.LT(validator.MinDelegation) {
 		return math.Int{}, types.ErrDelegationBelowMinimum
 	}
 
-	delegateLicenseCount := math.ZeroInt()
-	amountToValidateIncrement := math.NewIntFromBigInt(amount.Amount.BigInt())
-
-	if !validator.MinDelegation.IsNil() && !existed {
-		amountToValidateIncrement = amountToValidateIncrement.Sub(validator.MinDelegation)
-		delegateLicenseCount = delegateLicenseCount.Add(math.OneInt())
-	}
-
-	// Validate DelegationIncrement
 	increment := math.OneInt()
 	if !validator.DelegationIncrement.IsNil() {
 		increment = validator.DelegationIncrement
 	}
 
-	if amountToValidateIncrement.GT(math.ZeroInt()) {
-		divAmount := amountToValidateIncrement.Quo(increment)
-		modAmount := amountToValidateIncrement.Mod(increment)
-		if modAmount.GT(math.ZeroInt()) {
-			return math.NewInt(0), types.ErrInvalidIncrementDelegation
-		}
-		delegateLicenseCount = delegateLicenseCount.Add(divAmount)
+	if amount.Amount.Mod(increment).GT(math.ZeroInt()) {
+		return math.NewInt(0), types.ErrInvalidIncrementDelegation
 	}
-	return delegateLicenseCount, nil
+	return amount.Amount.Quo(increment), nil
+}
+
+// calculateEditLicenseCount recomputes a license validator's total license
+// usage from state for MsgEditValidator: every active delegation must stay at
+// or above the entry minimum and be a whole number of the (possibly just
+// updated) increment. Stakes still locked in the unbonding queue keep holding
+// their licenses until they mature, so their balances are counted as well.
+func (k msgServer) calculateEditLicenseCount(ctx context.Context, valAddr sdk.ValAddress, validator types.Validator) (math.Int, error) {
+	delegations, err := k.GetValidatorDelegations(ctx, valAddr)
+	if err != nil {
+		return math.Int{}, err
+	}
+	totalLicenses := math.ZeroInt()
+	for _, delegation := range delegations {
+		tokens := validator.TokensFromShares(delegation.Shares).TruncateInt()
+		if tokens.LT(validator.MinDelegation) {
+			return math.Int{}, types.ErrDelegationBelowMinimum
+		}
+		if tokens.Mod(validator.DelegationIncrement).GT(math.ZeroInt()) {
+			return math.Int{}, types.ErrInvalidIncrementDelegation
+		}
+		totalLicenses = totalLicenses.Add(tokens.Quo(validator.DelegationIncrement))
+	}
+
+	// unbonding stakes keep their licenses until CompleteUnbonding releases
+	// them; their balances are floored per entry like the release will be
+	ubds, err := k.GetUnbondingDelegationsFromValidator(ctx, valAddr)
+	if err != nil {
+		return math.Int{}, err
+	}
+	for _, ubd := range ubds {
+		for _, entry := range ubd.Entries {
+			totalLicenses = totalLicenses.Add(entry.Balance.Quo(validator.DelegationIncrement))
+		}
+	}
+	return totalLicenses, nil
+}
+
+// calculateUndelegateLicenseCount returns how many licenses an undelegation of
+// amount releases. Removing the whole delegation releases all its licenses and
+// is never blocked by increment rounding (e.g. after a slash) so a delegator
+// can always fully exit. A partial undelegation must be an exact multiple of
+// the increment and keep at least MinDelegation bonded.
+func (k msgServer) calculateUndelegateLicenseCount(ctx context.Context, amount sdk.Coin, validator types.Validator, delegatorAddress sdk.AccAddress) (math.Int, error) {
+	valAddr, err := k.validatorAddressCodec.StringToBytes(validator.GetOperator())
+	if err != nil {
+		return math.Int{}, sdkerrors.ErrInvalidAddress.Wrapf("invalid validator address: %s", err)
+	}
+	delegation, existed := k.GetExistingDelegation(ctx, delegatorAddress, valAddr)
+	if !existed {
+		return math.Int{}, types.ErrNoDelegation
+	}
+
+	increment := math.OneInt()
+	if !validator.DelegationIncrement.IsNil() {
+		increment = validator.DelegationIncrement
+	}
+
+	tokens := validator.TokensFromShares(delegation.Shares).TruncateInt()
+
+	// full exit: release everything this delegation holds
+	if amount.Amount.GTE(tokens) {
+		return tokens.Quo(increment), nil
+	}
+
+	// partial: whole increments only, and the remaining delegation must not
+	// fall below the entry minimum
+	if amount.Amount.Mod(increment).GT(math.ZeroInt()) {
+		return math.Int{}, types.ErrInvalidIncrementDelegation
+	}
+	if !validator.MinDelegation.IsNil() && tokens.Sub(amount.Amount).LT(validator.MinDelegation) {
+		return math.Int{}, types.ErrDelegationBelowMinimum
+	}
+	return amount.Amount.Quo(increment), nil
 }

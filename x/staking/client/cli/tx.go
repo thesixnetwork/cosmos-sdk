@@ -355,6 +355,16 @@ func NewEditValidatorCmd(ac address.Codec) *cobra.Command {
 				newDelegationIncrement = &di
 			}
 
+			var newMinDelegation *math.Int
+			minDelegationStr, _ := cmd.Flags().GetString(FlagMinDelegation)
+			if minDelegationStr != "" {
+				md, ok := math.NewIntFromString(minDelegationStr)
+				if !ok {
+					return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "minimum delegation must be a positive integer")
+				}
+				newMinDelegation = &md
+			}
+
 			valAddr, err := ac.BytesToString(clientCtx.GetFromAddress())
 			if err != nil {
 				return err
@@ -371,7 +381,7 @@ func NewEditValidatorCmd(ac address.Codec) *cobra.Command {
 				modeInput = validatorMode
 			}
 
-			msg := types.NewMsgEditValidator(valAddr, description, newRate, newMinSelfDelegation, modeInput, newMaxLicense, newDelegationIncrement)
+			msg := types.NewMsgEditValidator(valAddr, description, newRate, newMinSelfDelegation, modeInput, newMaxLicense, newDelegationIncrement, newMinDelegation)
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
@@ -383,6 +393,7 @@ func NewEditValidatorCmd(ac address.Codec) *cobra.Command {
 	cmd.Flags().AddFlagSet(FlagMaxLicenseEdit())
 	cmd.Flags().AddFlagSet(FlagValidatorModeEdit())
 	cmd.Flags().AddFlagSet(FlagDelegationIncrementEdit())
+	cmd.Flags().AddFlagSet(FlagMinDelegationEdit())
 
 	flagMode, _ := cmd.Flags().GetString(FlagValidatorMode)
 	if flagMode != "" {

@@ -1587,15 +1587,16 @@ func (s *KeeperTestSuite) TestMsgCreateValidatorLicenseMode() {
 				msg.MinDelegation = math.Int{}
 			},
 			expErr:    true,
-			expErrMsg: "Min Delegation and DelegationIncrement must be defined and the same",
+			expErrMsg: "Min Delegation and DelegationIncrement must be defined and positive",
 		},
 		{
-			name: "min delegation differs from increment",
+			name: "self bond below min delegation",
 			mutate: func(msg *stakingtypes.MsgCreateValidator) {
-				msg.MinDelegation = math.NewInt(20000000000)
+				msg.MinDelegation = math.NewInt(600000000000)
+				msg.DelegationIncrement = math.NewInt(600000000000)
 			},
 			expErr:    true,
-			expErrMsg: "Min Delegation and DelegationIncrement must be defined and the same",
+			expErrMsg: "delegation amount less than minimum",
 		},
 		{
 			name: "self bond not a multiple of increment",
@@ -1800,7 +1801,7 @@ func (s *KeeperTestSuite) TestMsgEditValidatorLicenseMode() {
 		MaxLicense:       &higherMax,
 	})
 	require.Error(err)
-	require.Contains(err.Error(), "Min Delegation and DelegationIncrement must be defined and the same")
+	require.Contains(err.Error(), "Min Delegation and DelegationIncrement must be defined and positive")
 
 	// an unrecognized mode string is rejected instead of being coerced
 	_, err = msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
@@ -1916,14 +1917,15 @@ func (s *KeeperTestSuite) TestMsgEditValidatorDelegationIncrement() {
 	require.Equal(increment, validator.DelegationIncrement)
 	require.Equal(math.NewInt(53), validator.LicenseCount)
 
-	// 5K tokens divide both delegations: 100 + 6 = 106 licenses under the cap
+	// 5K tokens divide both delegations while MinDelegation stays at 10K:
+	// 500/5 + 30/5 = 106 licenses under the cap
 	newIncrement := math.NewInt(5000000000)
 	_, err = editWithIncrement(newIncrement)
 	require.NoError(err)
 	validator, err = keeper.GetValidator(ctx, ValAddr)
 	require.NoError(err)
 	require.Equal(newIncrement, validator.DelegationIncrement)
-	require.Equal(newIncrement, validator.MinDelegation)
+	require.Equal(increment, validator.MinDelegation)
 	require.Equal(math.NewInt(106), validator.LicenseCount)
 
 	// follow-up delegations must respect the new, finer increment
@@ -1944,7 +1946,7 @@ func (s *KeeperTestSuite) TestMsgEditValidatorDelegationIncrement() {
 	require.Equal(math.NewInt(107), validator.LicenseCount)
 
 	// after topping the delegation up to 40K tokens every stake is a whole
-	// number of 10K-token licenses, so the increase succeeds: 500K/10K + 40K/10K = 54
+	// number of 10K-token licenses, so the increase succeeds: 500/10 + 40/10 = 54
 	_, err = msgServer.Delegate(ctx, stakingtypes.NewMsgDelegate(delegator.String(), ValAddr.String(), sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(5000000000))))
 	require.NoError(err)
 	_, err = editWithIncrement(math.NewInt(10000000000))
@@ -1965,6 +1967,150 @@ func (s *KeeperTestSuite) TestMsgEditValidatorDelegationIncrement() {
 	validator, err = keeper.GetValidator(ctx, ValAddr)
 	require.NoError(err)
 	require.Equal(math.NewInt(55), validator.LicenseCount)
+}
+
+func (s *KeeperTestSuite) TestLicenseMinDelegationDifferentFromIncrement() {
+	keeper, msgServer := s.stakingKeeper, s.msgServer
+	require := s.Require()
+	s.execExpectCalls()
+
+	// cancel-unbonding needs a positive creation height
+	ctx := s.ctx.WithBlockHeight(5)
+
+	minDelegation := math.NewInt(1000000000000) // entry threshold: 1M tokens
+	increment := math.NewInt(10000000000)       // license unit: 10K tokens
+
+	pk := ed25519.GenPrivKey().PubKey()
+	comm := stakingtypes.NewCommissionRates(math.LegacyNewDec(0), math.LegacyNewDec(0), math.LegacyNewDec(0))
+	require.NoError(keeper.SetNewValidatorApprovalState(ctx, stakingtypes.ValidatorApproval{ApproverAddress: pk.Address().String(), Enabled: false}))
+
+	// self-bond of 2M tokens = 200 licenses (2M / 10K)
+	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), pk.Address().String(), pk, sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(2000000000000)), stakingtypes.Description{Moniker: "LicenseVal"}, comm, math.OneInt())
+	require.NoError(err)
+	msg.Mode = stakingtypes.ValidatorMode_MODE_LICENSE
+	msg.DelegationIncrement = increment
+	msg.MinDelegation = minDelegation
+	msg.MaxLicense = math.NewInt(500)
+	_, err = msgServer.CreateValidator(ctx, msg)
+	require.NoError(err)
+	validator, err := keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(math.NewInt(200), validator.LicenseCount)
+	require.Equal(minDelegation, validator.MinDelegation)
+	require.Equal(increment, validator.DelegationIncrement)
+
+	delegator := sdk.AccAddress(PKS[1].Address())
+	s.bankKeeper.EXPECT().DelegateCoinsFromAccountToModule(gomock.Any(), delegator, stakingtypes.NotBondedPoolName, gomock.Any()).AnyTimes()
+
+	// a first delegation below the 1M entry threshold is rejected
+	_, err = msgServer.Delegate(ctx, stakingtypes.NewMsgDelegate(delegator.String(), ValAddr.String(), sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(500000000000))))
+	require.Error(err)
+	require.Contains(err.Error(), "delegation amount less than minimum")
+
+	// entering with exactly the minimum claims min/increment licenses:
+	// 200 + 1M/10K = 300
+	_, err = msgServer.Delegate(ctx, stakingtypes.NewMsgDelegate(delegator.String(), ValAddr.String(), sdk.NewCoin(sdk.DefaultBondDenom, minDelegation)))
+	require.NoError(err)
+	validator, err = keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(math.NewInt(300), validator.LicenseCount)
+
+	// topping up moves in whole increments: 5K is rejected, 10K adds one
+	// license: 300 -> 301 (min applies to the entry only, not to top-ups)
+	_, err = msgServer.Delegate(ctx, stakingtypes.NewMsgDelegate(delegator.String(), ValAddr.String(), sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(5000000000))))
+	require.Error(err)
+	require.Contains(err.Error(), "delegation amount must meet increment condition")
+	_, err = msgServer.Delegate(ctx, stakingtypes.NewMsgDelegate(delegator.String(), ValAddr.String(), sdk.NewCoin(sdk.DefaultBondDenom, increment)))
+	require.NoError(err)
+	validator, err = keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(math.NewInt(301), validator.LicenseCount)
+
+	// partial undelegation is license-neutral until it matures: the licenses
+	// stay occupied while the stake sits in the unbonding queue
+	_, err = msgServer.Undelegate(ctx, stakingtypes.NewMsgUndelegate(delegator.String(), ValAddr.String(), sdk.NewCoin(sdk.DefaultBondDenom, increment)))
+	require.NoError(err)
+	validator, err = keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(math.NewInt(301), validator.LicenseCount)
+
+	// a partial undelegation may not drop the delegation below the entry
+	// minimum, and must be a whole number of increments
+	_, err = msgServer.Undelegate(ctx, stakingtypes.NewMsgUndelegate(delegator.String(), ValAddr.String(), sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(500000000000))))
+	require.Error(err)
+	require.Contains(err.Error(), "delegation amount less than minimum")
+	_, err = msgServer.Undelegate(ctx, stakingtypes.NewMsgUndelegate(delegator.String(), ValAddr.String(), sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(5000000000))))
+	require.Error(err)
+	require.Contains(err.Error(), "delegation amount must meet increment condition")
+
+	// a full exit of the remaining 1M is allowed and also license-neutral
+	// while unbonding
+	_, err = msgServer.Undelegate(ctx, stakingtypes.NewMsgUndelegate(delegator.String(), ValAddr.String(), sdk.NewCoin(sdk.DefaultBondDenom, minDelegation)))
+	require.NoError(err)
+	validator, err = keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(math.NewInt(301), validator.LicenseCount)
+
+	// canceling the 1M entry re-creates the delegation without touching the
+	// count: nothing was released, nothing needs claiming back
+	_, err = msgServer.CancelUnbondingDelegation(ctx, stakingtypes.NewMsgCancelUnbondingDelegation(delegator.String(), ValAddr.String(), ctx.BlockHeight(), sdk.NewCoin(sdk.DefaultBondDenom, minDelegation)))
+	require.NoError(err)
+	validator, err = keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(math.NewInt(301), validator.LicenseCount)
+
+	// only when the earlier 10K entry matures is its license released:
+	// 301 -> 300, with the delegator back at the 1M entry minimum
+	unbondingTime, err := keeper.UnbondingTime(ctx)
+	require.NoError(err)
+	s.bankKeeper.EXPECT().UndelegateCoinsFromModuleToAccount(gomock.Any(), stakingtypes.NotBondedPoolName, delegator, gomock.Any()).AnyTimes()
+	matureCtx := ctx.WithBlockTime(ctx.BlockTime().Add(unbondingTime).Add(time.Second))
+	_, err = keeper.CompleteUnbonding(matureCtx, delegator, ValAddr)
+	require.NoError(err)
+	validator, err = keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(math.NewInt(300), validator.LicenseCount)
+
+	// the entry minimum itself is editable
+	desc := stakingtypes.Description{Moniker: "LicenseVal"}
+	editWithMin := func(newMin math.Int) error {
+		_, err := msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
+			ValidatorAddress: ValAddr.String(),
+			Description:      desc,
+			Mode:             "license",
+			MinDelegation:    &newMin,
+		})
+		return err
+	}
+
+	// raising it above an existing delegation (the delegator holds 1M) fails
+	err = editWithMin(math.NewInt(2000000000000))
+	require.Error(err)
+	require.Contains(err.Error(), "delegation amount less than minimum")
+
+	// non-positive minimums are rejected up front
+	err = editWithMin(math.NewInt(0))
+	require.Error(err)
+	require.Contains(err.Error(), "minimum delegation must be a positive integer")
+
+	// lowering the entry threshold to 500K succeeds and leaves the license
+	// accounting untouched (the minimum is a gate, not a license unit)
+	newMin := math.NewInt(500000000000)
+	require.NoError(editWithMin(newMin))
+	validator, err = keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(newMin, validator.MinDelegation)
+	require.Equal(math.NewInt(300), validator.LicenseCount)
+
+	// a fresh delegator can now enter at the lower threshold:
+	// 300 + 500K/10K = 350
+	delegator2 := sdk.AccAddress(PKS[2].Address())
+	s.bankKeeper.EXPECT().DelegateCoinsFromAccountToModule(gomock.Any(), delegator2, stakingtypes.NotBondedPoolName, gomock.Any()).AnyTimes()
+	_, err = msgServer.Delegate(ctx, stakingtypes.NewMsgDelegate(delegator2.String(), ValAddr.String(), sdk.NewCoin(sdk.DefaultBondDenom, newMin)))
+	require.NoError(err)
+	validator, err = keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(math.NewInt(350), validator.LicenseCount)
 }
 
 func (s *KeeperTestSuite) TestMsgDelegateFastMode() {
@@ -2048,7 +2194,8 @@ func (s *KeeperTestSuite) TestMsgUndelegateLicenseMode() {
 	require.Error(err)
 	require.Contains(err.Error(), "delegation amount must meet increment condition")
 
-	// undelegating two increments releases two licenses
+	// undelegating two increments keeps their licenses occupied for the
+	// whole unbonding period
 	res, err := msgServer.Undelegate(ctx, &stakingtypes.MsgUndelegate{
 		DelegatorAddress: Addr.String(),
 		ValidatorAddress: ValAddr.String(),
@@ -2058,6 +2205,17 @@ func (s *KeeperTestSuite) TestMsgUndelegateLicenseMode() {
 	require.Equal(math.NewInt(20000000000), res.Amount.Amount)
 
 	validator, err := keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(math.NewInt(50), validator.LicenseCount)
+
+	// once the unbonding matures the two licenses are released
+	unbondingTime, err := keeper.UnbondingTime(ctx)
+	require.NoError(err)
+	s.bankKeeper.EXPECT().UndelegateCoinsFromModuleToAccount(gomock.Any(), stakingtypes.NotBondedPoolName, Addr, gomock.Any()).AnyTimes()
+	matureCtx := ctx.WithBlockTime(ctx.BlockTime().Add(unbondingTime).Add(time.Second))
+	_, err = keeper.CompleteUnbonding(matureCtx, Addr, ValAddr)
+	require.NoError(err)
+	validator, err = keeper.GetValidator(ctx, ValAddr)
 	require.NoError(err)
 	require.Equal(math.NewInt(48), validator.LicenseCount)
 }
@@ -2127,7 +2285,8 @@ func (s *KeeperTestSuite) TestMsgCancelUnbondingDelegationLicenseMode() {
 	_, err = msgServer.CreateValidator(ctx, msg)
 	require.NoError(err)
 
-	// release two licenses into an unbonding entry
+	// undelegate two increments: the licenses stay occupied while the stake
+	// sits in the unbonding queue
 	_, err = msgServer.Undelegate(ctx, &stakingtypes.MsgUndelegate{
 		DelegatorAddress: Addr.String(),
 		ValidatorAddress: ValAddr.String(),
@@ -2136,9 +2295,20 @@ func (s *KeeperTestSuite) TestMsgCancelUnbondingDelegationLicenseMode() {
 	require.NoError(err)
 	validator, err := keeper.GetValidator(ctx, ValAddr)
 	require.NoError(err)
-	require.Equal(math.NewInt(48), validator.LicenseCount)
+	require.Equal(math.NewInt(50), validator.LicenseCount)
 
-	// cancelling must also respect the increment
+	// nobody can grab the unbonding slots early: the cap is still full
+	delegator := sdk.AccAddress(PKS[1].Address())
+	s.bankKeeper.EXPECT().DelegateCoinsFromAccountToModule(gomock.Any(), delegator, stakingtypes.NotBondedPoolName, gomock.Any()).AnyTimes()
+	_, err = msgServer.Delegate(ctx, &stakingtypes.MsgDelegate{
+		DelegatorAddress: delegator.String(),
+		ValidatorAddress: ValAddr.String(),
+		Amount:           sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(10000000000)),
+	})
+	require.Error(err)
+	require.Contains(err.Error(), "license limit has reached")
+
+	// cancelling must still respect the increment
 	_, err = msgServer.CancelUnbondingDelegation(ctx, &stakingtypes.MsgCancelUnbondingDelegation{
 		DelegatorAddress: Addr.String(),
 		ValidatorAddress: ValAddr.String(),
@@ -2148,40 +2318,37 @@ func (s *KeeperTestSuite) TestMsgCancelUnbondingDelegationLicenseMode() {
 	require.Error(err)
 	require.Contains(err.Error(), "delegation amount must meet increment condition")
 
-	// cancelling one increment claims its license back
+	// cancelling one increment is license-neutral: nothing was released, so
+	// nothing needs to be claimed back and the cap cannot be exceeded
 	_, err = msgServer.CancelUnbondingDelegation(ctx, &stakingtypes.MsgCancelUnbondingDelegation{
 		DelegatorAddress: Addr.String(),
 		ValidatorAddress: ValAddr.String(),
 		Amount:           sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(10000000000)),
 		CreationHeight:   5,
-	})
-	require.NoError(err)
-	validator, err = keeper.GetValidator(ctx, ValAddr)
-	require.NoError(err)
-	require.Equal(math.NewInt(49), validator.LicenseCount)
-
-	// refill the freed license with a fresh delegation...
-	_, err = msgServer.Delegate(ctx, &stakingtypes.MsgDelegate{
-		DelegatorAddress: Addr.String(),
-		ValidatorAddress: ValAddr.String(),
-		Amount:           sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(10000000000)),
 	})
 	require.NoError(err)
 	validator, err = keeper.GetValidator(ctx, ValAddr)
 	require.NoError(err)
 	require.Equal(math.NewInt(50), validator.LicenseCount)
 
-	// ...so cancelling the remaining entry would exceed MaxLicense and must fail
-	// BEFORE any tokens are re-bonded
-	_, err = msgServer.CancelUnbondingDelegation(ctx, &stakingtypes.MsgCancelUnbondingDelegation{
-		DelegatorAddress: Addr.String(),
+	// only when the remaining unbonding entry matures is its license freed
+	unbondingTime, err := keeper.UnbondingTime(ctx)
+	require.NoError(err)
+	s.bankKeeper.EXPECT().UndelegateCoinsFromModuleToAccount(gomock.Any(), stakingtypes.NotBondedPoolName, Addr, gomock.Any()).AnyTimes()
+	matureCtx := ctx.WithBlockTime(ctx.BlockTime().Add(unbondingTime).Add(time.Second))
+	_, err = keeper.CompleteUnbonding(matureCtx, Addr, ValAddr)
+	require.NoError(err)
+	validator, err = keeper.GetValidator(ctx, ValAddr)
+	require.NoError(err)
+	require.Equal(math.NewInt(49), validator.LicenseCount)
+
+	// now the freed slot can be taken by a fresh delegation
+	_, err = msgServer.Delegate(ctx, &stakingtypes.MsgDelegate{
+		DelegatorAddress: delegator.String(),
 		ValidatorAddress: ValAddr.String(),
 		Amount:           sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(10000000000)),
-		CreationHeight:   5,
 	})
-	require.Error(err)
-	require.Contains(err.Error(), "There is no license enough for the delegation")
-
+	require.NoError(err)
 	validator, err = keeper.GetValidator(ctx, ValAddr)
 	require.NoError(err)
 	require.Equal(math.NewInt(50), validator.LicenseCount)

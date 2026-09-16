@@ -1286,6 +1286,27 @@ func (k Keeper) CompleteUnbonding(ctx context.Context, delAddr sdk.AccAddress, v
 		return nil, err
 	}
 
+	// license-mode validators keep licenses occupied for the whole unbonding
+	// period, so a cancel-unbonding can always re-bond and freed slots cannot
+	// be taken early; the licenses are only released here, once the unbonding
+	// has matured and the stake actually left
+	if total := balances.AmountOf(bondDenom); total.IsPositive() {
+		if validator, err := k.GetValidator(ctx, valAddr); err == nil &&
+			validator.Mode == types.ValidatorMode_MODE_LICENSE && !validator.LicenseCount.IsNil() {
+			increment := math.OneInt()
+			if !validator.DelegationIncrement.IsNil() && validator.DelegationIncrement.IsPositive() {
+				increment = validator.DelegationIncrement
+			}
+			validator.LicenseCount = validator.LicenseCount.Sub(total.Quo(increment))
+			if validator.LicenseCount.IsNegative() {
+				validator.LicenseCount = math.ZeroInt()
+			}
+			if err := k.SetValidator(ctx, validator); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	return balances, nil
 }
 
