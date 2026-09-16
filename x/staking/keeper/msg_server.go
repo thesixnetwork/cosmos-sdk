@@ -669,7 +669,15 @@ func (k msgServer) Undelegate(ctx context.Context, msg *types.MsgUndelegate) (*t
 		}
 		undelegatedCoin = sdk.NewCoin(msg.Amount.Denom, undelegatedAmt)
 	case types.ValidatorMode_MODE_FAST:
-		completionTime, undelegatedAmt, err = k.UndelegateSpecial(ctx, delegatorAddress, addr, shares)
+		// the instant exit is a whitelist privilege for delegators only: the
+		// operator's self-bond backs consensus, so pulling it without the
+		// unbonding period would leave no stake at risk for slashing — the
+		// operator always waits the full unbonding time
+		if bytes.Equal(delegatorAddress, addr) {
+			completionTime, undelegatedAmt, err = k.Keeper.Undelegate(ctx, delegatorAddress, addr, shares)
+		} else {
+			completionTime, undelegatedAmt, err = k.UndelegateSpecial(ctx, delegatorAddress, addr, shares)
+		}
 		if err != nil {
 			return nil, err
 		}

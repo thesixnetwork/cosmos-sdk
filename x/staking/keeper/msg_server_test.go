@@ -2239,18 +2239,19 @@ func (s *KeeperTestSuite) TestMsgUndelegateFastMode() {
 	unbondingTime, err := keeper.UnbondingTime(ctx)
 	require.NoError(err)
 
-	// fast-mode undelegation completes next block instead of waiting the
-	// full unbonding period
+	// the operator's own self-bond backs consensus, so even on a fast
+	// validator it must wait the full unbonding period
 	res, err := msgServer.Undelegate(ctx, &stakingtypes.MsgUndelegate{
 		DelegatorAddress: Addr.String(),
 		ValidatorAddress: ValAddr.String(),
 		Amount:           sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(1000000)),
 	})
 	require.NoError(err)
-	require.True(res.CompletionTime.Before(ctx.BlockTime().Add(unbondingTime)))
-	require.True(res.CompletionTime.Equal(ctx.BlockTime()))
+	require.True(res.CompletionTime.Equal(ctx.BlockTime().Add(unbondingTime)))
 
-	// the whitelist gates entry only; a non-whitelisted delegator can still exit
+	// delegators get the fast exit: completion is immediate instead of
+	// waiting the unbonding period (the whitelist gates entry only, so even
+	// a non-whitelisted delegator can leave)
 	delegator := sdk.AccAddress(PKS[1].Address())
 	del := stakingtypes.NewDelegation(delegator.String(), ValAddr.String(), math.LegacyNewDec(100))
 	require.NoError(keeper.SetDelegation(ctx, del))
@@ -2260,6 +2261,7 @@ func (s *KeeperTestSuite) TestMsgUndelegateFastMode() {
 		Amount:           sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(100)),
 	})
 	require.NoError(err)
+	require.True(res.CompletionTime.Before(ctx.BlockTime().Add(unbondingTime)))
 	require.True(res.CompletionTime.Equal(ctx.BlockTime()))
 }
 
