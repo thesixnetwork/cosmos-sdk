@@ -1812,12 +1812,13 @@ func (s *KeeperTestSuite) TestMsgEditValidatorLicenseMode() {
 	require.Error(err)
 	require.Contains(err.Error(), "Invalid validator mode input")
 
-	// the legacy enum field (pre-upgrade txs) is still honored when the
-	// string field is empty
+	// the legacy enum field is decode-only: with the string field empty the
+	// stored mode is kept, so even a legacy MODE_FAST (which would error if
+	// it were honored) is simply ignored
 	_, err = msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
 		ValidatorAddress: ValAddr.String(),
 		Description:      desc,
-		LegacyMode:       stakingtypes.ValidatorMode_MODE_LICENSE,
+		LegacyMode:       stakingtypes.ValidatorMode_MODE_FAST,
 	})
 	require.NoError(err)
 	validator, err = keeper.GetValidator(ctx, ValAddr)
@@ -2086,7 +2087,7 @@ func (s *KeeperTestSuite) TestLicenseMinDelegationDifferentFromIncrement() {
 	// raising it above an existing delegation (the delegator holds 1M) fails
 	err = editWithMin(math.NewInt(2000000000000))
 	require.Error(err)
-	require.Contains(err.Error(), "delegation amount less than minimum")
+	require.Contains(err.Error(), "New minimum delegation must respect current delegator amount")
 
 	// non-positive minimums are rejected up front
 	err = editWithMin(math.NewInt(0))
