@@ -36,26 +36,70 @@ var _ types.MsgServer = msgServer{}
 func (k msgServer) SetValidatorApproval(ctx context.Context, msg *types.MsgSetValidatorApproval) (*types.MsgSetValidatorApprovalResponse, error) {
 	validatorApproval, err := k.GetValidatorApproval(ctx)
 	if err != nil {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrNotFound, "Validator approval is somehow does not existed")
+		if !errorsmod.IsOf(err, types.ErrNoValidatorFound) {
+			return nil, err
+		}
+		// the record is only written by InitGenesis, so a chain that upgraded
+		// in-place starts without one; governance can bootstrap it below
+		validatorApproval = types.ValidatorApproval{}
 	}
 
-	if validatorApproval.ApproverAddress != msg.ApproverAddress {
+	// an absent or empty approver can only be claimed through governance;
+	// otherwise the first caller would appoint themselves approver
+	if validatorApproval.ApproverAddress == "" {
+		if msg.ApproverAddress != k.authority {
+			return nil, errorsmod.Wrapf(sdkerrors.ErrUnauthorized, "no approver is set; only the authority %s can bootstrap the approval state", k.authority)
+		}
+	} else if validatorApproval.ApproverAddress != msg.ApproverAddress {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrUnauthorized, "Msg sender is not current approver")
 	}
 
-	var newApproverAddress string
-	if _, err := sdk.AccAddressFromBech32(msg.NewApproverAddress); err == nil {
+	// an empty new approver keeps the current one
+	newApproverAddress := validatorApproval.ApproverAddress
+	if msg.NewApproverAddress != "" {
+		if _, err := sdk.AccAddressFromBech32(msg.NewApproverAddress); err != nil {
+			return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "Invalid new approver address")
+		}
 		newApproverAddress = msg.NewApproverAddress
-	} else {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "Invalid new approver address")
+	}
+	if newApproverAddress == "" {
+		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "new approver address must be provided")
+	}
+
+	approved := validatorApproval.ApprovedValidators
+	for _, addr := range msg.RevokeValidators {
+		for i, existing := range approved {
+			if existing == addr {
+				approved = append(approved[:i], approved[i+1:]...)
+				break
+			}
+		}
+	}
+	for _, addr := range msg.ApproveValidators {
+		if _, err := k.validatorAddressCodec.StringToBytes(addr); err != nil {
+			return nil, sdkerrors.ErrInvalidAddress.Wrapf("invalid operator address to approve: %s", err)
+		}
+		duplicate := false
+		for _, existing := range approved {
+			if existing == addr {
+				duplicate = true
+				break
+			}
+		}
+		if !duplicate {
+			approved = append(approved, addr)
+		}
 	}
 
 	newValidatorApprovalState := types.ValidatorApproval{
-		ApproverAddress: newApproverAddress,
-		Enabled:         msg.Enabled,
+		ApproverAddress:    newApproverAddress,
+		Enabled:            msg.Enabled,
+		ApprovedValidators: approved,
 	}
 
-	k.SetNewValidatorApprovalState(ctx, newValidatorApprovalState)
+	if err := k.SetNewValidatorApprovalState(ctx, newValidatorApprovalState); err != nil {
+		return nil, err
+	}
 
 	return &types.MsgSetValidatorApprovalResponse{}, nil
 }
@@ -73,13 +117,33 @@ func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateVali
 		approval = types.ValidatorApproval{}
 	}
 
-	if approval.Enabled && msg.ApproverAddress != approval.ApproverAddress {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrUnauthorized, "Wrong approver for create validator")
-	}
-
 	valAddr, err := k.validatorAddressCodec.StringToBytes(msg.ValidatorAddress)
 	if err != nil {
 		return nil, sdkerrors.ErrInvalidAddress.Wrapf("invalid validator address: %s", err)
+	}
+
+	// msg.ApproverAddress is not a tx signer, so it proves nothing; the gate
+	// instead requires an approval the approver granted on-chain (via the
+	// signed MsgSetValidatorApproval) for this exact operator, consumed on use
+	if approval.Enabled {
+		approvedIdx := -1
+		for i, addr := range approval.ApprovedValidators {
+			approvedBz, err := k.validatorAddressCodec.StringToBytes(addr)
+			if err != nil {
+				continue
+			}
+			if bytes.Equal(approvedBz, valAddr) {
+				approvedIdx = i
+				break
+			}
+		}
+		if approvedIdx == -1 {
+			return nil, errorsmod.Wrapf(sdkerrors.ErrUnauthorized, "validator %s has not been approved for creation", msg.ValidatorAddress)
+		}
+		approval.ApprovedValidators = append(approval.ApprovedValidators[:approvedIdx], approval.ApprovedValidators[approvedIdx+1:]...)
+		if err := k.SetNewValidatorApprovalState(ctx, approval); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := msg.Validate(k.validatorAddressCodec); err != nil {
@@ -162,8 +226,10 @@ func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateVali
 	// CustomValidator
 	validator.MinDelegation = msg.MinDelegation
 	validator.DelegationIncrement = msg.DelegationIncrement
-	// when Min Delegation is not defined, default as DelegationIncrement
-	if msg.MinDelegation.IsNil() {
+	// when Min Delegation is not defined, default as DelegationIncrement.
+	// zero counts as undefined: the wire cannot carry "unset" for the
+	// non-nullable Int fields, so a nil Int arrives here as zero
+	if msg.MinDelegation.IsNil() || msg.MinDelegation.IsZero() {
 		validator.MinDelegation = validator.DelegationIncrement
 	}
 
@@ -290,6 +356,22 @@ func (k msgServer) EditValidator(ctx context.Context, msg *types.MsgEditValidato
 		if msg.DelegationIncrement != nil && !msg.DelegationIncrement.IsNil() {
 			if !msg.DelegationIncrement.IsPositive() {
 				return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "delegation increment must be a positive integer")
+			}
+			// a new increment must divide every existing delegation exactly, so
+			// the redistribution cannot silently split a stake; this only gates
+			// CHANGING the increment — a slashed validator (whose delegations
+			// are no longer whole increments) can still edit everything else
+			if !msg.DelegationIncrement.Equal(validator.DelegationIncrement) {
+				delegations, err := k.GetValidatorDelegations(ctx, valAddr)
+				if err != nil {
+					return nil, err
+				}
+				for _, delegation := range delegations {
+					tokens := validator.TokensFromShares(delegation.Shares).TruncateInt()
+					if tokens.Mod(*msg.DelegationIncrement).GT(math.ZeroInt()) {
+						return nil, types.ErrInvalidIncrementDelegation
+					}
+				}
 			}
 			validator.DelegationIncrement = *msg.DelegationIncrement
 		}
@@ -672,11 +754,13 @@ func (k msgServer) Undelegate(ctx context.Context, msg *types.MsgUndelegate) (*t
 		// the instant exit is a whitelist privilege for delegators only: the
 		// operator's self-bond backs consensus, so pulling it without the
 		// unbonding period would leave no stake at risk for slashing — the
-		// operator always waits the full unbonding time
-		if bytes.Equal(delegatorAddress, addr) {
-			completionTime, undelegatedAmt, err = k.Keeper.Undelegate(ctx, delegatorAddress, addr, shares)
-		} else {
+		// operator always waits the full unbonding time. A delegator that was
+		// removed from the whitelist can still leave, but through the normal
+		// unbonding period rather than being blocked (or instantly exiting)
+		if !bytes.Equal(delegatorAddress, addr) && k.IsSpecialDelegator(ctx, sdk.ValAddress(addr), delegatorAddress) {
 			completionTime, undelegatedAmt, err = k.UndelegateSpecial(ctx, delegatorAddress, addr, shares)
+		} else {
+			completionTime, undelegatedAmt, err = k.Keeper.Undelegate(ctx, delegatorAddress, addr, shares)
 		}
 		if err != nil {
 			return nil, err
@@ -809,10 +893,12 @@ func (k msgServer) CancelUnbondingDelegation(ctx context.Context, msg *types.Msg
 	// licenses stay occupied during the whole unbonding period (they are only
 	// released by CompleteUnbonding), so canceling is license-neutral: the
 	// count is untouched and the cap cannot be exceeded by a
-	// delegate -> undelegate -> cancel cycle. Only the delegation shape is
-	// re-validated: whole increments into a live delegation, or the entry
-	// minimum when the cancel re-creates a fully-exited delegation
-	if validator.Mode == types.ValidatorMode_MODE_LICENSE {
+	// delegate -> undelegate -> cancel cycle. Only a partial cancel has its
+	// delegation shape re-validated (whole increments, or the entry minimum
+	// when the cancel re-creates a fully-exited delegation); canceling the
+	// whole entry restores stake that was already accepted and is always
+	// allowed — a slash may have left the balance at a non-increment amount
+	if validator.Mode == types.ValidatorMode_MODE_LICENSE && !msg.Amount.Amount.Equal(unbondEntry.Balance) {
 		if _, err := k.calculateDelegateLicenseCount(ctx, msg.Amount, validator, delegatorAddress); err != nil {
 			return nil, err
 		}
@@ -902,10 +988,14 @@ func (k msgServer) calculateDelegateLicenseCount(ctx context.Context, amount sdk
 }
 
 // calculateEditLicenseCount recomputes a license validator's total license
-// usage from state for MsgEditValidator: every active delegation must stay at
-// or above the entry minimum and be a whole number of the (possibly just
-// updated) increment. Stakes still locked in the unbonding queue keep holding
-// their licenses until they mature, so their balances are counted as well.
+// usage from state for MsgEditValidator: each delegation occupies
+// ceil(tokens/increment) licenses, and stakes still locked in the unbonding
+// queue keep holding ceil(balance/increment) until CompleteUnbonding releases
+// them with the same rule. The ceiling makes the recount slash-tolerant: a
+// slash leaves token values at non-increment amounts, and requiring exact
+// multiples here would permanently block every subsequent edit (even a
+// description-only one). It also makes the recount the recovery path for any
+// LicenseCount drift slashing causes.
 func (k msgServer) calculateEditLicenseCount(ctx context.Context, valAddr sdk.ValAddress, validator types.Validator) (math.Int, error) {
 	delegations, err := k.GetValidatorDelegations(ctx, valAddr)
 	if err != nil {
@@ -914,24 +1004,16 @@ func (k msgServer) calculateEditLicenseCount(ctx context.Context, valAddr sdk.Va
 	totalLicenses := math.ZeroInt()
 	for _, delegation := range delegations {
 		tokens := validator.TokensFromShares(delegation.Shares).TruncateInt()
-		if tokens.LT(validator.MinDelegation) {
-			return math.Int{}, types.ErrDelegationBelowMinimum
-		}
-		if tokens.Mod(validator.DelegationIncrement).GT(math.ZeroInt()) {
-			return math.Int{}, types.ErrInvalidIncrementDelegation
-		}
-		totalLicenses = totalLicenses.Add(tokens.Quo(validator.DelegationIncrement))
+		totalLicenses = totalLicenses.Add(licenseUnits(tokens, validator.DelegationIncrement))
 	}
 
-	// unbonding stakes keep their licenses until CompleteUnbonding releases
-	// them; their balances are floored per entry like the release will be
 	ubds, err := k.GetUnbondingDelegationsFromValidator(ctx, valAddr)
 	if err != nil {
 		return math.Int{}, err
 	}
 	for _, ubd := range ubds {
 		for _, entry := range ubd.Entries {
-			totalLicenses = totalLicenses.Add(entry.Balance.Quo(validator.DelegationIncrement))
+			totalLicenses = totalLicenses.Add(licenseUnits(entry.Balance, validator.DelegationIncrement))
 		}
 	}
 	return totalLicenses, nil

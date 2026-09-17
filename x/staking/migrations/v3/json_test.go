@@ -50,7 +50,13 @@ func TestMigrateJSON(t *testing.T) {
 	},
 	"redelegations": [],
 	"unbonding_delegations": [],
-	"validators": []
+	"validator_approval": {
+		"approved_validators": [],
+		"approver_address": "",
+		"enabled": false
+	},
+	"validators": [],
+	"whitelist_delegators": []
 }`
 
 	require.Equal(t, expected, string(indentedBz))

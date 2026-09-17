@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"strings"
-
 	flag "github.com/spf13/pflag"
 
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -12,6 +10,8 @@ const (
 	FlagAddressApprover    = "approver"
 	FlagAddressNewApprover = "new-approver"
 	FlagApprovalEnabled    = "approval-enabled"
+	FlagApproveValidators  = "approve-validators"
+	FlagRevokeValidators   = "revoke-validators"
 
 	FlagAddressValidator    = "validator"
 	FlagAddressValidatorSrc = "addr-validator-source"
@@ -70,7 +70,14 @@ func FlagSetApprover() *flag.FlagSet {
 
 func FlagSetNewApprover() *flag.FlagSet {
 	fs := flag.NewFlagSet("", flag.ContinueOnError)
-	fs.String(FlagAddressNewApprover, "", "New approver for create validator")
+	fs.String(FlagAddressNewApprover, "", "New approver for create validator (empty keeps the current approver)")
+	return fs
+}
+
+func FlagSetApprovedValidators() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.StringSlice(FlagApproveValidators, nil, "Operator (valoper) addresses to grant a one-time create-validator approval")
+	fs.StringSlice(FlagRevokeValidators, nil, "Operator (valoper) addresses whose pending create-validator approval is revoked")
 	return fs
 }
 
@@ -197,17 +204,4 @@ func flagSetDescriptionCreate() *flag.FlagSet {
 	fs.String(FlagDetails, "", "The validator's (optional) details")
 
 	return fs
-}
-
-func convertValidatorCreationFlag(flag string) types.ValidatorMode {
-	switch strings.ToLower(flag) {
-	case "0", "normal", "mode_normal":
-		return types.ValidatorMode_MODE_NORMAL
-	case "1", "license", "mode_license":
-		return types.ValidatorMode_MODE_LICENSE
-	case "2", "fast", "mode_fast":
-		return types.ValidatorMode_MODE_FAST
-	default:
-		return defaultValidatorMode
-	}
 }

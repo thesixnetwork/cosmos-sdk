@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
+	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	errorsmod "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
@@ -39,9 +39,9 @@ func (k msgServer) CreateWhitelistdelegator(goCtx context.Context, msg *types.Ms
 		}
 	}
 
-	// check duplicate 
+	// check duplicate
 	for _, whitelist := range whitelist.DelegatorAddress {
-		if whitelist == msg.DelegatorAddress{
+		if whitelist == msg.DelegatorAddress {
 			return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "duplicate delegator address (%s)", err)
 		}
 	}
@@ -49,10 +49,12 @@ func (k msgServer) CreateWhitelistdelegator(goCtx context.Context, msg *types.Ms
 	// append value to key store
 	whitelist.DelegatorAddress = append(whitelist.DelegatorAddress, msg.DelegatorAddress)
 
-	k.SetWhitelistDelegator(ctx, types.WhitelistDelegator{
+	if err := k.SetWhitelistDelegator(ctx, types.WhitelistDelegator{
 		ValidatorAddress: whitelist.ValidatorAddress,
 		DelegatorAddress: whitelist.DelegatorAddress,
-	})
+	}); err != nil {
+		return nil, err
+	}
 
 	ctx.EventManager().EmitEvents(sdk.Events{
 		sdk.NewEvent(
@@ -64,7 +66,6 @@ func (k msgServer) CreateWhitelistdelegator(goCtx context.Context, msg *types.Ms
 
 	return &types.MsgCreateWhitelistdelegatorResponse{WhitelistDelegator: &whitelist}, nil
 }
-
 
 // DeleteWhitelistdelegator implements types.MsgServer.
 func (k msgServer) DeleteWhitelistdelegator(goCtx context.Context, msg *types.MsgDeleteWhitelistDelegator) (*types.MsgDeleteWhitelistdelegatorResponse, error) {

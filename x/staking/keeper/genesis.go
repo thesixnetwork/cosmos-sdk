@@ -38,14 +38,15 @@ func (k Keeper) InitGenesis(ctx context.Context, data *types.GenesisState) (res 
 		panic(err)
 	}
 
-	if err := k.SetNewValidatorApprovalState(ctx, data.ValidatorApproval); err != nil  {
+	if err := k.SetNewValidatorApprovalState(ctx, data.ValidatorApproval); err != nil {
 		panic(err)
 	}
 
 	for _, whitelistDelegator := range data.WhitelistDelegators {
-		k.SetWhitelistDelegator(sdkCtx, whitelistDelegator)
+		if err := k.SetWhitelistDelegator(sdkCtx, whitelistDelegator); err != nil {
+			panic(err)
+		}
 	}
-
 
 	for _, validator := range data.Validators {
 		if err := k.SetValidator(ctx, validator); err != nil {

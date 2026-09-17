@@ -27,8 +27,16 @@ func NewMsgSetValidatorApproval(
 	approver string,
 	new_approver string,
 	enabled bool,
+	approveValidators []string,
+	revokeValidators []string,
 ) (*MsgSetValidatorApproval, error) {
-	return &MsgSetValidatorApproval{ApproverAddress: approver, NewApproverAddress: new_approver, Enabled: enabled}, nil
+	return &MsgSetValidatorApproval{
+		ApproverAddress:    approver,
+		NewApproverAddress: new_approver,
+		Enabled:            enabled,
+		ApproveValidators:  approveValidators,
+		RevokeValidators:   revokeValidators,
+	}, nil
 }
 
 // NewMsgCreateValidator creates a new MsgCreateValidator instance.
@@ -90,31 +98,36 @@ func (msg MsgCreateValidator) Validate(ac address.Codec) error {
 		)
 	}
 
-	if !msg.MinDelegation.IsNil() && !msg.MinDelegation.IsPositive() {
+	// zero counts as unset for the custom Int fields: they are non-nullable on
+	// the wire, so a message built without them arrives as zero after any
+	// marshal round-trip (gentx, simd testnet, external clients)
+	if !msg.MinDelegation.IsNil() && msg.MinDelegation.IsNegative() {
 		return errorsmod.Wrap(
 			sdkerrors.ErrInvalidRequest,
-			"minimum delegation must be a positive integer",
+			"minimum delegation cannot be negative",
 		)
 	}
 
-	if !msg.DelegationIncrement.IsNil() && !msg.DelegationIncrement.IsPositive() {
+	if !msg.DelegationIncrement.IsNil() && msg.DelegationIncrement.IsNegative() {
 		return errorsmod.Wrap(
 			sdkerrors.ErrInvalidRequest,
-			"delegation increment must be a positive integer",
+			"delegation increment cannot be negative",
 		)
 	}
 
 	if msg.Mode == ValidatorMode_MODE_LICENSE {
-		if msg.MaxLicense.IsNil() {
+		// MinDelegation may stay unset: the msg server defaults it to
+		// DelegationIncrement, which is the field license mode cannot go without
+		if msg.DelegationIncrement.IsNil() || !msg.DelegationIncrement.IsPositive() {
 			return errorsmod.Wrap(
 				sdkerrors.ErrInvalidRequest,
-				"max license is required when license mode is used",
+				"delegation increment must be a positive integer when license mode is used",
 			)
 		}
-		if !msg.MaxLicense.IsNil() && !msg.MaxLicense.IsPositive() {
+		if msg.MaxLicense.IsNil() || !msg.MaxLicense.IsPositive() {
 			return errorsmod.Wrap(
 				sdkerrors.ErrInvalidRequest,
-				"max license must be a positive integer",
+				"max license must be a positive integer when license mode is used",
 			)
 		}
 	}

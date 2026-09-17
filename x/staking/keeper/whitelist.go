@@ -13,13 +13,16 @@ import (
 )
 
 // SetWhitelistDelegator set a specific whitelistDelegator in the store from its index
-func (k Keeper) SetWhitelistDelegator(ctx sdk.Context, whitelistDelegator types.WhitelistDelegator) {
+func (k Keeper) SetWhitelistDelegator(ctx sdk.Context, whitelistDelegator types.WhitelistDelegator) error {
+	valAddr, err := sdk.ValAddressFromBech32(whitelistDelegator.ValidatorAddress)
+	if err != nil {
+		return sdkerrors.ErrInvalidAddress.Wrapf("invalid whitelist validator address %q: %s", whitelistDelegator.ValidatorAddress, err)
+	}
+
 	store := k.storeService.OpenKVStore(ctx)
 	b := k.cdc.MustMarshal(&whitelistDelegator)
 
-	valAddr, _ := sdk.ValAddressFromBech32(whitelistDelegator.ValidatorAddress)
-
-	store.Set(types.WhitelistDelegatorKey(
+	return store.Set(types.WhitelistDelegatorKey(
 		valAddr,
 	), b)
 }
@@ -107,10 +110,12 @@ func (k Keeper) DelDelegatorFromWhitelist(ctx sdk.Context, validator sdk.ValAddr
 		}
 	}
 
-	k.SetWhitelistDelegator(ctx, types.WhitelistDelegator{
+	if err := k.SetWhitelistDelegator(ctx, types.WhitelistDelegator{
 		ValidatorAddress: specialList.ValidatorAddress,
 		DelegatorAddress: specialList.DelegatorAddress,
-	})
+	}); err != nil {
+		return nil, err
+	}
 
 	return &types.MsgDeleteWhitelistdelegatorResponse{WhitelistDelegator: &specialList}, nil
 }

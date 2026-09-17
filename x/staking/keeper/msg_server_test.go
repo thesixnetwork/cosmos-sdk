@@ -13,6 +13,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
@@ -1115,10 +1117,11 @@ func (s *KeeperTestSuite) TestMsgCancelUnbondingDelegation() {
 
 	s.bankKeeper.EXPECT().DelegateCoinsFromAccountToModule(gomock.Any(), Addr, stakingtypes.NotBondedPoolName, gomock.Any()).AnyTimes()
 
-	// set approval
+	// set approval, pre-approving the operator that is created below
 	keeper.SetNewValidatorApprovalState(ctx, stakingtypes.ValidatorApproval{
-		ApproverAddress: pk.Address().String(),
-		Enabled:         true,
+		ApproverAddress:    pk.Address().String(),
+		Enabled:            true,
+		ApprovedValidators: []string{ValAddr.String()},
 	})
 
 	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), pk.Address().String(), pk, amt, stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt())
@@ -1417,8 +1420,8 @@ func (s *KeeperTestSuite) TestMsgSetValidatorApproval() {
 	approver := Addr
 	newApprover := sdk.AccAddress(PKS[1].Address())
 
-	// the approval state is only written by InitGenesis; before it exists the
-	// message must fail instead of silently creating one
+	// before the record exists (chains that upgraded in-place never ran the
+	// InitGenesis write), only the governance authority can bootstrap it
 	_, err := keeper.GetValidatorApproval(ctx)
 	require.ErrorIs(err, stakingtypes.ErrNoValidatorFound)
 	_, err = msgServer.SetValidatorApproval(ctx, &stakingtypes.MsgSetValidatorApproval{
@@ -1427,12 +1430,15 @@ func (s *KeeperTestSuite) TestMsgSetValidatorApproval() {
 		Enabled:            true,
 	})
 	require.Error(err)
-	require.Contains(err.Error(), "Validator approval is somehow does not existed")
+	require.Contains(err.Error(), "only the authority")
 
-	require.NoError(keeper.SetNewValidatorApprovalState(ctx, stakingtypes.ValidatorApproval{
-		ApproverAddress: approver.String(),
-		Enabled:         true,
-	}))
+	authority := authtypes.NewModuleAddress(govtypes.ModuleName).String()
+	_, err = msgServer.SetValidatorApproval(ctx, &stakingtypes.MsgSetValidatorApproval{
+		ApproverAddress:    authority,
+		NewApproverAddress: approver.String(),
+		Enabled:            true,
+	})
+	require.NoError(err)
 
 	testCases := []struct {
 		name      string
@@ -1513,19 +1519,29 @@ func (s *KeeperTestSuite) TestMsgCreateValidatorApproval() {
 		Enabled:         true,
 	}))
 
-	// while approval is enabled, a message naming the wrong approver is rejected
+	// while approval is enabled, an operator without a pre-approval is
+	// rejected — naming the approver in the (unsigned) approver_address field
+	// proves nothing
 	pk := ed25519.GenPrivKey().PubKey()
-	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), Addr.String(), pk, selfBond, stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt())
+	msg, err := stakingtypes.NewMsgCreateValidator(ValAddr.String(), approver.String(), pk, selfBond, stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt())
 	require.NoError(err)
 	_, err = msgServer.CreateValidator(ctx, msg)
 	require.Error(err)
-	require.Contains(err.Error(), "Wrong approver for create validator")
+	require.Contains(err.Error(), "has not been approved for creation")
 
-	// the configured approver address passes the gate
-	msg, err = stakingtypes.NewMsgCreateValidator(ValAddr.String(), approver.String(), pk, selfBond, stakingtypes.Description{Moniker: "NewVal"}, comm, math.OneInt())
+	// after the approver grants a pre-approval for this operator, the same
+	// message passes the gate, and the one-time grant is consumed
+	_, err = msgServer.SetValidatorApproval(ctx, &stakingtypes.MsgSetValidatorApproval{
+		ApproverAddress:   approver.String(),
+		Enabled:           true,
+		ApproveValidators: []string{ValAddr.String()},
+	})
 	require.NoError(err)
 	_, err = msgServer.CreateValidator(ctx, msg)
 	require.NoError(err)
+	approval, err := keeper.GetValidatorApproval(ctx)
+	require.NoError(err)
+	require.Empty(approval.ApprovedValidators)
 
 	// with approval disabled the approver field is not checked at all
 	require.NoError(keeper.SetNewValidatorApprovalState(ctx, stakingtypes.ValidatorApproval{
@@ -1572,7 +1588,7 @@ func (s *KeeperTestSuite) TestMsgCreateValidatorLicenseMode() {
 			name:      "missing max license",
 			mutate:    func(msg *stakingtypes.MsgCreateValidator) { msg.MaxLicense = math.Int{} },
 			expErr:    true,
-			expErrMsg: "max license is required when license mode is used",
+			expErrMsg: "max license must be a positive integer when license mode is used",
 		},
 		{
 			name:      "non-positive max license",
@@ -1587,7 +1603,7 @@ func (s *KeeperTestSuite) TestMsgCreateValidatorLicenseMode() {
 				msg.MinDelegation = math.Int{}
 			},
 			expErr:    true,
-			expErrMsg: "Min Delegation and DelegationIncrement must be defined and positive",
+			expErrMsg: "delegation increment must be a positive integer when license mode is used",
 		},
 		{
 			name: "self bond below min delegation",
@@ -2249,19 +2265,34 @@ func (s *KeeperTestSuite) TestMsgUndelegateFastMode() {
 	require.NoError(err)
 	require.True(res.CompletionTime.Equal(ctx.BlockTime().Add(unbondingTime)))
 
-	// delegators get the fast exit: completion is immediate instead of
-	// waiting the unbonding period (the whitelist gates entry only, so even
-	// a non-whitelisted delegator can leave)
+	// a delegator that is not on the whitelist is never blocked from leaving,
+	// but goes through the normal unbonding period — the instant exit is a
+	// whitelist privilege, not a property of the validator
 	delegator := sdk.AccAddress(PKS[1].Address())
 	del := stakingtypes.NewDelegation(delegator.String(), ValAddr.String(), math.LegacyNewDec(100))
 	require.NoError(keeper.SetDelegation(ctx, del))
 	res, err = msgServer.Undelegate(ctx, &stakingtypes.MsgUndelegate{
 		DelegatorAddress: delegator.String(),
 		ValidatorAddress: ValAddr.String(),
-		Amount:           sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(100)),
+		Amount:           sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(50)),
 	})
 	require.NoError(err)
-	require.True(res.CompletionTime.Before(ctx.BlockTime().Add(unbondingTime)))
+	require.True(res.CompletionTime.Equal(ctx.BlockTime().Add(unbondingTime)))
+
+	// once whitelisted, the same delegator gets the fast exit: completion is
+	// immediate instead of waiting the unbonding period
+	_, err = msgServer.CreateWhitelistdelegator(ctx, &stakingtypes.MsgCreateWhitelistDelegator{
+		Creator:          Addr.String(),
+		ValidatorAddress: ValAddr.String(),
+		DelegatorAddress: delegator.String(),
+	})
+	require.NoError(err)
+	res, err = msgServer.Undelegate(ctx, &stakingtypes.MsgUndelegate{
+		DelegatorAddress: delegator.String(),
+		ValidatorAddress: ValAddr.String(),
+		Amount:           sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(50)),
+	})
+	require.NoError(err)
 	require.True(res.CompletionTime.Equal(ctx.BlockTime()))
 }
 

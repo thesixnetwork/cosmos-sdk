@@ -444,4 +444,7 @@ message ValidatorUpdates {
 message ValidatorApproval {
   string approver_address = 1;
   bool   enabled          = 2;
+  // operator (valoper) addresses the approver has pre-approved for validator
+  // creation; an entry is consumed by the matching MsgCreateValidator
+  repeated string approved_validators = 3 [(cosmos_proto.scalar) = "cosmos.ValidatorAddressString"];
 }

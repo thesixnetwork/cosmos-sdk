@@ -29,20 +29,18 @@ func MigrateStore(ctx sdk.Context, store storetypes.KVStore, cdc codec.BinaryCod
 
 // migrateParams will set the params to store from legacySubspace
 func migrateParams(ctx sdk.Context, store storetypes.KVStore, cdc codec.BinaryCodec, legacySubspace exported.Subspace) error {
-	// Initialize with default params first
 	legacyParams := types.DefaultParams()
 
-	// Try to get existing params from legacy subspace, but handle the case
-	// where parameters might not exist (which causes panic in GetParamSet)
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				// If params don't exist, we'll use the default params initialized above
-				// This can happen when parameters were never set in the legacy store
-			}
-		}()
+	// DefaultParams is only a fallback for chains whose legacy subspace was
+	// never populated (fresh chains that jump straight to module params).
+	// That case is detected by probing the subspace; if the params exist,
+	// GetParamSet must succeed — swallowing a failure here would silently
+	// replace the chain's consensus parameters with SDK defaults
+	if hasLegacyParams(ctx, legacySubspace) {
 		legacySubspace.GetParamSet(ctx, &legacyParams)
-	}()
+	} else {
+		ctx.Logger().Info("legacy staking params not found; migrating with default params", "module", types.ModuleName)
+	}
 
 	if err := legacyParams.Validate(); err != nil {
 		return err
@@ -51,6 +49,27 @@ func migrateParams(ctx sdk.Context, store storetypes.KVStore, cdc codec.BinaryCo
 	bz := cdc.MustMarshal(&legacyParams)
 	store.Set(types.ParamsKey, bz)
 	return nil
+}
+
+// hasLegacyParams reports whether the legacy x/params subspace holds staking
+// params. The exported.Subspace interface only exposes GetParamSet, so the
+// probe uses the optional methods of the concrete x/params Subspace; an
+// implementation without them is assumed populated (the pre-migration state
+// of every live chain).
+func hasLegacyParams(ctx sdk.Context, legacySubspace exported.Subspace) bool {
+	type keyTable interface{ HasKeyTable() bool }
+	if kt, ok := legacySubspace.(keyTable); ok && !kt.HasKeyTable() {
+		return false
+	}
+
+	type hasKey interface {
+		Has(ctx sdk.Context, key []byte) bool
+	}
+	if h, ok := legacySubspace.(hasKey); ok {
+		return h.Has(ctx, types.KeyUnbondingTime)
+	}
+
+	return true
 }
 
 // migrateUBDEntries will remove the ubdEntries with same creation_height

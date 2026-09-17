@@ -62,6 +62,11 @@ message MsgSetValidatorApproval {
   string approver_address       = 1;
   string new_approver_address   = 2;
   bool   enabled                = 3;
+  // operator (valoper) addresses granted a one-time permission to create a
+  // validator while approval is enabled; the grant is consumed on use
+  repeated string approve_validators = 4 [(cosmos_proto.scalar) = "cosmos.ValidatorAddressString"];
+  // operator (valoper) addresses whose pending creation permission is revoked
+  repeated string revoke_validators = 5 [(cosmos_proto.scalar) = "cosmos.ValidatorAddressString"];
 }
 
 // MsgSetValidatorApprovalResponse

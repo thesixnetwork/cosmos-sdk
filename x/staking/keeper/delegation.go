@@ -1111,12 +1111,6 @@ func (k Keeper) getBeginInfo(
 
 	case validator.IsUnbonding():
 		return validator.UnbondingTime, validator.UnbondingHeight, false, nil
-	case validator.Mode == types.ValidatorMode_MODE_FAST:
-		prevblockCtx := sdkCtx.WithBlockHeight(sdkCtx.BlockHeader().Height - 1)
-		nextBlock := sdkCtx.BlockHeight() + 1
-		timeDiff := sdkCtx.BlockHeader().Time.Sub(prevblockCtx.BlockHeader().Time)
-		completionTime := sdkCtx.BlockHeader().Time.Add(timeDiff)
-		return completionTime, nextBlock, true, nil
 
 	default:
 		panic(fmt.Sprintf("unknown validator status: %s", validator.Status))
@@ -1178,6 +1172,11 @@ func (k Keeper) Undelegate(
 	return completionTime, returnAmount, nil
 }
 
+// UndelegateSpecial is the fast-mode variant of Undelegate: the unbonding
+// entry is created with the current block time as its completion time, so it
+// matures in this block's EndBlocker and the stake is returned immediately.
+// The privilege is reserved for whitelisted delegators; everyone else goes
+// through the normal Undelegate (the msg server routes accordingly).
 func (k Keeper) UndelegateSpecial(
 	ctx context.Context, delAddr sdk.AccAddress, valAddr sdk.ValAddress, sharesAmount math.LegacyDec,
 ) (time.Time, math.Int, error) {
@@ -1190,10 +1189,9 @@ func (k Keeper) UndelegateSpecial(
 		return time.Time{}, math.Int{}, types.ErrSpecialModeDisable
 	}
 
-	// isSpecial := k.IsSpecialDelegator(ctx, valAddr, delAddr)
-	// if !isSpecial {
-	// 	return time.Time{}, types.ErrDelegatorIsNotSpecial
-	// }
+	if !k.IsSpecialDelegator(ctx, valAddr, delAddr) {
+		return time.Time{}, math.Int{}, types.ErrDelegatorIsNotSpecial
+	}
 
 	hasMaxEntries, err := k.HasMaxUnbondingDelegationEntries(ctx, delAddr, valAddr)
 	if err != nil {
@@ -1211,19 +1209,21 @@ func (k Keeper) UndelegateSpecial(
 
 	// transfer the validator tokens to the not bonded pool
 	if validator.IsBonded() {
-		k.bondedTokensToNotBonded(ctx, returnAmount)
+		if err := k.bondedTokensToNotBonded(ctx, returnAmount); err != nil {
+			return time.Time{}, math.Int{}, err
+		}
 	}
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	prevblockCtx := sdkCtx.WithBlockHeight(sdkCtx.BlockHeader().Height - 1)
-	timeDiff := sdkCtx.BlockHeader().Time.Sub(prevblockCtx.BlockHeader().Time)
-
-	completionTime := sdkCtx.BlockHeader().Time.Add(timeDiff)
+	completionTime := sdkCtx.BlockHeader().Time
 	ubd, err := k.SetUnbondingDelegationEntry(ctx, delAddr, valAddr, sdkCtx.BlockHeight(), completionTime, returnAmount)
 	if err != nil {
 		return time.Time{}, math.Int{}, err
 	}
-	k.InsertUBDQueue(ctx, ubd, completionTime)
+
+	if err := k.InsertUBDQueue(ctx, ubd, completionTime); err != nil {
+		return time.Time{}, math.Int{}, err
+	}
 
 	return completionTime, returnAmount, nil
 }
@@ -1252,6 +1252,7 @@ func (k Keeper) CompleteUnbonding(ctx context.Context, delAddr sdk.AccAddress, v
 	}
 
 	// loop through all the entries and complete unbonding mature entries
+	var maturedBalances []math.Int
 	for i := 0; i < len(ubd.Entries); i++ {
 		entry := ubd.Entries[i]
 		if entry.IsMature(ctxTime) && !entry.OnHold() {
@@ -1271,6 +1272,7 @@ func (k Keeper) CompleteUnbonding(ctx context.Context, delAddr sdk.AccAddress, v
 				}
 
 				balances = balances.Add(amt)
+				maturedBalances = append(maturedBalances, entry.Balance)
 			}
 		}
 	}
@@ -1289,15 +1291,22 @@ func (k Keeper) CompleteUnbonding(ctx context.Context, delAddr sdk.AccAddress, v
 	// license-mode validators keep licenses occupied for the whole unbonding
 	// period, so a cancel-unbonding can always re-bond and freed slots cannot
 	// be taken early; the licenses are only released here, once the unbonding
-	// has matured and the stake actually left
-	if total := balances.AmountOf(bondDenom); total.IsPositive() {
+	// has matured and the stake actually left. Each entry releases
+	// ceil(balance/increment) — the same rule the EditValidator recount uses
+	// to attribute slots to unbonding entries — so a slashed entry still frees
+	// the slot it occupied instead of leaking it forever
+	if len(maturedBalances) > 0 {
 		if validator, err := k.GetValidator(ctx, valAddr); err == nil &&
 			validator.Mode == types.ValidatorMode_MODE_LICENSE && !validator.LicenseCount.IsNil() {
 			increment := math.OneInt()
 			if !validator.DelegationIncrement.IsNil() && validator.DelegationIncrement.IsPositive() {
 				increment = validator.DelegationIncrement
 			}
-			validator.LicenseCount = validator.LicenseCount.Sub(total.Quo(increment))
+			released := math.ZeroInt()
+			for _, balance := range maturedBalances {
+				released = released.Add(licenseUnits(balance, increment))
+			}
+			validator.LicenseCount = validator.LicenseCount.Sub(released)
 			if validator.LicenseCount.IsNegative() {
 				validator.LicenseCount = math.ZeroInt()
 			}
@@ -1308,6 +1317,20 @@ func (k Keeper) CompleteUnbonding(ctx context.Context, delAddr sdk.AccAddress, v
 	}
 
 	return balances, nil
+}
+
+// licenseUnits returns how many license slots an amount occupies: whole
+// increments, rounded up so a partial remainder (e.g. the leftovers of a
+// slash) still holds a slot. A non-positive increment counts nothing.
+func licenseUnits(amount, increment math.Int) math.Int {
+	if increment.IsNil() || !increment.IsPositive() || amount.IsNil() || !amount.IsPositive() {
+		return math.ZeroInt()
+	}
+	units := amount.Quo(increment)
+	if amount.Mod(increment).IsPositive() {
+		units = units.Add(math.OneInt())
+	}
+	return units
 }
 
 // BeginRedelegation begins unbonding / redelegation and creates a redelegation
@@ -1331,91 +1354,6 @@ func (k Keeper) BeginRedelegation(
 		return time.Time{}, types.ErrBadRedelegationSrc
 	} else if err != nil {
 		return time.Time{}, err
-	}
-
-	// check if this is a transitive redelegation
-	hasRecRedel, err := k.HasReceivingRedelegation(ctx, delAddr, valSrcAddr)
-	if err != nil {
-		return time.Time{}, err
-	}
-
-	if hasRecRedel {
-		return time.Time{}, types.ErrTransitiveRedelegation
-	}
-
-	hasMaxRedels, err := k.HasMaxRedelegationEntries(ctx, delAddr, valSrcAddr, valDstAddr)
-	if err != nil {
-		return time.Time{}, err
-	}
-
-	if hasMaxRedels {
-		return time.Time{}, types.ErrMaxRedelegationEntries
-	}
-
-	returnAmount, err := k.Unbond(ctx, delAddr, valSrcAddr, sharesAmount)
-	if err != nil {
-		return time.Time{}, err
-	}
-
-	if returnAmount.IsZero() {
-		return time.Time{}, types.ErrTinyRedelegationAmount
-	}
-
-	sharesCreated, err := k.Delegate(ctx, delAddr, returnAmount, srcValidator.GetStatus(), dstValidator, false)
-	if err != nil {
-		return time.Time{}, err
-	}
-
-	// create the unbonding delegation
-	completionTime, height, completeNow, err := k.getBeginInfo(ctx, valSrcAddr)
-	if err != nil {
-		return time.Time{}, err
-	}
-
-	if completeNow { // no need to create the redelegation object
-		return completionTime, nil
-	}
-
-	red, err := k.SetRedelegationEntry(
-		ctx, delAddr, valSrcAddr, valDstAddr,
-		height, completionTime, returnAmount, sharesAmount, sharesCreated,
-	)
-	if err != nil {
-		return time.Time{}, err
-	}
-
-	err = k.InsertRedelegationQueue(ctx, red, completionTime)
-	if err != nil {
-		return time.Time{}, err
-	}
-
-	return completionTime, nil
-}
-
-// BeginRedelegation for only special node
-func (k Keeper) BeginRedelegationSpecial(
-	ctx context.Context, delAddr sdk.AccAddress, valSrcAddr, valDstAddr sdk.ValAddress, sharesAmount math.LegacyDec,
-) (completionTime time.Time, err error) {
-	if bytes.Equal(valSrcAddr, valDstAddr) {
-		return time.Time{}, types.ErrSelfRedelegation
-	}
-
-	dstValidator, err := k.GetValidator(ctx, valDstAddr)
-	if errors.Is(err, types.ErrNoValidatorFound) {
-		return time.Time{}, types.ErrBadRedelegationDst
-	} else if err != nil {
-		return time.Time{}, err
-	}
-
-	srcValidator, err := k.GetValidator(ctx, valSrcAddr)
-	if errors.Is(err, types.ErrNoValidatorFound) {
-		return time.Time{}, types.ErrBadRedelegationSrc
-	} else if err != nil {
-		return time.Time{}, err
-	}
-
-	if srcValidator.Mode != types.ValidatorMode_MODE_FAST {
-		return time.Time{}, types.ErrBadRedelegationNotSpecial
 	}
 
 	// check if this is a transitive redelegation

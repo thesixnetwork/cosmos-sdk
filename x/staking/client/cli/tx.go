@@ -31,8 +31,6 @@ var (
 	defaultCommissionMaxRate       = "0.2"
 	defaultCommissionMaxChangeRate = "0.01"
 	defaultMinSelfDelegation       = "1"
-	defaultMinDelegation           = "1"
-	defaultDelegationIncrement     = "1"
 	defaultValidatorMode           = types.ValidatorMode_MODE_NORMAL
 )
 
@@ -74,8 +72,10 @@ func NewSetValidatorApprovalCmd() *cobra.Command {
 			approverAddr := clientCtx.GetFromAddress()
 			newApproverAddr, _ := cmd.Flags().GetString(FlagAddressNewApprover)
 			approvalEnabled, _ := cmd.Flags().GetBool(FlagApprovalEnabled)
+			approveValidators, _ := cmd.Flags().GetStringSlice(FlagApproveValidators)
+			revokeValidators, _ := cmd.Flags().GetStringSlice(FlagRevokeValidators)
 
-			msg, err := types.NewMsgSetValidatorApproval(approverAddr.String(), newApproverAddr, approvalEnabled)
+			msg, err := types.NewMsgSetValidatorApproval(approverAddr.String(), newApproverAddr, approvalEnabled, approveValidators, revokeValidators)
 			if err != nil {
 				return fmt.Errorf("error create message: %v", err)
 			}
@@ -86,10 +86,10 @@ func NewSetValidatorApprovalCmd() *cobra.Command {
 
 	cmd.Flags().AddFlagSet(FlagSetNewApprover())
 	cmd.Flags().AddFlagSet(FlagSetApprovalEnabled())
+	cmd.Flags().AddFlagSet(FlagSetApprovedValidators())
 	flags.AddTxFlagsToCmd(cmd)
 
 	_ = cmd.MarkFlagRequired(flags.FlagFrom)
-	_ = cmd.MarkFlagRequired(FlagAddressNewApprover)
 	_ = cmd.MarkFlagRequired(FlagApprovalEnabled)
 
 	return cmd
@@ -137,15 +137,13 @@ func NewCreateValidatorLegacyCmd(ac address.Codec) *cobra.Command {
 				return err
 			}
 
-			var valMinSelfDelegation *math.Int
 			minSelfDelegationString, _ := cmd.Flags().GetString(FlagMinSelfDelegation)
-			if minSelfDelegationString != "" {
-				msb, ok := math.NewIntFromString(minSelfDelegationString)
-				if !ok {
-					return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "minimum self delegation must be a positive integer")
-				}
-
-				valMinSelfDelegation = &msb
+			if minSelfDelegationString == "" {
+				minSelfDelegationString = defaultMinSelfDelegation
+			}
+			valMinSelfDelegation, ok := math.NewIntFromString(minSelfDelegationString)
+			if !ok {
+				return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "minimum self delegation must be a positive integer")
 			}
 
 			validator := validator{
@@ -157,7 +155,7 @@ func NewCreateValidatorLegacyCmd(ac address.Codec) *cobra.Command {
 				Security:          security,
 				Details:           details,
 				CommissionRates:   commissionRates,
-				MinSelfDelegation: *valMinSelfDelegation,
+				MinSelfDelegation: valMinSelfDelegation,
 			}
 
 			txf, err := tx.NewFactoryCLI(clientCtx, cmd.Flags())
@@ -198,17 +196,11 @@ func NewCreateValidatorLegacyCmd(ac address.Codec) *cobra.Command {
 	_ = cmd.MarkFlagRequired(FlagWebsite)
 	_ = cmd.MarkFlagRequired(FlagSecurityContact)
 	_ = cmd.MarkFlagRequired(FlagDetails)
-	_ = cmd.MarkFlagRequired(FlagValidatorMode)
 
-	flagMode, _ := cmd.Flags().GetString(FlagValidatorMode)
-
-	validatorMode := convertValidatorCreationFlag(flagMode)
-	if validatorMode == types.ValidatorMode_MODE_LICENSE {
-		// licence mode
-		_ = cmd.MarkFlagRequired(FlagDelegationIncrement)
-		_ = cmd.MarkFlagRequired(FlagMaxLicense)
-		_ = cmd.MarkFlagRequired(FlagMinDelegation)
-	}
+	// an omitted --validator-mode defaults to a normal validator; license mode
+	// additionally requires --delegation-increment, --max-license and
+	// --min-delegation, which is validated in MsgCreateValidator.Validate
+	// (flags are unparsed while the command is being constructed)
 
 	return cmd
 }
@@ -276,17 +268,8 @@ where we can get the pubkey using "%s tendermint show-validator"
 	cmd.Flags().String(FlagNodeID, "", "The node's ID")
 	flags.AddTxFlagsToCmd(cmd)
 
-	flagMode, _ := cmd.Flags().GetString(FlagValidatorMode)
-	validatorMode := convertValidatorCreationFlag(flagMode)
-	if validatorMode == types.ValidatorMode_MODE_LICENSE {
-		// licence mode
-		_ = cmd.MarkFlagRequired(FlagDelegationIncrement)
-		_ = cmd.MarkFlagRequired(FlagMaxLicense)
-		_ = cmd.MarkFlagRequired(FlagMinDelegation)
-	}
 	// mark flag that required of this message
 	_ = cmd.MarkFlagRequired(flags.FlagFrom)
-	_ = cmd.MarkFlagRequired(FlagValidatorMode)
 
 	return cmd
 }
@@ -394,17 +377,6 @@ func NewEditValidatorCmd(ac address.Codec) *cobra.Command {
 	cmd.Flags().AddFlagSet(FlagValidatorModeEdit())
 	cmd.Flags().AddFlagSet(FlagDelegationIncrementEdit())
 	cmd.Flags().AddFlagSet(FlagMinDelegationEdit())
-
-	flagMode, _ := cmd.Flags().GetString(FlagValidatorMode)
-	if flagMode != "" {
-		validatorMode := convertValidatorCreationFlag(flagMode)
-		if validatorMode == types.ValidatorMode_MODE_LICENSE {
-			// licence mode
-			_ = cmd.MarkFlagRequired(FlagDelegationIncrement)
-			_ = cmd.MarkFlagRequired(FlagMaxLicense)
-			_ = cmd.MarkFlagRequired(FlagMinDelegation)
-		}
-	}
 
 	flags.AddTxFlagsToCmd(cmd)
 
@@ -608,7 +580,16 @@ func newBuildCreateValidatorMsg(clientCtx client.Context, txf tx.Factory, fs *fl
 		return txf, nil, err
 	}
 
-	validatorMode := convertValidatorCreationFlag(flagMode)
+	// an omitted mode defaults to normal; anything else must parse, so a typo
+	// like --validator-mode=licence errors instead of silently building a
+	// normal-mode validator
+	validatorMode := defaultValidatorMode
+	if flagMode != "" {
+		validatorMode, err = types.ParseValidatorMode(flagMode)
+		if err != nil {
+			return txf, nil, err
+		}
+	}
 
 	switch validatorMode {
 	case types.ValidatorMode_MODE_LICENSE:
@@ -735,9 +716,7 @@ func CreateValidatorMsgFlagSet(ipDefault string) (fs *flag.FlagSet, defaultsDesc
 	commission max rate:         %s
 	commission max change rate:  %s
 	minimum self delegation:     %s
-	minimum delegation:          %s
-	delegation increment:        %s
-    `, defaultAmount, defaultCommissionRate, defaultCommissionMaxRate, defaultCommissionMaxChangeRate, defaultMinSelfDelegation, defaultMinDelegation, defaultDelegationIncrement)
+    `, defaultAmount, defaultCommissionRate, defaultCommissionMaxRate, defaultCommissionMaxChangeRate, defaultMinSelfDelegation)
 
 	return fsCreateValidator, defaultsDesc
 }
@@ -874,20 +853,21 @@ func PrepareConfigForTxCreateValidator(flagSet *flag.FlagSet, moniker, nodeID, c
 		c.MinSelfDelegation = defaultMinSelfDelegation
 	}
 
-	if c.MinDelegation == "" {
-		c.MinDelegation = defaultMinDelegation
-	}
-
-	if c.DelegationIncrement == "" {
-		c.DelegationIncrement = defaultDelegationIncrement
-	}
+	// MinDelegation and DelegationIncrement stay empty when not requested:
+	// the msg treats them as unset and only license mode requires them
 
 	validatorMode, err := flagSet.GetString(FlagValidatorMode)
 	if err != nil {
 		return c, err
 	}
 
-	c.ValidatorMode = convertValidatorCreationFlag(validatorMode)
+	c.ValidatorMode = defaultValidatorMode
+	if validatorMode != "" {
+		c.ValidatorMode, err = types.ParseValidatorMode(validatorMode)
+		if err != nil {
+			return c, err
+		}
+	}
 
 	c.MaxLicense, err = flagSet.GetString(FlagMaxLicense)
 	if err != nil {
@@ -951,19 +931,21 @@ func BuildCreateValidatorMsg(clientCtx client.Context, config TxCreateValidatorC
 		minSelfDelegation,
 	)
 
-	mdlStr := config.MinDelegation
-	minDelegation, ok := math.NewIntFromString(mdlStr)
-	if !ok {
-		return txBldr, nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "minimum delegation must be a positive integer")
+	if mdlStr := config.MinDelegation; mdlStr != "" {
+		minDelegation, ok := math.NewIntFromString(mdlStr)
+		if !ok {
+			return txBldr, nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "minimum delegation must be a positive integer")
+		}
+		msg.MinDelegation = minDelegation
 	}
-	msg.MinDelegation = minDelegation
 
-	dliStr := config.DelegationIncrement
-	delegationIncrement, ok := math.NewIntFromString(dliStr)
-	if !ok {
-		return txBldr, nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "delegation increment must be a positive integer")
+	if dliStr := config.DelegationIncrement; dliStr != "" {
+		delegationIncrement, ok := math.NewIntFromString(dliStr)
+		if !ok {
+			return txBldr, nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "delegation increment must be a positive integer")
+		}
+		msg.DelegationIncrement = delegationIncrement
 	}
-	msg.DelegationIncrement = delegationIncrement
 
 	switch config.ValidatorMode {
 	case types.ValidatorMode_MODE_LICENSE:
