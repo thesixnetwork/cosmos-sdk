@@ -28,6 +28,8 @@ STAKING_TOKEN="ustake"
 
 # These are the key addresses from the working genesis
 SUPER_ADMIN_ADDRESS="cosmos1t3p2vzd7w036ahxf4kefsc9sn24pvlqpcktgg7"
+BOB_VAL_ADDRESS="cosmosvaloper13g50hqdqsjk85fmgqz2h5xdxq49lsmjdy96mgq"
+ALICE_VAL_ADDRESS="cosmosvaloper1myrlxmmasv6yq4axrxmdswj9kv5gc0ppvlhrrp"
 
 # =====================================================
 # MNEMONICS SECTION - From config.yml only
@@ -119,7 +121,8 @@ update_genesis '.app_state.bank.denom_metadata[0] = {
 # Validator approval configuration
 update_genesis '.app_state.staking.validator_approval = {
   "approver_address": "'$SUPER_ADMIN_ADDRESS'",
-  "enabled": false
+  "enabled": true,
+  "approved_validators":["'$BOB_VAL_ADDRESS'","'$ALICE_VAL_ADDRESS'"]
 }'
 
 update_genesis '.app_state.staking.params.max_validators = 3'
