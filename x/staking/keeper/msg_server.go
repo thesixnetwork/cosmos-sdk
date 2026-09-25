@@ -251,9 +251,9 @@ func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateVali
 		// rejected instead of silently creating a normal validator
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "Invalid validator mode")
 	}
-	// redelegation is force-disabled on six-network: the wire field is kept
-	// for compatibility but is ignored — every validator is stored disabled
-	validator.EnableRedelegation = false
+	// redelegation eligibility is decided by validator mode at redelegate time
+	// (LICENSE/NORMAL allowed, FAST excluded); the enable_redelegation wire
+	// field is no longer used for gating
 	err = k.SetValidator(ctx, validator)
 	if err != nil {
 		return nil, err
@@ -404,10 +404,14 @@ func (k msgServer) EditValidator(ctx context.Context, msg *types.MsgEditValidato
 			return nil, types.ErrLicenseIncrement
 		}
 
-		// validate max license
+		// validate max license: the cap may be raised OR lowered. It is checked
+		// against the freshly recomputed usage below (ErrNotEnoughLicense), not
+		// the stored LicenseCount (which may be stale, e.g. after a slash), so a
+		// valid reduction is never wrongly blocked while the count-<=-cap
+		// invariant still holds.
 		if msg.MaxLicense != nil && !msg.MaxLicense.IsNil() {
-			if !validator.LicenseCount.IsNil() && msg.MaxLicense.LT(validator.LicenseCount) {
-				return nil, types.ErrMaxLicenseMustBeGeater
+			if !msg.MaxLicense.IsPositive() {
+				return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "max license must be a positive integer")
 			}
 			validator.MaxLicense = *msg.MaxLicense
 		}
@@ -444,10 +448,6 @@ func (k msgServer) EditValidator(ctx context.Context, msg *types.MsgEditValidato
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "Invalid validator mode")
 	}
 
-	// redelegation is force-disabled on six-network: the enable_redelegation
-	// field is ignored and every edit re-asserts the disabled state, so even a
-	// validator that somehow carries a stale true is cleaned up here
-	validator.EnableRedelegation = false
 
 	if msg.CommissionRate != nil {
 		commission, err := k.UpdateValidatorCommission(ctx, validator, *msg.CommissionRate)
@@ -649,10 +649,47 @@ func (k msgServer) BeginRedelegate(ctx context.Context, msg *types.MsgBeginRedel
 		return nil, types.ErrSelfRedelegation
 	}
 
-	// Redelegation is force-disabled on six-network: EnableRedelegation can no
-	// longer be set on create or edit, so every validator fails this check
-	if !sourceVal.EnableRedelegation || !destVal.EnableRedelegation {
-		return nil, types.ErrRedelegationDisable
+	// Fast-mode validators have special instant-exit semantics and are excluded
+	// from redelegation entirely — they cannot be a source or a destination.
+	if sourceVal.Mode == types.ValidatorMode_MODE_FAST || destVal.Mode == types.ValidatorMode_MODE_FAST {
+		return nil, errorsmod.Wrap(types.ErrRedelegationDisable, "fast-mode validators cannot redelegate")
+	}
+
+	// License accounting: the redelegated amount must be a whole multiple of
+	// BOTH validators' delegation_increment. On the source it behaves like an
+	// undelegation (frees licenses); on the destination like a delegation
+	// (consumes licenses, respecting MinDelegation and MaxLicense). Non-license
+	// validators skip these checks. Everything is validated before any state
+	// change so an invalid redelegation fails cleanly.
+	srcIsLicense := sourceVal.Mode == types.ValidatorMode_MODE_LICENSE
+	dstIsLicense := destVal.Mode == types.ValidatorMode_MODE_LICENSE
+
+	srcLicenseFreed := math.ZeroInt()
+	if srcIsLicense {
+		srcLicenseFreed, err = k.calculateUndelegateLicenseCount(ctx, msg.Amount, sourceVal, delegatorAddress)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	dstLicenseUsed := math.ZeroInt()
+	if dstIsLicense {
+		if destVal.MaxLicense.IsNil() {
+			return nil, types.ErrMaxLicenseMustBeDefined
+		}
+		if destVal.LicenseCount.IsNil() {
+			destVal.LicenseCount = math.ZeroInt()
+		}
+		dstLicenseUsed, err = k.calculateDelegateLicenseCount(ctx, msg.Amount, destVal, delegatorAddress)
+		if err != nil {
+			return nil, err
+		}
+		if destVal.LicenseCount.GTE(destVal.MaxLicense) {
+			return nil, types.ErrLicenseLimit
+		}
+		if dstLicenseUsed.Add(destVal.LicenseCount).GT(destVal.MaxLicense) {
+			return nil, types.ErrNotEnoughLicense
+		}
 	}
 
 	completionTime, err := k.BeginRedelegation(
@@ -660,6 +697,42 @@ func (k msgServer) BeginRedelegate(ctx context.Context, msg *types.MsgBeginRedel
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	// The stake has moved; update license counts on both validators. Re-fetch
+	// so the token/share changes BeginRedelegation made are preserved and only
+	// LicenseCount is adjusted.
+	if srcIsLicense {
+		sourceVal, err = k.GetValidator(ctx, valSrcAddr)
+		if err != nil {
+			// a full redelegation can drain and remove the source validator;
+			// there is then nothing left to adjust
+			if !errorsmod.IsOf(err, types.ErrNoValidatorFound) {
+				return nil, err
+			}
+		} else if !sourceVal.LicenseCount.IsNil() {
+			sourceVal.LicenseCount = sourceVal.LicenseCount.Sub(srcLicenseFreed)
+			if sourceVal.LicenseCount.IsNegative() {
+				sourceVal.LicenseCount = math.ZeroInt()
+			}
+			if err := k.SetValidator(ctx, sourceVal); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if dstIsLicense {
+		destVal, err = k.GetValidator(ctx, valDstAddr)
+		if err != nil {
+			return nil, err
+		}
+		if destVal.LicenseCount.IsNil() {
+			destVal.LicenseCount = math.ZeroInt()
+		}
+		destVal.LicenseCount = destVal.LicenseCount.Add(dstLicenseUsed)
+		if err := k.SetValidator(ctx, destVal); err != nil {
+			return nil, err
+		}
 	}
 
 	if msg.Amount.Amount.IsInt64() {
