@@ -917,6 +917,7 @@ func (s *KeeperTestSuite) TestMsgBeginRedelegateLicense() {
 	msg.DelegationIncrement = increment
 	msg.MinDelegation = increment
 	msg.MaxLicense = math.NewInt(150)
+	msg.EnableRedelegation = true
 	_, err = msgServer.CreateValidator(ctx, msg)
 	require.NoError(err)
 	srcVal, err := keeper.GetValidator(ctx, srcValAddr)
@@ -930,6 +931,7 @@ func (s *KeeperTestSuite) TestMsgBeginRedelegateLicense() {
 	msg.DelegationIncrement = increment
 	msg.MinDelegation = increment
 	msg.MaxLicense = math.NewInt(150)
+	msg.EnableRedelegation = true
 	_, err = msgServer.CreateValidator(ctx, msg)
 	require.NoError(err)
 	dstVal, err := keeper.GetValidator(ctx, dstValAddr)
@@ -1004,6 +1006,45 @@ func (s *KeeperTestSuite) TestMsgBeginRedelegateFastExcluded() {
 	})
 	require.Error(err)
 	require.Contains(err.Error(), "fast-mode validators cannot redelegate")
+}
+
+func (s *KeeperTestSuite) TestMsgBeginRedelegateNotEnabled() {
+	ctx, keeper, msgServer := s.ctx, s.stakingKeeper, s.msgServer
+	require := s.Require()
+	s.execExpectCalls()
+
+	srcValAddr := ValAddr
+	dstAccAddr := sdk.AccAddress(PKS[1].Address())
+	dstValAddr := sdk.ValAddress(dstAccAddr)
+	srcPk := ed25519.GenPrivKey().PubKey()
+	dstPk := ed25519.GenPrivKey().PubKey()
+
+	keeper.SetNewValidatorApprovalState(ctx, stakingtypes.ValidatorApproval{ApproverAddress: srcPk.Address().String(), Enabled: false})
+	s.bankKeeper.EXPECT().DelegateCoinsFromAccountToModule(gomock.Any(), dstAccAddr, stakingtypes.NotBondedPoolName, gomock.Any()).AnyTimes()
+
+	comm := stakingtypes.NewCommissionRates(math.LegacyNewDec(0), math.LegacyNewDec(0), math.LegacyNewDec(0))
+	amt := sdk.Coin{Denom: sdk.DefaultBondDenom, Amount: keeper.TokensFromConsensusPower(s.ctx, int64(100))}
+
+	// two normal validators, neither opts into redelegation
+	msg, err := stakingtypes.NewMsgCreateValidator(srcValAddr.String(), srcPk.Address().String(), srcPk, amt, stakingtypes.Description{Moniker: "Src"}, comm, math.OneInt())
+	require.NoError(err)
+	_, err = msgServer.CreateValidator(ctx, msg)
+	require.NoError(err)
+
+	msg, err = stakingtypes.NewMsgCreateValidator(dstValAddr.String(), dstPk.Address().String(), dstPk, amt, stakingtypes.Description{Moniker: "Dst"}, comm, math.OneInt())
+	require.NoError(err)
+	_, err = msgServer.CreateValidator(ctx, msg)
+	require.NoError(err)
+
+	// redelegation is rejected because it was not enabled on the validators
+	_, err = msgServer.BeginRedelegate(ctx, &stakingtypes.MsgBeginRedelegate{
+		DelegatorAddress:    Addr.String(),
+		ValidatorSrcAddress: srcValAddr.String(),
+		ValidatorDstAddress: dstValAddr.String(),
+		Amount:              sdk.NewCoin(sdk.DefaultBondDenom, math.NewInt(1000000)),
+	})
+	require.Error(err)
+	require.Contains(err.Error(), "redelegation is not enabled")
 }
 
 func (s *KeeperTestSuite) TestMsgEditValidatorReduceMaxLicense() {
@@ -1748,8 +1789,8 @@ func (s *KeeperTestSuite) TestMsgCreateValidatorLicenseMode() {
 	require.Equal(increment, validator.DelegationIncrement)
 	require.False(validator.EnableRedelegation)
 
-	// MinDelegation left empty defaults to DelegationIncrement, and a
-	// requested enable_redelegation is ignored — the flag is always stored off
+	// MinDelegation left empty defaults to DelegationIncrement, and a requested
+	// enable_redelegation is honored (redelegation is opt-in per validator)
 	otherAddr := sdk.AccAddress(PKS[1].Address())
 	s.bankKeeper.EXPECT().DelegateCoinsFromAccountToModule(gomock.Any(), otherAddr, stakingtypes.NotBondedPoolName, gomock.Any()).AnyTimes()
 	otherPk := ed25519.GenPrivKey().PubKey()
@@ -1764,7 +1805,7 @@ func (s *KeeperTestSuite) TestMsgCreateValidatorLicenseMode() {
 	validator, err = keeper.GetValidator(ctx, sdk.ValAddress(otherAddr))
 	require.NoError(err)
 	require.Equal(increment, validator.MinDelegation)
-	require.False(validator.EnableRedelegation)
+	require.True(validator.EnableRedelegation)
 }
 
 func (s *KeeperTestSuite) TestMsgEditValidatorLicenseMode() {
@@ -1859,8 +1900,7 @@ func (s *KeeperTestSuite) TestMsgEditValidatorLicenseMode() {
 	require.Error(err)
 	require.Contains(err.Error(), "cannot switch an existing validator into fast mode")
 
-	// redelegation is force-disabled: an enable request is ignored and the
-	// flag stays off no matter what the edit asks for
+	// redelegation is opt-in per validator: an ENABLE request turns the flag on
 	_, err = msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
 		ValidatorAddress:   ValAddr.String(),
 		Description:        desc,
@@ -1869,8 +1909,9 @@ func (s *KeeperTestSuite) TestMsgEditValidatorLicenseMode() {
 	require.NoError(err)
 	validator, err = keeper.GetValidator(ctx, ValAddr)
 	require.NoError(err)
-	require.False(validator.EnableRedelegation)
+	require.True(validator.EnableRedelegation)
 
+	// the unspecified (zero) value leaves the flag unchanged
 	_, err = msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
 		ValidatorAddress: ValAddr.String(),
 		Description:      desc,
@@ -1878,8 +1919,9 @@ func (s *KeeperTestSuite) TestMsgEditValidatorLicenseMode() {
 	require.NoError(err)
 	validator, err = keeper.GetValidator(ctx, ValAddr)
 	require.NoError(err)
-	require.False(validator.EnableRedelegation)
+	require.True(validator.EnableRedelegation)
 
+	// a DISABLE request turns it back off
 	_, err = msgServer.EditValidator(ctx, &stakingtypes.MsgEditValidator{
 		ValidatorAddress:   ValAddr.String(),
 		Description:        desc,

@@ -182,6 +182,7 @@ func NewCreateValidatorLegacyCmd(ac address.Codec) *cobra.Command {
 	cmd.Flags().AddFlagSet(FlagSetApprover())
 	cmd.Flags().AddFlagSet(FlagMinDelegationCreate())
 	cmd.Flags().AddFlagSet(FlagDelegationIncrementCreate())
+	cmd.Flags().AddFlagSet(FlagSetEnableRedelegation())
 
 	cmd.Flags().String(FlagIP, "", fmt.Sprintf("The node's public IP. It takes effect only when used in combination with --%s", flags.FlagGenerateOnly))
 	cmd.Flags().String(FlagNodeID, "", "The node's ID")
@@ -263,6 +264,7 @@ where we can get the pubkey using "%s tendermint show-validator"
 	cmd.Flags().AddFlagSet(FlagMinDelegationCreate())
 	cmd.Flags().AddFlagSet(FlagDelegationIncrementCreate())
 	cmd.Flags().AddFlagSet(FlagValidatorModeCreate())
+	cmd.Flags().AddFlagSet(FlagSetEnableRedelegation())
 
 	cmd.Flags().String(FlagIP, "", fmt.Sprintf("The node's public IP. It takes effect only when used in combination with --%s", flags.FlagGenerateOnly))
 	cmd.Flags().String(FlagNodeID, "", "The node's ID")
@@ -366,6 +368,17 @@ func NewEditValidatorCmd(ac address.Codec) *cobra.Command {
 
 			msg := types.NewMsgEditValidator(valAddr, description, newRate, newMinSelfDelegation, modeInput, newMaxLicense, newDelegationIncrement, newMinDelegation)
 
+			// tri-state redelegation update: only touch it when the flag is
+			// provided, otherwise leave the validator's setting unchanged
+			if cmd.Flags().Changed(FlagEnableRedelegation) {
+				enable, _ := cmd.Flags().GetBool(FlagEnableRedelegation)
+				if enable {
+					msg.EnableRedelegation = types.RedelegationUpdate_REDELEGATION_UPDATE_ENABLE
+				} else {
+					msg.EnableRedelegation = types.RedelegationUpdate_REDELEGATION_UPDATE_DISABLE
+				}
+			}
+
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
@@ -377,6 +390,7 @@ func NewEditValidatorCmd(ac address.Codec) *cobra.Command {
 	cmd.Flags().AddFlagSet(FlagValidatorModeEdit())
 	cmd.Flags().AddFlagSet(FlagDelegationIncrementEdit())
 	cmd.Flags().AddFlagSet(FlagMinDelegationEdit())
+	cmd.Flags().AddFlagSet(FlagSetEnableRedelegation())
 
 	flags.AddTxFlagsToCmd(cmd)
 
@@ -615,6 +629,10 @@ func newBuildCreateValidatorMsg(clientCtx client.Context, txf tx.Factory, fs *fl
 	default:
 		msg.Mode = types.ValidatorMode_MODE_NORMAL
 	}
+
+	// per-validator redelegation opt-in (ignored for fast mode at redelegate time)
+	enableRedelegation, _ := fs.GetBool(FlagEnableRedelegation)
+	msg.EnableRedelegation = enableRedelegation
 
 	if err := msg.Validate(valAc); err != nil {
 		return txf, nil, err

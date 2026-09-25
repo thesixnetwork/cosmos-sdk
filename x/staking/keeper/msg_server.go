@@ -251,9 +251,11 @@ func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateVali
 		// rejected instead of silently creating a normal validator
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "Invalid validator mode")
 	}
-	// redelegation eligibility is decided by validator mode at redelegate time
-	// (LICENSE/NORMAL allowed, FAST excluded); the enable_redelegation wire
-	// field is no longer used for gating
+	// redelegation is opt-in per validator: the operator sets enable_redelegation
+	// here and can toggle it later via edit-validator. It only has effect for
+	// non-fast validators — fast mode is excluded from redelegation at the
+	// redelegate handler regardless of this flag.
+	validator.EnableRedelegation = msg.EnableRedelegation
 	err = k.SetValidator(ctx, validator)
 	if err != nil {
 		return nil, err
@@ -448,6 +450,14 @@ func (k msgServer) EditValidator(ctx context.Context, msg *types.MsgEditValidato
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "Invalid validator mode")
 	}
 
+	// optional tri-state redelegation flag update: enable/disable toggles the
+	// per-validator opt-in; the unspecified (zero) value leaves it unchanged
+	switch msg.EnableRedelegation {
+	case types.RedelegationUpdate_REDELEGATION_UPDATE_ENABLE:
+		validator.EnableRedelegation = true
+	case types.RedelegationUpdate_REDELEGATION_UPDATE_DISABLE:
+		validator.EnableRedelegation = false
+	}
 
 	if msg.CommissionRate != nil {
 		commission, err := k.UpdateValidatorCommission(ctx, validator, *msg.CommissionRate)
@@ -653,6 +663,12 @@ func (k msgServer) BeginRedelegate(ctx context.Context, msg *types.MsgBeginRedel
 	// from redelegation entirely — they cannot be a source or a destination.
 	if sourceVal.Mode == types.ValidatorMode_MODE_FAST || destVal.Mode == types.ValidatorMode_MODE_FAST {
 		return nil, errorsmod.Wrap(types.ErrRedelegationDisable, "fast-mode validators cannot redelegate")
+	}
+
+	// Redelegation is opt-in: both the source and destination validators must
+	// have enabled it (at create-validator or via edit-validator).
+	if !sourceVal.EnableRedelegation || !destVal.EnableRedelegation {
+		return nil, errorsmod.Wrap(types.ErrRedelegationDisable, "redelegation is not enabled on the source and/or destination validator")
 	}
 
 	// License accounting: the redelegated amount must be a whole multiple of

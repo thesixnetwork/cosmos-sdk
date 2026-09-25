@@ -87,6 +87,16 @@ func FlagSetApprovalEnabled() *flag.FlagSet {
 	return fs
 }
 
+// FlagSetEnableRedelegation returns the flag set for the per-validator
+// redelegation opt-in. On create it sets the initial value; on edit, passing
+// the flag enables (true) or disables (false) redelegation, and omitting it
+// leaves the current setting unchanged.
+func FlagSetEnableRedelegation() *flag.FlagSet {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.Bool(FlagEnableRedelegation, false, "Allow redelegation from/to this validator (edit: true=enable, false=disable; omit to leave unchanged)")
+	return fs
+}
+
 // FlagMinDelegation       = "min-delegation"
 func FlagMinDelegationCreate() *flag.FlagSet {
 	fs := flag.NewFlagSet("", flag.ContinueOnError)
